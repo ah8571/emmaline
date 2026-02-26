@@ -91,6 +91,20 @@ AI extracts key ideas → notes page
 - Not suitable for extremely sensitive conversations
 - Standard API rate limiting applies
 
+### Scaling & Monitoring Considerations
+
+**Key metrics to monitor as user base grows:**
+- **Backend server CPU/memory** – Monitor for capacity limits (~10-100 concurrent calls per server)
+- **Google Cloud STT concurrent connections** – Track API quota usage (requires paid tier above certain volume)
+- **OpenAI API token usage** – Monitor spend and rate limiting (tokens/minute limits)
+- **Database connection pool limits** – Supabase connections scale with user load (upgrade plan as needed)
+
+**Scaling approach:**
+- Single Twilio phone number cost remains constant (~$1-2/month)
+- Bottleneck shifts from phone infrastructure to backend services
+- Auto-scaling backend (via Docker/Kubernetes) more cost-effective than adding phone numbers
+- Monitor these four metrics to understand when to scale each component
+
 ---
 
 ## Phase 2: OpenClaw Integration + Enhanced Privacy
