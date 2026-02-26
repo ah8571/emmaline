@@ -1,0 +1,22 @@
+{
+  "name": "emmaline-shared",
+  "version": "0.1.0",
+  "description": "Shared types, constants, and utilities for Emmaline",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint . --fix",
+    "format": "prettier --write ."
+  },
+  "keywords": [
+    "types",
+    "constants",
+    "utilities"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^8.51.0",
+    "prettier": "^3.0.0"
+  }
+}
