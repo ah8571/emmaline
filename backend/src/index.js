@@ -4,6 +4,8 @@ import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import http from 'http';
+import WebSocket from 'ws';
 
 // Load environment variables
 dotenv.config();
@@ -17,11 +19,23 @@ import authRoutes from './routes/auth.js';
 // Import middleware
 import { errorHandler, requestLogger } from './middleware/index.js';
 
+// Import WebSocket handler
+import { handleMediaStreamWebSocket } from './websocket/mediaStreamHandler.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Create HTTP server for WebSocket support
+const server = http.createServer(app);
+
+// Create WebSocket server
+const wss = new WebSocket.Server({ server, path: '/ws/media-stream' });
+
+// Handle WebSocket connections
+wss.on('connection', handleMediaStreamWebSocket);
 
 // Middleware
 app.use(cors());
@@ -50,7 +64,8 @@ app.get('/', (req, res) => {
       twilio: '/api/twilio/webhook',
       calls: '/api/calls',
       notes: '/api/notes',
-      auth: '/api/auth'
+      auth: '/api/auth',
+      websocket: 'wss://localhost:3000/ws/media-stream'
     }
   });
 });
@@ -64,12 +79,15 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Emmaline backend running on port ${PORT}`);
+  console.log(`📡 WebSocket server listening at wss://localhost:${PORT}/ws/media-stream`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Twilio account configured: ${process.env.TWILIO_ACCOUNT_SID ? '✓' : '✗'}`);
   console.log(`Supabase configured: ${process.env.SUPABASE_URL ? '✓' : '✗'}`);
   console.log(`OpenAI configured: ${process.env.OPENAI_API_KEY ? '✓' : '✗'}`);
+  console.log(`Google Cloud configured: ${process.env.GOOGLE_APPLICATION_CREDENTIALS ? '✓' : '✗'}`);
 });
 
 export default app;
+
