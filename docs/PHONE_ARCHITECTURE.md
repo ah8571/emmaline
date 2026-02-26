@@ -257,18 +257,7 @@ Premium Tier ($2.99-9.99/month):
 └─ Priority support
 ```
 
-**Math at scale (10,000 free users, 20% convert to premium):**
-```
-Free tier cost:
-  10,000 numbers × $0.75 (VoIP) = $7,500/month
-
-Revenue from premium:
-  2,000 premium users × $5/month avg = $10,000/month
-
-Profit: $2,500/month ($30k/year)
-+ Ad revenue from free users: ~$500/month
-= Total: $3,000/month profit on phone infrastructure alone
-```
+**Key insight:** 2ndline operates on a freemium model where premium feature adoption funds the free tier infrastructure. The specific economics depend on conversion rates and pricing strategy.
 
 #### 2. **Advertising Model**
 
@@ -292,27 +281,15 @@ Free phone numbers
     └─ Text-to-speech services (premium)
 ```
 
-**Potential revenue per free user:**
-- Ad CPM (cost per 1,000 impressions): $2-10
-- With 10 impressions per session, 2x/day = 20 impressions
-- Revenue per user: ($5 CPM × 20 / 1,000) = $0.10/month
-- 10,000 free users = $1,000/month in ad revenue
-```
+**Key insight:** Advertising can supplement revenue but requires significant user volume and impressions to be meaningful.
 
 #### 3. **Enterprise/B2B Model**
 
 **Business phone system market:**
-```
-Target: Small businesses needing multiple numbers
-Price: $20-50/user/month (vs. consumer: $3-10)
-
-Example: 500 business customers × 5 users each
-= 2,500 business users at $30/month avg = $75,000/month
-- Phone infrastructure: ~$2,500/month
-= $72,500/month profit (96% margin!)
-
-Free consumer tier funds R&D + servers
-```
+- Target: Small businesses needing multiple numbers
+- Price: $20-50/user/month (vs. consumer: $3-10)
+- Advantage: Higher revenue per user with lower churn
+- Strategy: Free consumer tier builds brand loyalty, converts power users to B2B
 
 #### 4. **Call Recording/Transcription Premium**
 
@@ -326,15 +303,7 @@ Premium:
 └─ Voicemail-to-text (uses Google Speech API, mark up 3-5x)
 ```
 
-**Example revenue:**
-```
-10,000 free users:
-├─ 1,000 record calls (10% adoption)
-├─ 100 hours/month of recorded calls
-├─ Transcription at $0.10/min = $600/month
-├─ Mark up to users at $0.50/min = $3,000/month revenue
-└─ Gross margin: 80%+
-```
+**Key insight:** Transcription and recording services can be high-margin premium features that leverage existing infrastructure.
 
 #### 5. **SaaS Bundling**
 
@@ -436,25 +405,7 @@ Tier 3 (Business, $30/month)
 └─ Cost to you: $1.00-2.00/user/month
 ```
 
-**Math at scale (10,000 users, 15% convert to Pro, 2% to Business):**
-```
-Free tier: 8,300 users
-├─ Infrastructure: $0.01/user = $83/month
-├─ Ad revenue: $0.10/user = $830/month
-
-Pro tier: 1,500 users × $4.99
-├─ Revenue: $7,485/month
-├─ Infrastructure: $0.75/user = $1,125/month
-├─ Net: $6,360/month
-
-Business tier: 200 users × $30
-├─ Revenue: $6,000/month
-├─ Infrastructure: $1.50/user = $300/month
-├─ Net: $5,700/month
-
-TOTAL: $19,773/month revenue, $12,960 net after infrastructure
-(Excludes server/cloud costs for your app)
-```
+**Key insight:** The hybrid model creates multiple revenue streams (free tier for growth, Pro for individual power users, Business for team features). Each tier targets different willingness to pay while covering its own infrastructure costs.
 
 ---
 
