@@ -7,9 +7,27 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+let supabase = null;
 
-export const getSupabaseClient = () => supabase;
+// Initialize Supabase only if credentials are provided
+if (supabaseUrl && supabaseKey) {
+  try {
+    supabase = createClient(supabaseUrl, supabaseKey);
+    console.log('✓ Supabase client initialized');
+  } catch (error) {
+    console.error('Failed to initialize Supabase:', error.message);
+    supabase = null;
+  }
+} else {
+  console.warn('⚠ Supabase not configured - database features disabled');
+}
+
+export const getSupabaseClient = () => {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized. Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+  }
+  return supabase;
+};
 
 export const saveCall = async (userId, callData) => {
   const { data, error } = await supabase
