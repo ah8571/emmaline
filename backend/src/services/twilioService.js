@@ -253,11 +253,6 @@ export default {
 };
 
 /**
- * Get Twilio client instance
- */
-export const getTwilioClient = () => client;
-
-/**
  * Generate TwiML response for incoming call
  */
 export const generateIncomingCallTwiML = () => {
