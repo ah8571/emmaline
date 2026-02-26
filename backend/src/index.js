@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import http from 'http';
-import WebSocket from 'ws';
+import { WebSocketServer } from 'ws';
 
 // Load environment variables
 dotenv.config();
@@ -33,7 +33,7 @@ const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);
 
 // Create WebSocket server
-const wss = new WebSocket.Server({ server, path: '/ws/media-stream' });
+const wss = new WebSocketServer({ server, path: '/ws/media-stream' });
 
 // Handle WebSocket connections
 wss.on('connection', handleMediaStreamWebSocket);
