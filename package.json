@@ -3,21 +3,10 @@
   "version": "0.1.0",
   "description": "AI Phone Call Buddy - A hands-free voice assistant with transcription and note-taking",
   "private": true,
-  "workspaces": [
-    "backend",
-    "mobile",
-    "services",
-    "shared"
-  ],
   "scripts": {
-    "dev": "npm run dev --workspaces",
-    "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces",
-    "lint": "npm run lint --workspaces",
-    "format": "npm run format --workspaces"
-  },
-  "devDependencies": {
-    "eslint": "^8.0.0",
-    "prettier": "^3.0.0"
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:mobile": "npm --prefix mobile start",
+    "build:backend": "npm --prefix backend run build",
+    "lint": "npm --prefix backend run lint && npm --prefix mobile run lint"
   }
 }
