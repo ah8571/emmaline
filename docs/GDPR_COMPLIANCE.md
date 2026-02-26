@@ -690,6 +690,46 @@ and similar regulations.*
 
 ---
 
+## US Regulatory Requirements
+
+### A2P SMS/MMS (If Using Twilio for Text Messages)
+
+If you plan to send or receive text messages through Twilio, you must comply with carrier requirements:
+
+**SMS - A2P 10DLC Registration Required**
+- Application-to-Person (A2P) messaging requires registration
+- 10-Digit Long Code (10DLC) is the standard for SMS
+- Required by: AT&T, Verizon, T-Mobile, and other US carriers
+- Registration ensures deliverability and carrier compliance
+
+**MMS - A2P 10DLC Registration Required**
+- Multi-media messaging also requires A2P 10DLC registration
+- Same registration covers both SMS and MMS
+- Required for sending images, videos, documents via text
+
+**What You Need to Do:**
+1. Register your brand/business with Twilio's A2P 10DLC system
+2. Provide: Business information, use case, opt-in practices
+3. Get approval (usually 1-3 business days)
+4. Maintain compliance with carrier throughput limits
+
+**Why It Matters:**
+- Without registration: Messages get blocked/filtered
+- Carriers enforce strict requirements on content
+- Non-compliance can result in phone number suspension
+- Registration is free but mandatory
+
+**In Emmaline Context:**
+- Currently not using SMS (call-based only)
+- If you add SMS features (reminders, confirmations): Must register
+- Add to Phase 2 roadmap if SMS is planned
+
+**Resources:**
+- [Twilio A2P 10DLC Guide](https://www.twilio.com/en-us/messaging/sms/10dlc)
+- [Carrier Compliance Requirements](https://www.twilio.com/en-us/messaging/compliance)
+
+---
+
 ## Final Notes
 
 **You're actually in a good position because:**
