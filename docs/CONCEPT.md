@@ -139,6 +139,7 @@ AI extracts key ideas → notes page
 ### Development Features
 
 **Core additions:**
+- **Text chat interface** – Message the AI bot in addition to calling
 - Email sorting and summarization via voice
 - Code project initiation on the go
 - Developer-focused virtual assistant features
@@ -151,6 +152,12 @@ AI extracts key ideas → notes page
 - Better summarization (action items, sentiment, context)
 - Conversation search and filtering
 - Integration with developer tools (GitHub, email, project management)
+- Chat interface for text-based conversations (same AI, same notes)
+  - Send/receive messages from mobile app
+  - Real-time chat with AI buddy
+  - Auto-generate notes and summaries from chat
+  - Similar timeline view as voice calls
+  - Useful for quiet environments or when speaking isn't available
 
 ### Privacy Model: Tier 2 - Enhanced Privacy with Local Options
 
