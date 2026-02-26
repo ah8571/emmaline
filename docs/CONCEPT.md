@@ -105,6 +105,33 @@ AI extracts key ideas → notes page
 - Auto-scaling backend (via Docker/Kubernetes) more cost-effective than adding phone numbers
 - Monitor these four metrics to understand when to scale each component
 
+### Compliance & Legal Requirements
+
+**GDPR Compliance (mandatory for any EU users):**
+- [ ] Create and publish Privacy Policy (see GDPR_COMPLIANCE.md)
+- [ ] Add consent screen before first login (users must accept data processing)
+- [ ] Implement user rights endpoints (download data, delete account)
+- [ ] Sign Data Processing Agreements (DPA) with Supabase, Google Cloud, OpenAI
+- [ ] Set up breach notification procedures (72-hour notification requirement)
+- [ ] Document data retention policies (auto-delete after 90 days for backups)
+
+**User Rights to Implement:**
+1. **Right to Access** – Users can download all their data (Settings → "Download My Data")
+2. **Right to Deletion** – Users can delete individual calls or entire account
+3. **Right to Portability** – Users can export data in standard format
+4. **Right to Correction** – Users can edit their profile and notes
+5. **Right to Withdraw Consent** – Users can delete account anytime
+
+**Key Implementation Tasks:**
+- Add consent checkbox screen (appears before LoginScreen on first launch)
+- Create Settings screen with: Download My Data, Delete Account, Privacy Policy link
+- Implement backend API endpoints: GET /api/user/data, DELETE /api/user
+- Add Privacy Policy page in app (link from Settings and consent screen)
+- Document third-party data sharing transparently
+
+**Documentation:**
+- See [GDPR_COMPLIANCE.md](GDPR_COMPLIANCE.md) for complete implementation guide with code examples and Privacy Policy template
+
 ---
 
 ## Phase 2: OpenClaw Integration + Enhanced Privacy
