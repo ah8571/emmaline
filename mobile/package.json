@@ -26,7 +26,8 @@
     "react-native-gesture-handler": "^2.13.4",
     "axios": "^1.6.0",
     "@supabase/supabase-js": "^2.38.0",
-    "zustand": "^4.4.6"
+    "zustand": "^4.4.6",
+    "expo-secure-store": "^12.3.1"
   },
   "devDependencies": {
     "@babel/core": "^7.23.2",

@@ -1,34 +1,111 @@
 /**
- * Routes for note management
- * TODO: Implement endpoints
+ * Routes for authentication
+ * Handles user registration, login, and token refresh
  */
 
 import express from 'express';
+import { registerUser, loginUser, getUserById, refreshToken } from '../services/authService.js';
+import authMiddleware from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Get all notes for authenticated user
-router.get('/', (req, res) => {
-  // TODO: GET /api/notes - Return user's notes
-  res.status(200).json({ message: 'TODO: Get notes' });
+/**
+ * POST /api/auth/register
+ * Register a new user
+ */
+router.post('/register', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const result = await registerUser(email, password);
+
+    return res.status(201).json({
+      message: 'User registered successfully',
+      user: result.user,
+      token: result.token
+    });
+  } catch (error) {
+    console.error('Registration error:', error.message);
+
+    if (error.message.includes('already registered')) {
+      return res.status(409).json({ error: error.message });
+    }
+
+    if (error.message.includes('at least 8 characters')) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    return res.status(500).json({ error: 'Registration failed' });
+  }
 });
 
-// Create a new note
-router.post('/', (req, res) => {
-  // TODO: POST /api/notes - Create note
-  res.status(201).json({ message: 'TODO: Create note' });
+/**
+ * POST /api/auth/login
+ * Login user and return JWT token
+ */
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const result = await loginUser(email, password);
+
+    return res.status(200).json({
+      message: 'Login successful',
+      user: result.user,
+      token: result.token
+    });
+  } catch (error) {
+    console.error('Login error:', error.message);
+
+    if (error.message.includes('Invalid email or password')) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    return res.status(500).json({ error: 'Login failed' });
+  }
 });
 
-// Update a note
-router.put('/:noteId', (req, res) => {
-  // TODO: PUT /api/notes/:noteId - Update note
-  res.status(200).json({ message: 'TODO: Update note' });
+/**
+ * POST /api/auth/refresh
+ * Refresh JWT token
+ */
+router.post('/refresh', authMiddleware, async (req, res) => {
+  try {
+    const newToken = refreshToken(req.user);
+
+    return res.status(200).json({
+      message: 'Token refreshed',
+      token: newToken
+    });
+  } catch (error) {
+    console.error('Token refresh error:', error.message);
+    return res.status(500).json({ error: 'Token refresh failed' });
+  }
 });
 
-// Delete a note
-router.delete('/:noteId', (req, res) => {
-  // TODO: DELETE /api/notes/:noteId - Delete note
-  res.status(200).json({ message: 'TODO: Delete note' });
+/**
+ * GET /api/auth/me
+ * Get current authenticated user
+ */
+router.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const user = await getUserById(req.user.userId);
+
+    return res.status(200).json({
+      user
+    });
+  } catch (error) {
+    console.error('Get user error:', error.message);
+    return res.status(404).json({ error: 'User not found' });
+  }
 });
 
 export default router;
