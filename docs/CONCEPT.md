@@ -12,21 +12,6 @@ Emmaline is a hands-free, voice-first AI assistant accessible via phone call. Us
 
 ---
 
-## Privacy & Security Philosophy
-
-Emmaline users are sharing intimate thoughts and ideas. Privacy is foundational to trust.
-
-### Privacy Approach by Phase
-
-We follow a phased privacy model:
-- **Phase 1**: Transparent cloud storage with encryption at rest and user authentication
-- **Phase 2**: Enhanced encryption and privacy options (local summarization, auto-deletion)
-- **Phase 3**: Completely local processing—no external API calls, fully on-device
-
-Users understand their data handling from day one and can choose their privacy tier.
-
----
-
 ## Roadmap & Development Phases
 
 ### Table of Contents
