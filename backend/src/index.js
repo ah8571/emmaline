@@ -15,6 +15,7 @@ import twilioRoutes from './routes/twilio.js';
 import callRoutes from './routes/calls.js';
 import noteRoutes from './routes/notes.js';
 import authRoutes from './routes/auth.js';
+import newsletterRoutes from './routes/newsletter.js';
 
 // Import middleware
 import { errorHandler, requestLogger } from './middleware/index.js';
@@ -48,6 +49,7 @@ app.use('/api/twilio', twilioRoutes);
 app.use('/api/calls', callRoutes);
 app.use('/api/notes', noteRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/newsletter', newsletterRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
