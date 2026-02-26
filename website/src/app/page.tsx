@@ -45,17 +45,14 @@ export default function Home() {
           {/* Features */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 my-12 max-w-2xl mx-auto">
             <div className="space-y-2">
-              <p className="text-2xl">🤖</p>
               <p className="font-semibold">AI Powered</p>
               <p className="text-white/60 text-sm">Smart conversations powered by advanced AI</p>
             </div>
             <div className="space-y-2">
-              <p className="text-2xl">☎️</p>
               <p className="font-semibold">Voice First</p>
               <p className="text-white/60 text-sm">Natural conversations, no typing required</p>
             </div>
             <div className="space-y-2">
-              <p className="text-2xl">🔒</p>
               <p className="font-semibold">Private</p>
               <p className="text-white/60 text-sm">Your conversations stay private & secure</p>
             </div>
@@ -91,7 +88,7 @@ export default function Home() {
 
           {/* Stats */}
           <div className="space-y-2 my-12 text-white/60 text-sm">
-            <p>Launching February 2026</p>
+            <p>Coming soon</p>
           </div>
         </div>
       </div>
