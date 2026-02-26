@@ -1,0 +1,81 @@
+name: emmaline
+services:
+  # Backend API Service
+  - name: backend
+    github:
+      repo: ah8571/emmaline
+      branch: main
+    source_dir: backend
+    build_command: npm install
+    run_command: npm start
+    http_port: 3000
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: JWT_SECRET
+        scope: RUN_AND_BUILD_TIME
+        value: ${JWT_SECRET}
+      - key: JWT_EXPIRATION
+        value: 7d
+      - key: TWILIO_ACCOUNT_SID
+        scope: RUN_AND_BUILD_TIME
+        value: ${TWILIO_ACCOUNT_SID}
+      - key: TWILIO_AUTH_TOKEN
+        scope: RUN_AND_BUILD_TIME
+        value: ${TWILIO_AUTH_TOKEN}
+      - key: TWILIO_PHONE_NUMBER
+        value: ${TWILIO_PHONE_NUMBER}
+      - key: SUPABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        value: ${SUPABASE_URL}
+      - key: SUPABASE_KEY
+        scope: RUN_AND_BUILD_TIME
+        value: ${SUPABASE_KEY}
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        scope: RUN_AND_BUILD_TIME
+        value: ${SUPABASE_SERVICE_ROLE_KEY}
+      - key: GOOGLE_CLOUD_PROJECT_ID
+        value: ${GOOGLE_CLOUD_PROJECT_ID}
+      - key: OPENAI_API_KEY
+        scope: RUN_AND_BUILD_TIME
+        value: ${OPENAI_API_KEY}
+      - key: CORS_ORIGIN
+        value: https://emmaline.app
+      - key: WEBSOCKET_URL
+        value: wss://emmaline.app/ws/media-stream
+      - key: API_URL
+        value: https://emmaline.app
+    routes:
+      - path: /api
+        preserve_path_prefix: true
+
+  # Landing Page Website Service
+  - name: website
+    github:
+      repo: ah8571/emmaline
+      branch: main
+    source_dir: website
+    build_command: npm install && npm run build
+    run_command: npm start
+    http_port: 3000
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: BACKEND_URL
+        value: https://emmaline.app
+    routes:
+      - path: /
+        preserve_path_prefix: true
+
+# Database (optional - remove if using Supabase only)
+databases: []
+
+# Static site configuration (if needed)
+static_sites: []
+
+# Ingress (routes traffic to services)
+# By default, DigitalOcean will route:
+# / → website service
+# /api → backend service
