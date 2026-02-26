@@ -10,7 +10,7 @@ import { getSupabaseClient } from './databaseService.js';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRATION = process.env.JWT_EXPIRATION || '7d';
 
-const supabase = getSupabaseClient();
+const getSupabase = () => getSupabaseClient();
 
 /**
  * Generate JWT token for a user
@@ -42,6 +42,8 @@ export const verifyToken = (token) => {
  * Register a new user
  */
 export const registerUser = async (email, password) => {
+  const supabase = getSupabase();
+
   // Validate input
   if (!email || !password) {
     throw new Error('Email and password are required');
@@ -97,6 +99,8 @@ export const registerUser = async (email, password) => {
  * Login user
  */
 export const loginUser = async (email, password) => {
+  const supabase = getSupabase();
+
   // Validate input
   if (!email || !password) {
     throw new Error('Email and password are required');
@@ -136,6 +140,8 @@ export const loginUser = async (email, password) => {
  * Get user by ID
  */
 export const getUserById = async (userId) => {
+  const supabase = getSupabase();
+
   const { data: user, error } = await supabase
     .from('users')
     .select('id, email, created_at')

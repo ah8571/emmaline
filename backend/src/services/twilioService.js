@@ -6,10 +6,7 @@
 import twilio from 'twilio';
 import { saveCall, saveTranscript } from './databaseService.js';
 
-const client = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
+let client = null;
 
 const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 const WEBHOOK_URL = process.env.WEBHOOK_URL || 'https://example.com';
@@ -18,7 +15,21 @@ const WEBSOCKET_URL = process.env.WEBSOCKET_URL || 'wss://example.com/ws/media-s
 /**
  * Get Twilio client instance
  */
-export const getTwilioClient = () => client;
+export const getTwilioClient = () => {
+  if (client) {
+    return client;
+  }
+
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+
+  if (!accountSid || !authToken) {
+    throw new Error('Twilio client not initialized. Missing TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN');
+  }
+
+  client = twilio(accountSid, authToken);
+  return client;
+};
 
 /**
  * Generate TwiML response for incoming call
@@ -232,7 +243,8 @@ export const startCallRecording = async (callSid) => {
  */
 export const getCallFromTwilio = async (callSid) => {
   try {
-    const call = await client.calls(callSid).fetch();
+    const twilioClient = getTwilioClient();
+    const call = await twilioClient.calls(callSid).fetch();
     return call;
   } catch (error) {
     console.error('Error fetching call from Twilio:', error);
