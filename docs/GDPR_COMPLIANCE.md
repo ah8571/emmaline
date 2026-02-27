@@ -36,6 +36,26 @@ Before first call:
 - Link to Privacy Policy
 - Option to review before accepting
 
+### 1.1 Marketing Email Consent (Newsletter / Product Updates)
+
+Marketing consent should be collected separately from required service consent.
+
+**What to collect for audit trail:**
+- `marketing_opt_in` (boolean, default `false`)
+- `consent_timestamp` (UTC timestamp)
+- `consent_source` (e.g., `landing_page`, `mobile_signup`)
+- `policy_version` (version of privacy/marketing text shown)
+
+**Rules to follow:**
+- Do not pre-check the marketing checkbox
+- Keep marketing consent optional (no bundling with account creation)
+- Add unsubscribe link in every marketing email
+- Honor unsubscribe requests quickly and persist `opt_out_timestamp`
+- Keep proof of consent changes for compliance reviews
+
+**Recommended UX copy:**
+"I agree to receive product updates and marketing emails. I can unsubscribe at any time."
+
 ### 2. Privacy Policy
 
 Required document explaining:
@@ -209,6 +229,9 @@ Legal Obligation
   - [ ] Delete Account button
   - [ ] Link to Privacy Policy
 - [ ] Add Privacy Policy acceptance checkbox
+- [ ] Add optional marketing opt-in checkbox (unchecked by default)
+- [ ] Store consent timestamp/source/version for marketing opt-in
+- [ ] Add unsubscribe endpoint and verify suppression list behavior
 
 **Backend API Endpoints:**
 ```javascript
