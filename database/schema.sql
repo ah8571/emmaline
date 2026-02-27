@@ -189,3 +189,18 @@ CREATE POLICY "Users can view their own notes" ON notes FOR SELECT
 
 CREATE POLICY "Users can view their own audit logs" ON audit_logs FOR SELECT
   USING (auth.uid() = user_id);
+
+-- Newsletter subscribers (marketing waitlist)
+CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email VARCHAR(255) UNIQUE NOT NULL,
+  source VARCHAR(100) DEFAULT 'landing-page',
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_newsletter_email ON newsletter_subscribers (email);
+CREATE INDEX IF NOT EXISTS idx_newsletter_active ON newsletter_subscribers (is_active);
+
+ALTER TABLE newsletter_subscribers ENABLE ROW LEVEL SECURITY;

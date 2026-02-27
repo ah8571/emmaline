@@ -41,6 +41,14 @@ services:
       - key: OPENAI_API_KEY
         scope: RUN_AND_BUILD_TIME
         value: ${OPENAI_API_KEY}
+      - key: RESEND_API_KEY
+        scope: RUN_AND_BUILD_TIME
+        value: ${RESEND_API_KEY}
+      - key: RESEND_FROM_EMAIL
+        value: ${RESEND_FROM_EMAIL}
+      - key: NEWSLETTER_ADMIN_KEY
+        scope: RUN_AND_BUILD_TIME
+        value: ${NEWSLETTER_ADMIN_KEY}
       - key: CORS_ORIGIN
         value: https://emmaline.app
       - key: WEBSOCKET_URL
