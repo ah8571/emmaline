@@ -15,13 +15,13 @@ const router = express.Router();
  */
 router.post('/register', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, marketingOptIn = false } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const result = await registerUser(email, password);
+    const result = await registerUser(email, password, marketingOptIn);
 
     return res.status(201).json({
       message: 'User registered successfully',

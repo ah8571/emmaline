@@ -41,7 +41,7 @@ export const verifyToken = (token) => {
 /**
  * Register a new user
  */
-export const registerUser = async (email, password) => {
+export const registerUser = async (email, password, marketingOptIn = false) => {
   const supabase = getSupabase();
 
   // Validate input
@@ -73,6 +73,7 @@ export const registerUser = async (email, password) => {
     .insert({
       email,
       password_hash: passwordHash,
+      marketing_opt_in: Boolean(marketingOptIn),
       created_at: new Date().toISOString()
     })
     .select()
@@ -89,7 +90,8 @@ export const registerUser = async (email, password) => {
   return {
     user: {
       id: newUser.id,
-      email: newUser.email
+      email: newUser.email,
+      marketingOptIn: Boolean(newUser.marketing_opt_in)
     },
     token
   };
@@ -130,7 +132,8 @@ export const loginUser = async (email, password) => {
   return {
     user: {
       id: user.id,
-      email: user.email
+      email: user.email,
+      marketingOptIn: Boolean(user.marketing_opt_in)
     },
     token
   };
@@ -144,7 +147,7 @@ export const getUserById = async (userId) => {
 
   const { data: user, error } = await supabase
     .from('users')
-    .select('id, email, created_at')
+    .select('id, email, created_at, marketing_opt_in')
     .eq('id', userId)
     .single();
 
@@ -152,7 +155,12 @@ export const getUserById = async (userId) => {
     throw new Error('User not found');
   }
 
-  return user;
+  return {
+    id: user.id,
+    email: user.email,
+    created_at: user.created_at,
+    marketingOptIn: Boolean(user.marketing_opt_in)
+  };
 };
 
 /**
