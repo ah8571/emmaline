@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 
-export default function Newsletter() {
+export default function Waitlist() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -11,7 +11,7 @@ export default function Newsletter() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email) {
       setMessage('Please enter your email');
       setStatus('error');
@@ -20,9 +20,8 @@ export default function Newsletter() {
 
     setLoading(true);
     setMessage('');
-    
+
     try {
-      // Store email in backend (creates a waitlist entry)
       const response = await axios.post('/api/newsletter', {
         email,
         source: 'landing-page',
@@ -37,7 +36,7 @@ export default function Newsletter() {
       const errorMsg = error instanceof Error ? error.message : 'Failed to subscribe';
       setMessage(errorMsg);
       setStatus('error');
-      console.error('Newsletter signup error:', error);
+      console.error('Waitlist signup error:', error);
     } finally {
       setLoading(false);
     }

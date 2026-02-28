@@ -1,6 +1,6 @@
 'use client';
 
-import Newsletter from '../components/Newsletter';
+import Waitlist from '../components/Waitlist';
 import SocialLinks from '../components/SocialLinks';
 
 export default function Home() {
@@ -58,13 +58,13 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Newsletter Signup */}
+          {/* Waitlist Signup */}
           <div className="space-y-4 my-12">
             <div>
               <h2 className="text-2xl font-bold mb-2">Join the Waitlist</h2>
               <p className="text-white/60">Be the first to know when we launch</p>
             </div>
-            <Newsletter />
+            <Waitlist />
           </div>
 
           {/* App Download Links (when ready) */}
