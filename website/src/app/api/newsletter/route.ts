@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function POST(req: NextRequest) {
   try {
-    const { email, source } = await req.json();
+    const { email, source, marketingConsent, consentSource, policyVersion } = await req.json();
 
     if (!email) {
       return NextResponse.json(
@@ -24,6 +24,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!marketingConsent) {
+      return NextResponse.json(
+        { error: 'Marketing consent is required' },
+        { status: 400 }
+      );
+    }
+
     // Forward to backend API to store the email
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
     
@@ -36,6 +43,11 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           email,
           source,
+          marketingConsent: Boolean(marketingConsent),
+          consentSource: consentSource || source || 'landing-page',
+          policyVersion: policyVersion || '2026-02-27',
+          consentTimestamp: new Date().toISOString(),
+          userAgent: req.headers.get('user-agent') || 'unknown',
           timestamp: new Date().toISOString(),
         }),
       });

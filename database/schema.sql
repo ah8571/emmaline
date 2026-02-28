@@ -199,10 +199,21 @@ CREATE TABLE IF NOT EXISTS newsletter_subscribers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(255) UNIQUE NOT NULL,
   source VARCHAR(100) DEFAULT 'landing-page',
+  marketing_opt_in BOOLEAN DEFAULT FALSE,
+  consent_source VARCHAR(100),
+  consent_timestamp TIMESTAMP WITH TIME ZONE,
+  policy_version VARCHAR(50),
+  consent_user_agent TEXT,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE newsletter_subscribers ADD COLUMN IF NOT EXISTS marketing_opt_in BOOLEAN DEFAULT FALSE;
+ALTER TABLE newsletter_subscribers ADD COLUMN IF NOT EXISTS consent_source VARCHAR(100);
+ALTER TABLE newsletter_subscribers ADD COLUMN IF NOT EXISTS consent_timestamp TIMESTAMP WITH TIME ZONE;
+ALTER TABLE newsletter_subscribers ADD COLUMN IF NOT EXISTS policy_version VARCHAR(50);
+ALTER TABLE newsletter_subscribers ADD COLUMN IF NOT EXISTS consent_user_agent TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_newsletter_email ON newsletter_subscribers (email);
 CREATE INDEX IF NOT EXISTS idx_newsletter_active ON newsletter_subscribers (is_active);
