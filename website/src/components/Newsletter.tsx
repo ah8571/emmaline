@@ -44,7 +44,7 @@ export default function Newsletter() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-md">
+    <form onSubmit={handleSubmit} className="w-full max-w-md mx-auto">
       <div className="flex flex-col gap-3">
         <input
           type="email"
@@ -62,7 +62,7 @@ export default function Newsletter() {
           {loading ? 'Signing up...' : 'Join Waitlist'}
         </button>
         {message && (
-          <p className={`text-sm ${status === 'success' ? 'text-green-400' : 'text-red-400'}`}>
+          <p className={`text-sm text-center ${status === 'success' ? 'text-green-400' : 'text-red-400'}`}>
             {message}
           </p>
         )}
