@@ -25,7 +25,16 @@ cp ../env.example .env
 
 Update with your backend URL:
 ```
-REACT_NATIVE_BACKEND_URL=http://your-backend-url:3000
+EXPO_PUBLIC_API_URL=http://your-backend-url:3000/api
+```
+
+Examples:
+```
+# Local backend on same machine
+EXPO_PUBLIC_API_URL=http://localhost:3000/api
+
+# DigitalOcean hosted backend
+EXPO_PUBLIC_API_URL=https://emmaline-agtyz.ondigitalocean.app/api
 ```
 
 ### 3. Start the app

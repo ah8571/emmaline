@@ -1,35 +1,16 @@
-/**
- * app.json - Expo configuration
- */
-
-export default {
-  expo: {
-    name: 'Emmaline',
-    slug: 'emmaline',
-    version: '0.1.0',
-    orientation: 'portrait',
-    icon: './assets/icon.png',
-    userInterfaceStyle: 'light',
-    splash: {
-      image: './assets/splash.png',
-      resizeMode: 'contain',
-      backgroundColor: '#ffffff'
+{
+  "expo": {
+    "name": "Emmaline",
+    "slug": "emmaline",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "updates": {
+      "fallbackToCacheTimeout": 0
     },
-    updates: {
-      fallbackToCacheTimeout: 0
-    },
-    assetBundlePatterns: ['**/*'],
-    ios: {
-      supportsTabletMode: true
-    },
-    android: {
-      adaptiveIcon: {
-        foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#ffffff'
-      }
-    },
-    web: {
-      favicon: './assets/favicon.png'
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true
     }
   }
-};
+}
