@@ -27,14 +27,27 @@ const getSupabaseIfAvailable = () => {
   }
 };
 
-export const addNewsletterSubscriber = async ({ email, source = 'landing-page' }) => {
+export const addNewsletterSubscriber = async ({
+  email,
+  source = 'landing-page',
+  marketingConsent = false,
+  consentSource = 'landing-page',
+  policyVersion = '2026-02-27',
+  consentTimestamp,
+  userAgent = 'unknown'
+}) => {
   const normalizedEmail = String(email).trim().toLowerCase();
+  const resolvedConsentTimestamp = consentTimestamp || new Date().toISOString();
   const supabase = getSupabaseIfAvailable();
 
   if (!supabase) {
     return {
       email: normalizedEmail,
       source,
+      marketing_opt_in: Boolean(marketingConsent),
+      consent_source: consentSource,
+      consent_timestamp: resolvedConsentTimestamp,
+      policy_version: policyVersion,
       persisted: false,
       created: true
     };
@@ -56,10 +69,15 @@ export const addNewsletterSubscriber = async ({ email, source = 'landing-page' }
       .update({
         is_active: true,
         source,
+        marketing_opt_in: Boolean(marketingConsent),
+        consent_source: consentSource,
+        consent_timestamp: resolvedConsentTimestamp,
+        policy_version: policyVersion,
+        consent_user_agent: userAgent,
         updated_at: new Date().toISOString()
       })
       .eq('id', existing.id)
-      .select('id, email, is_active, created_at, updated_at')
+      .select('id, email, is_active, created_at, updated_at, marketing_opt_in, consent_source, consent_timestamp, policy_version')
       .single();
 
     if (updateError) {
@@ -78,9 +96,14 @@ export const addNewsletterSubscriber = async ({ email, source = 'landing-page' }
     .insert({
       email: normalizedEmail,
       source,
-      is_active: true
+      is_active: true,
+      marketing_opt_in: Boolean(marketingConsent),
+      consent_source: consentSource,
+      consent_timestamp: resolvedConsentTimestamp,
+      policy_version: policyVersion,
+      consent_user_agent: userAgent
     })
-    .select('id, email, is_active, created_at, updated_at')
+    .select('id, email, is_active, created_at, updated_at, marketing_opt_in, consent_source, consent_timestamp, policy_version')
     .single();
 
   if (createError) {

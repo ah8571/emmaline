@@ -29,7 +29,15 @@ const isAdminAuthorized = (req) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { email, source } = req.body;
+    const {
+      email,
+      source,
+      marketingConsent,
+      consentSource,
+      policyVersion,
+      consentTimestamp,
+      userAgent
+    } = req.body;
 
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
@@ -41,7 +49,19 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Invalid email format' });
     }
 
-    const subscriber = await addNewsletterSubscriber({ email, source });
+    if (!marketingConsent) {
+      return res.status(400).json({ error: 'Marketing consent is required' });
+    }
+
+    const subscriber = await addNewsletterSubscriber({
+      email,
+      source,
+      marketingConsent: Boolean(marketingConsent),
+      consentSource: consentSource || source || 'landing-page',
+      policyVersion: policyVersion || '2026-02-27',
+      consentTimestamp,
+      userAgent
+    });
 
     let welcomeEmail = { sent: false, reason: 'Skipped' };
     if (isResendConfigured()) {
