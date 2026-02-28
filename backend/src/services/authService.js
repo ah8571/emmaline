@@ -66,12 +66,15 @@ export const registerUser = async (email, password, marketingOptIn = false) => {
 
   // Hash password
   const passwordHash = await bcrypt.hash(password, 10);
+  const emailPrefix = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').toLowerCase() || 'user';
+  const username = `${emailPrefix}_${Date.now().toString().slice(-6)}`;
 
   // Create user in database
   const { data: newUser, error } = await supabase
     .from('users')
     .insert({
       email,
+      username,
       password_hash: passwordHash,
       marketing_opt_in: Boolean(marketingOptIn),
       created_at: new Date().toISOString()

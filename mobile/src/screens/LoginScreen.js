@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform
 } from 'react-native';
+import { loginUser, registerUser } from '../services/api.js';
 
 /**
  * LoginScreen
@@ -26,26 +27,22 @@ const LoginScreen = ({ onLoginSuccess }) => {
     setError('');
 
     try {
-      // TODO: Implement authentication with backend
-      // POST /api/auth/login or /api/auth/register
-      
       if (!email || !password) {
         setError('Please fill in all fields');
         setLoading(false);
         return;
       }
 
-      // Simulate auth delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = isLogin
+        ? await loginUser(email.trim().toLowerCase(), password)
+        : await registerUser(email.trim().toLowerCase(), password);
 
-      // TODO: Store JWT token securely
-      // TODO: Set authenticated state
+      if (!response.success) {
+        setError(response.error || 'Authentication failed');
+        return;
+      }
 
-      onLoginSuccess({
-        id: 'user-id-placeholder',
-        email,
-        username: email.split('@')[0]
-      });
+      onLoginSuccess(response.user);
     } catch (err) {
       setError(err.message || 'Authentication failed');
     } finally {

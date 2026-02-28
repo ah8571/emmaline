@@ -7,7 +7,11 @@ import axios from 'axios';
 import * as SecureStorage from '../utils/secureStorage.js';
 
 // Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  process.env.REACT_NATIVE_BACKEND_URL ||
+  process.env.REACT_APP_API_URL ||
+  'http://localhost:3000/api';
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 
 /**
@@ -206,7 +210,7 @@ export const getCallDetail = async (callId) => {
 export const initiateCall = async () => {
   try {
     await addTokenToHeaders();
-    const response = await apiClient.post('/calls/initiate');
+    const response = await apiClient.post('/twilio/initiate');
 
     return {
       success: true,
