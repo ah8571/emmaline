@@ -32,7 +32,7 @@ router.post('/', async (req, res) => {
     const {
       email,
       source,
-      marketingConsent,
+      marketingConsent = true,
       consentSource,
       policyVersion,
       consentTimestamp,
@@ -47,10 +47,6 @@ router.post('/', async (req, res) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ error: 'Invalid email format' });
-    }
-
-    if (!marketingConsent) {
-      return res.status(400).json({ error: 'Marketing consent is required' });
     }
 
     const subscriber = await addNewsletterSubscriber({
