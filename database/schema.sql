@@ -32,9 +32,7 @@ CREATE TABLE calls (
   call_status VARCHAR(50) DEFAULT 'completed',
   twilio_call_sid VARCHAR(255) UNIQUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_user_calls (user_id),
-  INDEX idx_call_date (started_at DESC)
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Transcripts table (full call transcripts)
@@ -44,9 +42,7 @@ CREATE TABLE transcripts (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   full_text TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_user_transcripts (user_id),
-  INDEX idx_call_transcript (call_id)
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Summaries table (AI-generated key points)
@@ -59,9 +55,7 @@ CREATE TABLE summaries (
   sentiment VARCHAR(50),
   action_items TEXT[],
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_user_summaries (user_id),
-  INDEX idx_call_summary (call_id)
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Topics table (for organizing conversations)
@@ -73,7 +67,6 @@ CREATE TABLE topics (
   color VARCHAR(7),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_user_topics (user_id),
   UNIQUE(user_id, name)
 );
 
@@ -87,10 +80,7 @@ CREATE TABLE notes (
   content TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  is_archived BOOLEAN DEFAULT FALSE,
-  INDEX idx_user_notes (user_id),
-  INDEX idx_call_notes (call_id),
-  INDEX idx_topic_notes (topic_id)
+  is_archived BOOLEAN DEFAULT FALSE
 );
 
 -- Call-Topic association (many-to-many)
@@ -98,8 +88,7 @@ CREATE TABLE call_topics (
   call_id UUID NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
   topic_id UUID NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (call_id, topic_id),
-  INDEX idx_topic_calls (topic_id)
+  PRIMARY KEY (call_id, topic_id)
 );
 
 -- API Keys table (for future integrations and access tokens)
@@ -111,8 +100,7 @@ CREATE TABLE api_keys (
   last_used TIMESTAMP WITH TIME ZONE,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  expires_at TIMESTAMP WITH TIME ZONE,
-  INDEX idx_user_keys (user_id)
+  expires_at TIMESTAMP WITH TIME ZONE
 );
 
 -- Audit log (for privacy and security)
@@ -124,13 +112,25 @@ CREATE TABLE audit_logs (
   resource_id UUID,
   details JSONB,
   ip_address VARCHAR(45),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_user_audit (user_id),
-  INDEX idx_action_audit (action),
-  INDEX idx_audit_date (created_at DESC)
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes for performance
+CREATE INDEX idx_user_calls ON calls (user_id);
+CREATE INDEX idx_call_date ON calls (started_at DESC);
+CREATE INDEX idx_user_transcripts ON transcripts (user_id);
+CREATE INDEX idx_call_transcript ON transcripts (call_id);
+CREATE INDEX idx_user_summaries ON summaries (user_id);
+CREATE INDEX idx_call_summary ON summaries (call_id);
+CREATE INDEX idx_user_topics ON topics (user_id);
+CREATE INDEX idx_user_notes ON notes (user_id);
+CREATE INDEX idx_call_notes ON notes (call_id);
+CREATE INDEX idx_topic_notes ON notes (topic_id);
+CREATE INDEX idx_topic_calls ON call_topics (topic_id);
+CREATE INDEX idx_user_keys ON api_keys (user_id);
+CREATE INDEX idx_user_audit ON audit_logs (user_id);
+CREATE INDEX idx_action_audit ON audit_logs (action);
+CREATE INDEX idx_audit_date ON audit_logs (created_at DESC);
 CREATE INDEX idx_transcripts_full_text ON transcripts USING GIN(to_tsvector('english', full_text));
 CREATE INDEX idx_summaries_full_text ON summaries USING GIN(to_tsvector('english', summary_text));
 

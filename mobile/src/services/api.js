@@ -49,9 +49,9 @@ const removeTokenFromHeaders = () => {
 /**
  * Register a new user
  */
-export const registerUser = async (email, password) => {
+export const registerUser = async (email, password, marketingOptIn = false) => {
   try {
-    const response = await apiClient.post('/auth/register', { email, password });
+    const response = await apiClient.post('/auth/register', { email, password, marketingOptIn });
 
     // Save token and user info
     await SecureStorage.saveToken(response.data.token);
