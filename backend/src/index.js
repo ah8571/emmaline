@@ -45,11 +45,19 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(requestLogger);
 
 // Routes
+// Keep both prefixed and unprefixed mounts so deployments that already route
+// /api/* to this service don't require clients to use /api/api/*.
 app.use('/api/twilio', twilioRoutes);
 app.use('/api/calls', callRoutes);
 app.use('/api/notes', noteRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/newsletter', newsletterRoutes);
+
+app.use('/twilio', twilioRoutes);
+app.use('/calls', callRoutes);
+app.use('/notes', noteRoutes);
+app.use('/auth', authRoutes);
+app.use('/newsletter', newsletterRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
