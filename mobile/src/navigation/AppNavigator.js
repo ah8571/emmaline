@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 
 import LoginScreen from '../screens/LoginScreen';
 import TimelineScreen from '../screens/TimelineScreen';
 import TranscriptScreen from '../screens/TranscriptScreen';
 import NotesScreen from '../screens/NotesScreen';
 import CallDetailScreen from '../screens/CallDetailScreen';
+import { isAuthenticated as hasAuthToken, getUser } from '../utils/secureStorage.js';
 
 const Stack = createStackNavigator();
-const Tab = createBottomTabNavigator();
+const Tab = createMaterialTopTabNavigator();
 
 const TranscriptStack = () => (
   <Stack.Navigator>
@@ -44,13 +44,20 @@ const AppTabs = () => {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: '#adb5bd',
+        tabBarInactiveTintColor: '#6c757d',
+        tabBarIndicatorStyle: {
+          backgroundColor: '#007AFF',
+          height: 2
+        },
         tabBarStyle: {
           backgroundColor: '#fff',
-          borderTopWidth: 1,
-          borderTopColor: '#e9ecef',
-          height: 60,
-          paddingBottom: 8
+          borderBottomWidth: 1,
+          borderBottomColor: '#e9ecef'
+        },
+        tabBarLabelStyle: {
+          textTransform: 'none',
+          fontSize: 14,
+          fontWeight: '600'
         }
       }}
     >
@@ -58,39 +65,54 @@ const AppTabs = () => {
         name="Transcript" 
         component={TranscriptStack}
         options={{
-          tabBarLabel: 'Transcripts',
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20, color }}>🎙️</Text>
-          )
+          tabBarLabel: 'Transcripts'
         }}
       />
       <Tab.Screen 
         name="Notes" 
         component={NotesStack}
         options={{
-          tabBarLabel: 'Notes',
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20, color }}>📝</Text>
-          )
+          tabBarLabel: 'Notes'
         }}
       />
     </Tab.Navigator>
   );
 };
 
-const AppNavigator = () => {
+const AppNavigator = ({ onAuthStateChange }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
 
-  // TODO: Check if user is already logged in (from secure storage)
   useEffect(() => {
-    // checkAuthStatus();
-  }, []);
+    const checkAuthStatus = async () => {
+      try {
+        const authenticated = await hasAuthToken();
+
+        if (!authenticated) {
+          setIsAuthenticated(false);
+          setUser(null);
+          onAuthStateChange?.(false);
+          return;
+        }
+
+        const storedUser = await getUser();
+        setUser(storedUser);
+        setIsAuthenticated(true);
+        onAuthStateChange?.(true);
+      } catch (error) {
+        setIsAuthenticated(false);
+        setUser(null);
+        onAuthStateChange?.(false);
+      }
+    };
+
+    checkAuthStatus();
+  }, [onAuthStateChange]);
 
   const handleLoginSuccess = (userData) => {
     setUser(userData);
     setIsAuthenticated(true);
-    // TODO: Store JWT token securely
+    onAuthStateChange?.(true);
   };
 
   return (
