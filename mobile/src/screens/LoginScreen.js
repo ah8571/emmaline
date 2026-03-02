@@ -18,7 +18,6 @@ import { loginUser, registerUser } from '../services/api.js';
 const LoginScreen = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -36,7 +35,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
 
       const response = isLogin
         ? await loginUser(email.trim().toLowerCase(), password)
-        : await registerUser(email.trim().toLowerCase(), password, marketingOptIn);
+        : await registerUser(email.trim().toLowerCase(), password);
 
       if (!response.success) {
         setError(response.error || 'Authentication failed');
@@ -83,20 +82,6 @@ const LoginScreen = ({ onLoginSuccess }) => {
             secureTextEntry
             editable={!loading}
           />
-
-          {!isLogin ? (
-            <TouchableOpacity
-              style={styles.checkboxRow}
-              onPress={() => setMarketingOptIn((value) => !value)}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.checkbox, marketingOptIn && styles.checkboxChecked]}>
-                {marketingOptIn ? <Text style={styles.checkmark}>✓</Text> : null}
-              </View>
-              <Text style={styles.checkboxLabel}>Subscribe to newsletter</Text>
-            </TouchableOpacity>
-          ) : null}
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -180,36 +165,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontSize: 14,
     color: '#212529'
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    marginTop: 2
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#ced4da',
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8
-  },
-  checkboxChecked: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF'
-  },
-  checkmark: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700'
-  },
-  checkboxLabel: {
-    fontSize: 13,
-    color: '#495057'
   },
   errorText: {
     color: '#dc3545',

@@ -39,6 +39,10 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
+    if (error.message.includes('Failed to register user') || error.message.includes('Failed to check existing user')) {
+      return res.status(500).json({ error: error.message });
+    }
+
     return res.status(500).json({ error: 'Registration failed' });
   }
 });
