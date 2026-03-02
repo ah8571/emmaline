@@ -56,25 +56,31 @@ const AppHome = () => {
         >
           <Text style={styles.menuIcon}>☰</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{activeScreen === 'transcripts' ? 'Transcripts' : 'Notes'}</Text>
       </View>
 
       {menuOpen ? (
-        <View style={styles.menuPanel}>
+        <View style={styles.overlay}>
           <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => openScreen('transcripts')}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.menuItemText}>Transcripts</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => openScreen('notes')}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.menuItemText}>Notes</Text>
-          </TouchableOpacity>
+            style={styles.overlayBackdrop}
+            onPress={() => setMenuOpen(false)}
+            activeOpacity={1}
+          />
+          <View style={styles.sideMenu}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => openScreen('transcripts')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.menuItemText}>Transcripts</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => openScreen('notes')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.menuItemText}>Notes</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : null}
 
@@ -160,34 +166,40 @@ const styles = StyleSheet.create({
     height: 56,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
     backgroundColor: '#ffffff'
   },
   menuButton: {
-    width: 36,
-    height: 36,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8
+    marginLeft: '25%'
   },
   menuIcon: {
-    fontSize: 22,
+    fontSize: 16,
     color: '#212529'
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#212529'
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+    flexDirection: 'row'
   },
-  menuPanel: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+  overlayBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.2)'
+  },
+  sideMenu: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 220,
     backgroundColor: '#ffffff'
   },
   menuItem: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingVertical: 14
   },
   menuItemText: {
