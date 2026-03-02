@@ -6,6 +6,7 @@
 import express from 'express';
 import twilio from 'twilio';
 import authMiddleware from '../middleware/auth.js';
+import { getUserIdByAssignedPhoneNumber } from '../services/databaseService.js';
 import {
   handleIncomingCall,
   initiateOutboundCall,
@@ -46,11 +47,12 @@ router.post('/webhook', verifyTwilioRequest, async (req, res) => {
   try {
     const callSid = req.body.CallSid;
     const from = req.body.From;
+    const to = req.body.To;
 
-    // For incoming calls, we need to identify the user
-    // In production, this would come from a lookup or context
-    // For now, we'll use a placeholder
-    const userId = req.body.UserId || null;
+    // Identify user either from explicit webhook context or dedicated phone mapping
+    const userIdFromPayload = req.body.UserId || null;
+    const userIdFromDedicatedNumber = to ? await getUserIdByAssignedPhoneNumber(to) : null;
+    const userId = userIdFromPayload || userIdFromDedicatedNumber;
 
     if (!userId) {
       console.warn('No userId provided in incoming call');

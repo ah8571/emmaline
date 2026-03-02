@@ -4,13 +4,28 @@
  */
 
 import twilio from 'twilio';
-import { saveCall, saveTranscript } from './databaseService.js';
+import {
+  saveCall,
+  getUserPhoneNumber,
+  saveUserPhoneNumber,
+  markUserPhoneNumberReleased
+} from './databaseService.js';
 
 let client = null;
 
 const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 const WEBHOOK_URL = process.env.WEBHOOK_URL || 'https://example.com';
 const WEBSOCKET_URL = process.env.WEBSOCKET_URL || 'wss://example.com/ws/media-stream';
+const TWILIO_API_KEY_SID = process.env.TWILIO_API_KEY_SID;
+const TWILIO_API_KEY_SECRET = process.env.TWILIO_API_KEY_SECRET;
+const TWILIO_TWIML_APP_SID = process.env.TWILIO_TWIML_APP_SID;
+const VOICE_TOKEN_TTL_SECONDS = parseInt(process.env.TWILIO_VOICE_TOKEN_TTL_SECONDS || '3600', 10);
+
+const sanitizeClientIdentity = (identity) => {
+  return String(identity || '')
+    .replace(/[^a-zA-Z0-9_\-=\.]/g, '_')
+    .slice(0, 121);
+};
 
 /**
  * Get Twilio client instance
@@ -29,6 +44,150 @@ export const getTwilioClient = () => {
 
   client = twilio(accountSid, authToken);
   return client;
+};
+
+export const generateVoiceAccessToken = ({ identity }) => {
+  if (!process.env.TWILIO_ACCOUNT_SID || !TWILIO_API_KEY_SID || !TWILIO_API_KEY_SECRET || !TWILIO_TWIML_APP_SID) {
+    throw new Error('Missing Twilio Voice token configuration (account SID, API key SID/secret, or TwiML App SID)');
+  }
+
+  const clientIdentity = sanitizeClientIdentity(identity);
+
+  if (!clientIdentity) {
+    throw new Error('Voice token identity is required');
+  }
+
+  const AccessToken = twilio.jwt.AccessToken;
+  const VoiceGrant = AccessToken.VoiceGrant;
+
+  const accessToken = new AccessToken(
+    process.env.TWILIO_ACCOUNT_SID,
+    TWILIO_API_KEY_SID,
+    TWILIO_API_KEY_SECRET,
+    {
+      identity: clientIdentity,
+      ttl: VOICE_TOKEN_TTL_SECONDS
+    }
+  );
+
+  accessToken.addGrant(
+    new VoiceGrant({
+      outgoingApplicationSid: TWILIO_TWIML_APP_SID,
+      incomingAllow: false
+    })
+  );
+
+  return {
+    token: accessToken.toJwt(),
+    identity: clientIdentity,
+    ttl: VOICE_TOKEN_TTL_SECONDS
+  };
+};
+
+export const generateClientConnectTwiML = ({ userId, identity }) => {
+  const VoiceResponse = twilio.twiml.VoiceResponse;
+  const response = new VoiceResponse();
+
+  const connect = response.connect();
+  connect.stream({
+    url: WEBSOCKET_URL,
+    parameter: {
+      source: 'in-app-voip',
+      userId: userId || null,
+      identity: identity || null
+    }
+  });
+
+  return response.toString();
+};
+
+export const findAvailablePhoneNumbers = async ({ countryCode = 'US', areaCode, limit = 5 }) => {
+  const twilioClient = getTwilioClient();
+  const targetCountryCode = String(countryCode || 'US').toUpperCase();
+
+  let availableNumbers = [];
+
+  if (areaCode) {
+    availableNumbers = await twilioClient
+      .availablePhoneNumbers(targetCountryCode)
+      .local.list({ areaCode, limit });
+  } else {
+    availableNumbers = await twilioClient
+      .availablePhoneNumbers(targetCountryCode)
+      .local.list({ limit });
+  }
+
+  return availableNumbers.map((number) => ({
+    phoneNumber: number.phoneNumber,
+    friendlyName: number.friendlyName,
+    locality: number.locality,
+    region: number.region,
+    isoCountry: number.isoCountry
+  }));
+};
+
+export const provisionDedicatedNumberForUser = async (userId, options = {}) => {
+  const existingNumber = await getUserPhoneNumber(userId);
+
+  if (existingNumber) {
+    return {
+      alreadyAssigned: true,
+      number: existingNumber
+    };
+  }
+
+  const twilioClient = getTwilioClient();
+  const countryCode = String(options.countryCode || 'US').toUpperCase();
+  const limit = 1;
+
+  const candidates = await twilioClient
+    .availablePhoneNumbers(countryCode)
+    .local.list(options.areaCode ? { areaCode: options.areaCode, limit } : { limit });
+
+  if (!candidates.length) {
+    throw new Error('No available phone numbers found for requested region');
+  }
+
+  const selectedNumber = candidates[0];
+  const incomingPhoneNumber = await twilioClient.incomingPhoneNumbers.create({
+    phoneNumber: selectedNumber.phoneNumber,
+    voiceUrl: `${WEBHOOK_URL}/api/twilio/webhook`,
+    voiceMethod: 'POST',
+    statusCallback: `${WEBHOOK_URL}/api/twilio/call-status`,
+    statusCallbackMethod: 'POST'
+  });
+
+  const stored = await saveUserPhoneNumber(userId, {
+    twilioPhoneSid: incomingPhoneNumber.sid,
+    phoneNumber: incomingPhoneNumber.phoneNumber,
+    friendlyName: incomingPhoneNumber.friendlyName,
+    status: 'active'
+  });
+
+  return {
+    alreadyAssigned: false,
+    number: stored
+  };
+};
+
+export const releaseDedicatedNumberForUser = async (userId) => {
+  const existingNumber = await getUserPhoneNumber(userId);
+
+  if (!existingNumber) {
+    return {
+      released: false,
+      reason: 'No active number assigned'
+    };
+  }
+
+  const twilioClient = getTwilioClient();
+  await twilioClient.incomingPhoneNumbers(existingNumber.twilio_phone_sid).remove();
+  await markUserPhoneNumberReleased(userId);
+
+  return {
+    released: true,
+    phoneNumber: existingNumber.phone_number
+  };
 };
 
 /**
@@ -254,6 +413,11 @@ export const getCallFromTwilio = async (callSid) => {
 
 export default {
   getTwilioClient,
+  generateVoiceAccessToken,
+  generateClientConnectTwiML,
+  findAvailablePhoneNumbers,
+  provisionDedicatedNumberForUser,
+  releaseDedicatedNumberForUser,
   generateIncomingCallTwiML,
   handleIncomingCall,
   initiateOutboundCall,
