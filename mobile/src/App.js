@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
-import { SafeAreaView, StyleSheet, Alert, Linking } from 'react-native';
+import { StyleSheet, Alert, Linking, View } from 'react-native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppNavigator from './navigation/AppNavigator';
 import FloatingCallButton from './components/FloatingCallButton';
 import { initiateCall } from './services/api.js';
 
-export default function App() {
+const CALL_DOCK_HEIGHT = 84;
+
+const AppContent = () => {
+  const insets = useSafeAreaInsets();
   const [isCalling, setIsCalling] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const callDockHeight = CALL_DOCK_HEIGHT + insets.bottom;
 
   const handleInitiateCall = async () => {
     if (isCalling) {
@@ -42,16 +48,45 @@ export default function App() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <AppNavigator onAuthStateChange={setIsAuthenticated} />
-      {isAuthenticated ? <FloatingCallButton onPress={handleInitiateCall} /> : null}
-    </SafeAreaView>
+    <View style={styles.container}>
+      <View style={[styles.navigatorContainer, isAuthenticated && { paddingBottom: callDockHeight }]}>
+        <AppNavigator onAuthStateChange={setIsAuthenticated} />
+      </View>
+
+      {isAuthenticated ? (
+        <>
+          <View style={[styles.callDock, { height: callDockHeight, paddingBottom: insets.bottom }]} pointerEvents="none" />
+          <FloatingCallButton onPress={handleInitiateCall} />
+        </>
+      ) : null}
+    </View>
+  );
+};
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#fff'
+  },
+  navigatorContainer: {
+    flex: 1
+  },
+  callDock: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingRight: 20,
     backgroundColor: '#fff'
   }
 });

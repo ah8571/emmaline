@@ -41,7 +41,7 @@ const FloatingCallButton = ({ onPress }) => {
     <>
       <Animated.View
         style={[
-          styles.container,
+          styles.floatingContainer,
           {
             transform: [{ scale: scaleAnim }]
           }
@@ -69,7 +69,7 @@ const FloatingCallButton = ({ onPress }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
+  floatingContainer: {
     position: 'absolute',
     bottom: 80,
     right: 20,
