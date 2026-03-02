@@ -31,6 +31,7 @@ Emmaline is a hands-free, voice-first AI assistant accessible via phone call. Us
 4. **Intelligent summarization** – Key points extracted and bulleted
 5. **Note-taking timeline** – View and organize call summaries in a mobile app
 6. **User authentication** – Basic user accounts and data isolation
+7. **Legal pages** – Create and publish Privacy Policy and Terms of Use
 
 ### User Flow
 

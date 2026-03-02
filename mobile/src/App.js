@@ -6,6 +6,7 @@ import { initiateCall } from './services/api.js';
 
 export default function App() {
   const [isCalling, setIsCalling] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const handleInitiateCall = async () => {
     if (isCalling) {
@@ -42,8 +43,8 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <AppNavigator />
-      <FloatingCallButton onPress={handleInitiateCall} />
+      <AppNavigator onAuthStateChange={setIsAuthenticated} />
+      {isAuthenticated ? <FloatingCallButton onPress={handleInitiateCall} /> : null}
     </SafeAreaView>
   );
 }
