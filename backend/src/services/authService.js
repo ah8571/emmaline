@@ -54,11 +54,15 @@ export const registerUser = async (email, password, marketingOptIn = false) => {
   }
 
   // Check if user already exists
-  const { data: existingUser } = await supabase
+  const { data: existingUser, error: existingUserError } = await supabase
     .from('users')
     .select('id')
     .eq('email', email)
-    .single();
+    .maybeSingle();
+
+  if (existingUserError) {
+    throw new Error(`Failed to check existing user: ${existingUserError.message}`);
+  }
 
   if (existingUser) {
     throw new Error('Email already registered');
@@ -84,7 +88,7 @@ export const registerUser = async (email, password, marketingOptIn = false) => {
 
   if (error) {
     console.error('Error registering user:', error);
-    throw new Error('Failed to register user');
+    throw new Error(`Failed to register user: ${error.message}`);
   }
 
   // Generate token
