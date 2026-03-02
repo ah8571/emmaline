@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 
 import LoginScreen from '../screens/LoginScreen';
 import TimelineScreen from '../screens/TimelineScreen';
@@ -11,7 +11,6 @@ import CallDetailScreen from '../screens/CallDetailScreen';
 import { isAuthenticated as hasAuthToken, getUser } from '../utils/secureStorage.js';
 
 const Stack = createStackNavigator();
-const Tab = createMaterialTopTabNavigator();
 
 const TranscriptStack = () => (
   <Stack.Navigator>
@@ -38,44 +37,51 @@ const NotesStack = () => (
   </Stack.Navigator>
 );
 
-const AppTabs = () => {
+const AppHome = () => {
+  const [activeScreen, setActiveScreen] = useState('transcripts');
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const openScreen = (screen) => {
+    setActiveScreen(screen);
+    setMenuOpen(false);
+  };
+
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: '#6c757d',
-        tabBarIndicatorStyle: {
-          backgroundColor: '#007AFF',
-          height: 2
-        },
-        tabBarStyle: {
-          backgroundColor: '#fff',
-          borderBottomWidth: 1,
-          borderBottomColor: '#e9ecef'
-        },
-        tabBarLabelStyle: {
-          textTransform: 'none',
-          fontSize: 14,
-          fontWeight: '600'
-        }
-      }}
-    >
-      <Tab.Screen 
-        name="Transcript" 
-        component={TranscriptStack}
-        options={{
-          tabBarLabel: 'Transcripts'
-        }}
-      />
-      <Tab.Screen 
-        name="Notes" 
-        component={NotesStack}
-        options={{
-          tabBarLabel: 'Notes'
-        }}
-      />
-    </Tab.Navigator>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => setMenuOpen((open) => !open)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.menuIcon}>☰</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{activeScreen === 'transcripts' ? 'Transcripts' : 'Notes'}</Text>
+      </View>
+
+      {menuOpen ? (
+        <View style={styles.menuPanel}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => openScreen('transcripts')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.menuItemText}>Transcripts</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => openScreen('notes')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.menuItemText}>Notes</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      <View style={styles.content}>
+        {activeScreen === 'transcripts' ? <TranscriptStack /> : <NotesStack />}
+      </View>
+    </View>
   );
 };
 
@@ -132,7 +138,7 @@ const AppNavigator = ({ onAuthStateChange }) => {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen 
             name="App" 
-            component={AppTabs}
+            component={AppHome}
             options={{
               animationEnabled: false
             }}
@@ -144,3 +150,51 @@ const AppNavigator = ({ onAuthStateChange }) => {
 };
 
 export default AppNavigator;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff'
+  },
+  header: {
+    height: 56,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    backgroundColor: '#ffffff'
+  },
+  menuButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8
+  },
+  menuIcon: {
+    fontSize: 22,
+    color: '#212529'
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#212529'
+  },
+  menuPanel: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+    backgroundColor: '#ffffff'
+  },
+  menuItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 14
+  },
+  menuItemText: {
+    fontSize: 15,
+    color: '#212529'
+  },
+  content: {
+    flex: 1
+  }
+});
