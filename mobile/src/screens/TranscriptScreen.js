@@ -107,7 +107,6 @@ const TranscriptScreen = ({ navigation }) => {
         <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
       ) : transcripts.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>🎙️</Text>
           <Text style={styles.emptyText}>No transcripts yet</Text>
           <Text style={styles.emptySubtext}>
             Make a call to see your conversation history
@@ -194,10 +193,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16
   },
   emptyText: {
     fontSize: 18,
