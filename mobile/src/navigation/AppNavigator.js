@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff'
   },
   header: {
-    height: 56,
+    height: 72,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
     justifyContent: 'center',
@@ -175,7 +175,8 @@ const styles = StyleSheet.create({
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: '25%'
+    marginLeft: '25%',
+    marginTop: 10
   },
   menuIcon: {
     fontSize: 16,
