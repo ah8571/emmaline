@@ -1,4 +1,4 @@
-# Emmaline - AI Phone Call Buddy for Multitasking
+# Emmaline - AI Phone Call Assistant for Multitasking
 
 Monorepo for a hands-free AI assistant accessible via phone call. Users can speak with an AI while multitasking, with automatic transcription, summarization, and note-taking.
 

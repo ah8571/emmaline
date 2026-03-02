@@ -124,11 +124,97 @@ export const getNotesForUser = async (userId) => {
   return data;
 };
 
+export const getUserPhoneNumber = async (userId) => {
+  const { data, error } = await supabase
+    .from('user_phone_numbers')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching user phone number:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const getUserIdByAssignedPhoneNumber = async (phoneNumber) => {
+  const { data, error } = await supabase
+    .from('user_phone_numbers')
+    .select('user_id')
+    .eq('phone_number', phoneNumber)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching user by assigned phone number:', error);
+    throw error;
+  }
+
+  return data?.user_id || null;
+};
+
+export const saveUserPhoneNumber = async (userId, phoneNumberData) => {
+  const { data, error } = await supabase
+    .from('user_phone_numbers')
+    .upsert(
+      {
+        user_id: userId,
+        twilio_phone_sid: phoneNumberData.twilioPhoneSid,
+        phone_number: phoneNumberData.phoneNumber,
+        friendly_name: phoneNumberData.friendlyName,
+        status: phoneNumberData.status || 'active',
+        provisioned_at: phoneNumberData.provisionedAt || new Date().toISOString(),
+        released_at: phoneNumberData.releasedAt || null
+      },
+      {
+        onConflict: 'user_id'
+      }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error saving user phone number:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const markUserPhoneNumberReleased = async (userId) => {
+  const { data, error } = await supabase
+    .from('user_phone_numbers')
+    .update({
+      status: 'released',
+      released_at: new Date().toISOString()
+    })
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error releasing user phone number:', error);
+    throw error;
+  }
+
+  return data;
+};
+
 export default {
   getSupabaseClient,
   saveCall,
   saveTranscript,
   saveSummary,
   getCallsForUser,
-  getNotesForUser
+  getNotesForUser,
+  getUserPhoneNumber,
+  getUserIdByAssignedPhoneNumber,
+  saveUserPhoneNumber,
+  markUserPhoneNumberReleased
 };

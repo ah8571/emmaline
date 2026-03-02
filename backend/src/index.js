@@ -16,6 +16,7 @@ import callRoutes from './routes/calls.js';
 import noteRoutes from './routes/notes.js';
 import authRoutes from './routes/auth.js';
 import newsletterRoutes from './routes/newsletter.js';
+import voiceRoutes from './routes/voice.js';
 
 // Import middleware
 import { errorHandler, requestLogger } from './middleware/index.js';
@@ -52,12 +53,14 @@ app.use('/api/calls', callRoutes);
 app.use('/api/notes', noteRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/voice', voiceRoutes);
 
 app.use('/twilio', twilioRoutes);
 app.use('/calls', callRoutes);
 app.use('/notes', noteRoutes);
 app.use('/auth', authRoutes);
 app.use('/newsletter', newsletterRoutes);
+app.use('/voice', voiceRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -75,6 +78,7 @@ app.get('/', (req, res) => {
       calls: '/api/calls',
       notes: '/api/notes',
       auth: '/api/auth',
+      voice: '/api/voice',
       websocket: 'wss://localhost:3000/ws/media-stream'
     }
   });

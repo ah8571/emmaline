@@ -21,6 +21,20 @@ CREATE TABLE users (
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS marketing_opt_in BOOLEAN DEFAULT FALSE;
 
+-- Dedicated phone numbers (one active assignment per user)
+CREATE TABLE IF NOT EXISTS user_phone_numbers (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  twilio_phone_sid VARCHAR(255) NOT NULL UNIQUE,
+  phone_number VARCHAR(20) NOT NULL UNIQUE,
+  friendly_name VARCHAR(255),
+  status VARCHAR(30) DEFAULT 'active',
+  provisioned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  released_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Calls table
 CREATE TABLE calls (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -117,6 +131,8 @@ CREATE TABLE audit_logs (
 
 -- Create indexes for performance
 CREATE INDEX idx_user_calls ON calls (user_id);
+CREATE INDEX idx_user_phone_numbers_user ON user_phone_numbers (user_id);
+CREATE INDEX idx_user_phone_numbers_status ON user_phone_numbers (status);
 CREATE INDEX idx_call_date ON calls (started_at DESC);
 CREATE INDEX idx_user_transcripts ON transcripts (user_id);
 CREATE INDEX idx_call_transcript ON transcripts (call_id);
@@ -147,6 +163,9 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_user_phone_numbers_updated_at BEFORE UPDATE ON user_phone_numbers
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER update_calls_updated_at BEFORE UPDATE ON calls
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -164,6 +183,7 @@ CREATE TRIGGER update_notes_updated_at BEFORE UPDATE ON notes
 
 -- RLS (Row Level Security) - Optional but recommended for security
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_phone_numbers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE calls ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transcripts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE summaries ENABLE ROW LEVEL SECURITY;
@@ -175,6 +195,9 @@ ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 -- RLS Policies - Users can only see their own data
 CREATE POLICY "Users can view their own data" ON users FOR SELECT
   USING (auth.uid() = id);
+
+CREATE POLICY "Users can view their own phone numbers" ON user_phone_numbers FOR SELECT
+  USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can view their own calls" ON calls FOR SELECT
   USING (auth.uid() = user_id);
