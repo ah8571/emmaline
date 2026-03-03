@@ -14,6 +14,31 @@ Goal: make in-app calling the primary UX, keep dialer as fallback, and hide the 
 
 ## 1) Twilio Console Setup (Required)
 
+1) Create a TwiML App (you currently have none)
+
+Go to Twilio Console → Develop → Phone Numbers → TwiML Apps → Create new TwiML App.
+Name: Emmaline VoIP (or similar).
+Voice Request URL: https://emmaline.app/api/voice/connect
+Method: HTTP POST
+Save, then copy the TwiML App SID (starts with AP...).
+2) Create Twilio API Key for Voice tokens
+
+Go to Twilio Console → Account/Project settings → API Keys (or Keys & Credentials).
+Create Standard API Key.
+Copy:
+API Key SID (starts with SK...)
+API Key Secret (shown once only)
+3) Set backend environment vars (DigitalOcean/backend)
+
+TWILIO_ACCOUNT_SID
+TWILIO_AUTH_TOKEN
+TWILIO_API_KEY_SID
+TWILIO_API_KEY_SECRET
+TWILIO_TWIML_APP_SID
+WEBHOOK_URL = https://emmaline.app
+WEBSOCKET_URL = wss://emmaline.app/ws/media-stream
+Then redeploy backend.
+
 ### Account + Voice basics
 - [ ] **[You/Twilio Console]** Verify Voice is enabled on your Twilio project.
 - [ ] **[You/Twilio Console]** Confirm a Twilio phone number is active for inbound fallback.
@@ -102,9 +127,4 @@ Goal: make in-app calling the primary UX, keep dialer as fallback, and hide the 
 - [ ] **[Both]** Add controls for release/reassign/recycle numbers.
 - [ ] **[Both]** Keep in-app VoIP path as primary UX, PSTN number as optional channel.
 
----
 
-## Notes
-
-- Twilio is the call transport/session layer; STT/TTS/LLM providers can remain Google/OpenAI/ElevenLabs.
-- In-app VoIP removes the awkward visible external number while preserving current architecture.
