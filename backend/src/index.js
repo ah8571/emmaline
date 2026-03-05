@@ -36,7 +36,11 @@ const server = http.createServer(app);
 // Create WebSocket servers for both direct and /api-prefixed paths.
 const wsPaths = ['/ws/media-stream', '/api/ws/media-stream'];
 const mediaStreamServers = wsPaths.map((path) => {
-  const wss = new WebSocketServer({ server, path });
+  const wss = new WebSocketServer({
+    server,
+    path,
+    perMessageDeflate: false
+  });
   wss.on('connection', handleMediaStreamWebSocket);
   return { path, wss };
 });
