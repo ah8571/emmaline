@@ -17,6 +17,13 @@ import { getUserPhoneNumber } from '../services/databaseService.js';
 const router = express.Router();
 
 const verifyTwilioRequest = (req, res, next) => {
+  const skipValidation = String(process.env.TWILIO_SKIP_REQUEST_VALIDATION || '').toLowerCase() === 'true';
+
+  if (skipValidation) {
+    console.warn('Skipping Twilio request signature validation for /api/voice/connect (debug mode enabled).');
+    return next();
+  }
+
   const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
 
   if (!twilioAuthToken) {
