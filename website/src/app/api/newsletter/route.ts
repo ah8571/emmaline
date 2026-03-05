@@ -25,43 +25,51 @@ export async function POST(req: NextRequest) {
     }
 
     // Forward to backend API to store the email
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
-    
-    try {
-      const response = await fetch(`${backendUrl}/api/newsletter`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          source,
-          marketingConsent: true,
-          consentSource: consentSource || source || 'landing-page',
-          policyVersion: policyVersion || '2026-02-27',
-          consentTimestamp: new Date().toISOString(),
-          userAgent: req.headers.get('user-agent') || 'unknown',
-          timestamp: new Date().toISOString(),
-        }),
-      });
+    const backendUrl = process.env.BACKEND_URL;
 
-      if (!response.ok) {
-        throw new Error(`Backend error: ${response.statusText}`);
-      }
-
+    if (!backendUrl) {
+      console.error('Missing BACKEND_URL for website API route');
       return NextResponse.json(
-        { message: 'Successfully subscribed to newsletter' },
-        { status: 201 }
-      );
-    } catch (backendError) {
-      console.error('Backend communication error:', backendError);
-      
-      // If backend is down, still accept the email (for graceful degradation)
-      return NextResponse.json(
-        { message: 'Thanks for subscribing! We\'ll be in touch.' },
-        { status: 201 }
+        { error: 'Waitlist service is not configured' },
+        { status: 500 }
       );
     }
+
+    const response = await fetch(`${backendUrl}/api/newsletter`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email,
+        source,
+        marketingConsent: true,
+        consentSource: consentSource || source || 'landing-page',
+        policyVersion: policyVersion || '2026-02-27',
+        consentTimestamp: new Date().toISOString(),
+        userAgent: req.headers.get('user-agent') || 'unknown',
+        timestamp: new Date().toISOString()
+      })
+    });
+
+    const backendPayload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const backendError = backendPayload?.error || 'Waitlist signup failed';
+      return NextResponse.json({ error: backendError }, { status: response.status });
+    }
+
+    if (backendPayload?.persisted === false) {
+      return NextResponse.json(
+        { error: 'Waitlist signup was accepted but not persisted. Please try again.' },
+        { status: 503 }
+      );
+    }
+
+    return NextResponse.json(
+      { message: 'Successfully joined the waitlist' },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('Newsletter signup error:', error);
     return NextResponse.json(
