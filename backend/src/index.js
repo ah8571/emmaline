@@ -33,11 +33,13 @@ const PORT = process.env.PORT || 3000;
 // Create HTTP server for WebSocket support
 const server = http.createServer(app);
 
-// Create WebSocket server
-const wss = new WebSocketServer({ server, path: '/ws/media-stream' });
-
-// Handle WebSocket connections
-wss.on('connection', handleMediaStreamWebSocket);
+// Create WebSocket servers for both direct and /api-prefixed paths.
+const wsPaths = ['/ws/media-stream', '/api/ws/media-stream'];
+const mediaStreamServers = wsPaths.map((path) => {
+  const wss = new WebSocketServer({ server, path });
+  wss.on('connection', handleMediaStreamWebSocket);
+  return { path, wss };
+});
 
 // Middleware
 app.use(cors());
@@ -79,7 +81,7 @@ app.get('/', (req, res) => {
       notes: '/api/notes',
       auth: '/api/auth',
       voice: '/api/voice',
-      websocket: 'wss://localhost:3000/ws/media-stream'
+      websocket: 'wss://localhost:3000/api/ws/media-stream'
     }
   });
 });
@@ -95,7 +97,9 @@ app.use(errorHandler);
 // Start server
 server.listen(PORT, () => {
   console.log(`🚀 Emmaline backend running on port ${PORT}`);
-  console.log(`📡 WebSocket server listening at wss://localhost:${PORT}/ws/media-stream`);
+  wsPaths.forEach((path) => {
+    console.log(`📡 WebSocket server listening at wss://localhost:${PORT}${path}`);
+  });
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Twilio account configured: ${process.env.TWILIO_ACCOUNT_SID ? '✓' : '✗'}`);
   console.log(`Supabase configured: ${process.env.SUPABASE_URL ? '✓' : '✗'}`);

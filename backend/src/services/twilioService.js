@@ -28,12 +28,12 @@ const buildDefaultMediaStreamUrl = () => {
   try {
     const webhook = new URL(WEBHOOK_URL);
     webhook.protocol = 'wss:';
-    webhook.pathname = '/ws/media-stream';
+    webhook.pathname = '/api/ws/media-stream';
     webhook.search = '';
     webhook.hash = '';
     return webhook.toString();
   } catch {
-    return 'wss://example.com/ws/media-stream';
+    return 'wss://example.com/api/ws/media-stream';
   }
 };
 
