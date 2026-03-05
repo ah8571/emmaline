@@ -14,11 +14,57 @@ import {
 let client = null;
 
 const WEBHOOK_URL = process.env.WEBHOOK_URL || 'https://example.com';
-const WEBSOCKET_URL = process.env.WEBSOCKET_URL || 'wss://example.com/ws/media-stream';
 const TWILIO_API_KEY_SID = process.env.TWILIO_API_KEY_SID;
 const TWILIO_API_KEY_SECRET = process.env.TWILIO_API_KEY_SECRET;
 const TWILIO_TWIML_APP_SID = process.env.TWILIO_TWIML_APP_SID;
 const VOICE_TOKEN_TTL_SECONDS = parseInt(process.env.TWILIO_VOICE_TOKEN_TTL_SECONDS || '3600', 10);
+
+const isLoopbackHost = (hostname) => {
+  const value = String(hostname || '').toLowerCase();
+  return value === 'localhost' || value === '127.0.0.1' || value === '::1';
+};
+
+const buildDefaultMediaStreamUrl = () => {
+  try {
+    const webhook = new URL(WEBHOOK_URL);
+    webhook.protocol = 'wss:';
+    webhook.pathname = '/ws/media-stream';
+    webhook.search = '';
+    webhook.hash = '';
+    return webhook.toString();
+  } catch {
+    return 'wss://example.com/ws/media-stream';
+  }
+};
+
+const getMediaStreamUrl = () => {
+  const configured = String(process.env.WEBSOCKET_URL || '').trim();
+  const defaultUrl = buildDefaultMediaStreamUrl();
+
+  if (!configured) {
+    return defaultUrl;
+  }
+
+  try {
+    const parsed = new URL(configured);
+
+    if (parsed.protocol !== 'wss:') {
+      parsed.protocol = 'wss:';
+    }
+
+    if (isLoopbackHost(parsed.hostname)) {
+      console.warn(
+        `WEBSOCKET_URL (${configured}) points to localhost and is unreachable from Twilio; using ${defaultUrl} instead.`
+      );
+      return defaultUrl;
+    }
+
+    return parsed.toString();
+  } catch {
+    console.warn(`Invalid WEBSOCKET_URL (${configured}); using ${defaultUrl} instead.`);
+    return defaultUrl;
+  }
+};
 
 const sanitizeClientIdentity = (identity) => {
   return String(identity || '')
@@ -86,10 +132,11 @@ export const generateVoiceAccessToken = ({ identity }) => {
 export const generateClientConnectTwiML = ({ userId, identity }) => {
   const VoiceResponse = twilio.twiml.VoiceResponse;
   const response = new VoiceResponse();
+  const mediaStreamUrl = getMediaStreamUrl();
 
   const connect = response.connect();
   connect.stream({
-    url: WEBSOCKET_URL,
+    url: mediaStreamUrl,
     parameter: {
       source: 'in-app-voip',
       userId: userId || null,
@@ -196,11 +243,12 @@ export const releaseDedicatedNumberForUser = async (userId) => {
 export const generateIncomingCallTwiML = (callContext = {}) => {
   const VoiceResponse = twilio.twiml.VoiceResponse;
   const response = new VoiceResponse();
+  const mediaStreamUrl = getMediaStreamUrl();
 
   // Connect to WebSocket for media streaming
   const connect = response.connect();
   const stream = connect.stream({
-    url: WEBSOCKET_URL,
+    url: mediaStreamUrl,
     // Pass custom parameters to WebSocket connection
     parameter: {
       userId: callContext.userId || null,

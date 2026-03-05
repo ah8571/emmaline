@@ -23,15 +23,23 @@ const verifyTwilioRequest = (req, res, next) => {
     return res.status(500).json({ error: 'Missing TWILIO_AUTH_TOKEN for request validation' });
   }
 
-  const twilioUrl = `${process.env.WEBHOOK_URL}${req.originalUrl}`;
-  const isValidRequest = twilio.validateRequest(
-    twilioAuthToken,
-    req.get('x-twilio-signature') || '',
-    twilioUrl,
-    req.body
+  const signature = req.get('x-twilio-signature') || '';
+  const forwardedProto = req.get('x-forwarded-proto') || req.protocol || 'https';
+  const forwardedHost = req.get('x-forwarded-host') || req.get('host') || '';
+
+  const candidateUrls = [
+    `${process.env.WEBHOOK_URL || ''}${req.originalUrl}`,
+    `${forwardedProto}://${forwardedHost}${req.originalUrl}`
+  ].filter(Boolean);
+
+  const isValidRequest = candidateUrls.some((url) =>
+    twilio.validateRequest(twilioAuthToken, signature, url, req.body)
   );
 
   if (!isValidRequest) {
+    console.warn('Unauthorized Twilio request on /api/voice/connect', {
+      candidateUrls
+    });
     return res.status(403).json({ error: 'Unauthorized Twilio request' });
   }
 

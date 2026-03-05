@@ -19,18 +19,22 @@ const router = express.Router();
  */
 const verifyTwilioRequest = (req, res, next) => {
   const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
-  const twilioUrl = `${process.env.WEBHOOK_URL}${req.originalUrl}`;
+  const signature = req.get('x-twilio-signature') || '';
+  const forwardedProto = req.get('x-forwarded-proto') || req.protocol || 'https';
+  const forwardedHost = req.get('x-forwarded-host') || req.get('host') || '';
+
+  const candidateUrls = [
+    `${process.env.WEBHOOK_URL || ''}${req.originalUrl}`,
+    `${forwardedProto}://${forwardedHost}${req.originalUrl}`
+  ].filter(Boolean);
 
   // Verify the request came from Twilio
-  const isValidRequest = twilio.validateRequest(
-    twilioAuthToken,
-    req.get('x-twilio-signature') || '',
-    twilioUrl,
-    req.body
+  const isValidRequest = candidateUrls.some((url) =>
+    twilio.validateRequest(twilioAuthToken, signature, url, req.body)
   );
 
   if (!isValidRequest) {
-    console.warn('Invalid Twilio request signature');
+    console.warn('Invalid Twilio request signature', { candidateUrls });
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
