@@ -3,6 +3,7 @@
     "name": "Emmaline",
     "slug": "emmaline",
     "version": "0.1.0",
+    "newArchEnabled": false,
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "updates": {
@@ -21,11 +22,18 @@
       "permissions": [
         "RECORD_AUDIO",
         "MODIFY_AUDIO_SETTINGS"
-      ]
+      ],
+      "package": "com.emmaline.app.dev"
     },
     "plugins": [
       "expo-secure-store",
-      "expo-dev-client"
-    ]
+      "expo-dev-client",
+      "./plugins/withTwilioVoiceApplicationProxy"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "fc34b757-3492-45c6-8517-ed22abab10a1"
+      }
+    }
   }
 }

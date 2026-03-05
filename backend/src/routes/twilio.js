@@ -5,11 +5,9 @@
 
 import express from 'express';
 import twilio from 'twilio';
-import authMiddleware from '../middleware/auth.js';
 import { getUserIdByAssignedPhoneNumber } from '../services/databaseService.js';
 import {
   handleIncomingCall,
-  initiateOutboundCall,
   handleCallStatus,
   handleMediaStream
 } from '../services/twilioService.js';
@@ -95,32 +93,6 @@ router.post('/call-status', verifyTwilioRequest, async (req, res) => {
   } catch (error) {
     console.error('Error processing call status:', error);
     return res.status(500).json({ error: 'Failed to process status update' });
-  }
-});
-
-/**
- * POST /api/twilio/initiate
- * Initiate an outbound call for authenticated user
- */
-router.post('/initiate', authMiddleware, async (req, res) => {
-  try {
-    const userId = req.user.userId;
-
-    // Create call in database and get phone number to call
-    const callInfo = await initiateOutboundCall(userId);
-
-    return res.status(200).json({
-      success: true,
-      call: {
-        id: callInfo.callId,
-        sessionId: callInfo.sessionId
-      },
-      phoneNumber: callInfo.phoneNumber,
-      instructions: callInfo.instructions
-    });
-  } catch (error) {
-    console.error('Error initiating call:', error);
-    return res.status(500).json({ error: 'Failed to initiate call' });
   }
 });
 
