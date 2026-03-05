@@ -33,7 +33,9 @@ export default function Waitlist() {
       setStatus('success');
       setEmail('');
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Failed to subscribe';
+      const errorMsg = axios.isAxiosError(error)
+        ? error.response?.data?.error || 'Failed to join waitlist. Please try again.'
+        : 'Failed to join waitlist. Please try again.';
       setMessage(errorMsg);
       setStatus('error');
       console.error('Waitlist signup error:', error);
