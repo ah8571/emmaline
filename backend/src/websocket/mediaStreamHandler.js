@@ -118,11 +118,6 @@ function handleStart(message, mediaConnection, ws) {
   // Store stream SID for later reference
   mediaConnection.streamSid = streamSid;
 
-  // Send ready message back to Twilio
-  sendMediaMessage(ws, {
-    event: 'ready',
-    streamSid
-  });
 }
 
 /**
@@ -181,11 +176,6 @@ async function handleStop(message, mediaConnection, ws) {
 
     mediaConnection.close();
 
-    // Send acknowledgment
-    sendMediaMessage(ws, {
-      event: 'stopped',
-      streamSid
-    });
   } catch (error) {
     console.error('Error handling media stop:', error);
   }
@@ -198,7 +188,8 @@ async function handleStop(message, mediaConnection, ws) {
 function sendMediaMessage(ws, message) {
   try {
     if (ws.readyState === ws.OPEN) {
-      ws.send(JSON.stringify(message));
+      // Twilio Media Streams expects uncompressed WebSocket frames.
+      ws.send(JSON.stringify(message), { compress: false });
     }
   } catch (error) {
     console.error('Error sending media message:', error);
