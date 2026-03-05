@@ -56,6 +56,11 @@ router.post('/token', authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Error generating voice token:', error.message);
+
+    if (String(error.message || '').includes('Missing Twilio Voice token configuration')) {
+      return res.status(500).json({ error: error.message });
+    }
+
     return res.status(500).json({ error: 'Failed to generate voice token' });
   }
 });

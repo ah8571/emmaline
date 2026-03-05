@@ -13,7 +13,6 @@ import {
 
 let client = null;
 
-const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 const WEBHOOK_URL = process.env.WEBHOOK_URL || 'https://example.com';
 const WEBSOCKET_URL = process.env.WEBSOCKET_URL || 'wss://example.com/ws/media-stream';
 const TWILIO_API_KEY_SID = process.env.TWILIO_API_KEY_SID;
@@ -252,50 +251,6 @@ export const handleIncomingCall = async (req, res, userId) => {
 };
 
 /**
- * Initiate outbound call
- * Returns a phone number to dial from the mobile app
- */
-export const initiateOutboundCall = async (userId) => {
-  try {
-    // Create TwiML for outbound call
-    const VoiceResponse = twilio.twiml.VoiceResponse;
-    const response = new VoiceResponse();
-
-    const connect = response.connect();
-    const stream = connect.stream({
-      url: WEBSOCKET_URL,
-      parameter: {
-        userId
-      }
-    });
-
-    const twiml = response.toString();
-
-    // Create call data record (will be updated when call actually connects)
-    const callData = {
-      phoneNumber: TWILIO_PHONE_NUMBER,
-      duration: 0,
-      startedAt: new Date().toISOString(),
-      endedAt: null,
-      status: 'initiated',
-      twilioCallSid: null
-    };
-
-    const savedCall = await saveCall(userId, callData);
-
-    return {
-      callId: savedCall.id,
-      phoneNumber: TWILIO_PHONE_NUMBER,
-      sessionId: savedCall.id,
-      instructions: `Call ${TWILIO_PHONE_NUMBER} from your phone`
-    };
-  } catch (error) {
-    console.error('Error initiating outbound call:', error);
-    throw error;
-  }
-};
-
-/**
  * Handle call status update (from Twilio webhook)
  */
 export const handleCallStatus = async (callSid, status, duration = 0) => {
@@ -420,7 +375,6 @@ export default {
   releaseDedicatedNumberForUser,
   generateIncomingCallTwiML,
   handleIncomingCall,
-  initiateOutboundCall,
   handleCallStatus,
   handleMediaStream,
   endCall,

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Alert, Linking, View } from 'react-native';
+import { StyleSheet, Alert, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppNavigator from './navigation/AppNavigator';
 import FloatingCallButton from './components/FloatingCallButton';
-import { getVoiceToken, initiateCall } from './services/api.js';
+import { getVoiceToken } from './services/api.js';
 import { endVoiceCall, getVoiceCallActive, startVoiceCall } from './services/voiceService.js';
 
 const CALL_DOCK_HEIGHT = 84;
@@ -23,26 +23,6 @@ const AppContent = () => {
       });
     };
   }, []);
-
-  const openDialerFallback = async () => {
-    const response = await initiateCall();
-
-    if (!response.success || !response.phoneNumber) {
-      Alert.alert('Fallback failed', response.error || 'Unable to start dialer fallback call.');
-      return;
-    }
-
-    const sanitizedNumber = String(response.phoneNumber).replace(/\s+/g, '');
-    const dialerUrl = `tel:${sanitizedNumber}`;
-    const canOpenDialer = await Linking.canOpenURL(dialerUrl);
-
-    if (!canOpenDialer) {
-      Alert.alert('Dialer unavailable', `Please call ${response.phoneNumber} manually.`);
-      return;
-    }
-
-    await Linking.openURL(dialerUrl);
-  };
 
   const handleInitiateCall = async () => {
     if (getVoiceCallActive()) {
@@ -73,21 +53,7 @@ const AppContent = () => {
 
         Alert.alert(
           'In-app call unavailable',
-          tokenResponse.error || 'Unable to get a voice token.',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel'
-            },
-            {
-              text: 'Call via phone',
-              onPress: () => {
-                openDialerFallback().catch((error) => {
-                  Alert.alert('Fallback failed', error.message || 'Unable to start fallback call.');
-                });
-              }
-            }
-          ]
+          tokenResponse.error || 'Unable to get a voice token.'
         );
         return;
       }
@@ -115,21 +81,7 @@ const AppContent = () => {
 
         Alert.alert(
           'In-app call failed',
-          response.error || 'Unable to start in-app call.',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel'
-            },
-            {
-              text: 'Call via phone',
-              onPress: () => {
-                openDialerFallback().catch((error) => {
-                  Alert.alert('Fallback failed', error.message || 'Unable to start fallback call.');
-                });
-              }
-            }
-          ]
+          response.error || 'Unable to start in-app call.'
         );
         return;
       }
