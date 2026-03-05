@@ -66,6 +66,17 @@ const getMediaStreamUrl = () => {
   }
 };
 
+const appendStreamParameter = (stream, name, value) => {
+  if (!stream || !name || value === null || value === undefined || value === '') {
+    return;
+  }
+
+  stream.parameter({
+    name: String(name),
+    value: String(value)
+  });
+};
+
 const sanitizeClientIdentity = (identity) => {
   return String(identity || '')
     .replace(/[^a-zA-Z0-9_\-=\.]/g, '_')
@@ -135,14 +146,10 @@ export const generateClientConnectTwiML = ({ userId, identity }) => {
   const mediaStreamUrl = getMediaStreamUrl();
 
   const connect = response.connect();
-  connect.stream({
-    url: mediaStreamUrl,
-    parameter: {
-      source: 'in-app-voip',
-      userId: userId || null,
-      identity: identity || null
-    }
-  });
+  const stream = connect.stream({ url: mediaStreamUrl });
+  appendStreamParameter(stream, 'source', 'in-app-voip');
+  appendStreamParameter(stream, 'userId', userId);
+  appendStreamParameter(stream, 'identity', identity);
 
   return response.toString();
 };
@@ -247,14 +254,9 @@ export const generateIncomingCallTwiML = (callContext = {}) => {
 
   // Connect to WebSocket for media streaming
   const connect = response.connect();
-  const stream = connect.stream({
-    url: mediaStreamUrl,
-    // Pass custom parameters to WebSocket connection
-    parameter: {
-      userId: callContext.userId || null,
-      callSid: callContext.callSid || null
-    }
-  });
+  const stream = connect.stream({ url: mediaStreamUrl });
+  appendStreamParameter(stream, 'userId', callContext.userId);
+  appendStreamParameter(stream, 'callSid', callContext.callSid);
 
   return response.toString();
 };
