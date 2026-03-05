@@ -1,12 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   StyleSheet,
   TouchableOpacity,
   Text,
-  Modal,
-  Animated,
-  Dimensions
+  Animated
 } from 'react-native';
 
 /**
@@ -14,8 +12,7 @@ import {
  * Floating action button for initiating phone calls
  * Appears in the corner of the screen across all tabs
  */
-const FloatingCallButton = ({ onPress }) => {
-  const [isActive, setIsActive] = useState(false);
+const FloatingCallButton = ({ onPress, statusLabel = null }) => {
   const [scaleAnim] = React.useState(new Animated.Value(1));
 
   const handlePressIn = () => {
@@ -58,12 +55,11 @@ const FloatingCallButton = ({ onPress }) => {
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Optional: Status indicator when calling */}
-      {isActive && (
+      {statusLabel ? (
         <View style={styles.statusIndicator}>
-          <Text style={styles.statusText}>Calling AI...</Text>
+          <Text style={styles.statusText}>{statusLabel}</Text>
         </View>
-      )}
+      ) : null}
     </>
   );
 };

@@ -227,6 +227,28 @@ export const initiateCall = async () => {
 };
 
 /**
+ * Get Twilio Voice SDK token for in-app VoIP calling
+ */
+export const getVoiceToken = async () => {
+  try {
+    await addTokenToHeaders();
+    const response = await apiClient.post('/voice/token');
+
+    return {
+      success: true,
+      token: response.data.token,
+      identity: response.data.identity,
+      ttl: response.data.ttl
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
  * End an active call
  */
 export const endCall = async (callId) => {
@@ -475,6 +497,7 @@ export default {
   getCalls,
   getCallDetail,
   initiateCall,
+  getVoiceToken,
   endCall,
   getTranscript,
   getCallSummary,

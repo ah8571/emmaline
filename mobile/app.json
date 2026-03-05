@@ -12,10 +12,20 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Emmaline needs microphone access so you can talk to your AI assistant during in-app calls."
+      }
+    },
+    "android": {
+      "permissions": [
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-dev-client"
     ]
   }
 }
