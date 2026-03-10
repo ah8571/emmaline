@@ -23,6 +23,7 @@ import { errorHandler, requestLogger } from './middleware/index.js';
 
 // Import WebSocket handler
 import { handleMediaStreamWebSocket } from './websocket/mediaStreamHandler.js';
+import { handleEchoWebSocket } from './websocket/echoHandler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -33,15 +34,32 @@ const PORT = process.env.PORT || 3000;
 // Create HTTP server for WebSocket support
 const server = http.createServer(app);
 
-// Create WebSocket servers for both direct and /api-prefixed paths.
-const wsPaths = ['/ws/media-stream', '/api/ws/media-stream'];
-const mediaStreamServers = wsPaths.map((path) => {
+// Create WebSocket servers for media streams and a minimal echo endpoint.
+const websocketRoutes = [
+  {
+    path: '/ws/media-stream',
+    handler: handleMediaStreamWebSocket
+  },
+  {
+    path: '/api/ws/media-stream',
+    handler: handleMediaStreamWebSocket
+  },
+  {
+    path: '/ws/echo',
+    handler: handleEchoWebSocket
+  },
+  {
+    path: '/api/ws/echo',
+    handler: handleEchoWebSocket
+  }
+];
+const websocketServers = websocketRoutes.map(({ path, handler }) => {
   const wss = new WebSocketServer({
     server,
     path,
     perMessageDeflate: false
   });
-  wss.on('connection', handleMediaStreamWebSocket);
+  wss.on('connection', handler);
   return { path, wss };
 });
 
@@ -75,6 +93,10 @@ app.get('/health', (req, res) => {
 
 // Root route
 app.get('/', (req, res) => {
+  const forwardedProto = req.get('x-forwarded-proto') || req.protocol || 'http';
+  const forwardedHost = req.get('x-forwarded-host') || req.get('host') || `localhost:${PORT}`;
+  const websocketProtocol = forwardedProto === 'https' ? 'wss' : 'ws';
+
   res.status(200).json({
     message: 'Emmaline AI Phone Call Buddy - Backend API',
     version: '0.1.0',
@@ -85,7 +107,8 @@ app.get('/', (req, res) => {
       notes: '/api/notes',
       auth: '/api/auth',
       voice: '/api/voice',
-      websocket: 'wss://localhost:3000/api/ws/media-stream'
+      websocket: `${websocketProtocol}://${forwardedHost}/ws/media-stream`,
+      websocketEcho: `${websocketProtocol}://${forwardedHost}/ws/echo`
     }
   });
 });
@@ -101,7 +124,7 @@ app.use(errorHandler);
 // Start server
 server.listen(PORT, () => {
   console.log(`🚀 Emmaline backend running on port ${PORT}`);
-  wsPaths.forEach((path) => {
+  websocketRoutes.forEach(({ path }) => {
     console.log(`📡 WebSocket server listening at wss://localhost:${PORT}${path}`);
   });
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
