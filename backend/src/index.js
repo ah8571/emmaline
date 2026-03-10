@@ -53,14 +53,32 @@ const websocketRoutes = [
     handler: handleEchoWebSocket
   }
 ];
-const websocketServers = websocketRoutes.map(({ path, handler }) => {
-  const wss = new WebSocketServer({
-    server,
-    path,
-    perMessageDeflate: false
+const websocketServers = new Map(
+  websocketRoutes.map(({ path, handler }) => {
+    const wss = new WebSocketServer({
+      noServer: true,
+      perMessageDeflate: false
+    });
+
+    wss.on('connection', handler);
+
+    return [path, wss];
+  })
+);
+
+server.on('upgrade', (request, socket, head) => {
+  const pathname = new URL(request.url || '/', 'http://localhost').pathname;
+  const wss = websocketServers.get(pathname);
+
+  if (!wss) {
+    socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+    socket.destroy();
+    return;
+  }
+
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
   });
-  wss.on('connection', handler);
-  return { path, wss };
 });
 
 // Middleware
