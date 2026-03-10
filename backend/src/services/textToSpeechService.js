@@ -7,27 +7,29 @@
 import textToSpeech from '@google-cloud/text-to-speech';
 import axios from 'axios';
 import { OpenAI } from 'openai';
+import {
+  getGoogleCloudClientOptions,
+  hasGoogleCloudCredentials
+} from './googleCloudAuth.js';
 
-const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
 const DEFAULT_PROVIDER = (process.env.TTS_PROVIDER || 'google').toLowerCase();
 const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
 const OPENAI_TTS_VOICE = process.env.OPENAI_TTS_VOICE || 'alloy';
 const ELEVENLABS_MODEL_ID = process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2';
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'JBFqnCBsd6RMkjVDRZzb';
 
-// Initialize TTS client (uses Application Default Credentials)
 let ttsClient = null;
 let openaiClient = null;
 
-try {
-  ttsClient = new textToSpeech.TextToSpeechClient({
-    projectId
-  });
+const getTtsClient = () => {
+  if (ttsClient) {
+    return ttsClient;
+  }
+
+  ttsClient = new textToSpeech.TextToSpeechClient(getGoogleCloudClientOptions());
   console.log('✓ Google Cloud Text-to-Speech client initialized');
-} catch (error) {
-  console.error('Failed to initialize Text-to-Speech client:', error.message);
-  console.error('Make sure GOOGLE_CLOUD_PROJECT_ID is set and gcloud auth is configured');
-}
+  return ttsClient;
+};
 
 if (process.env.OPENAI_API_KEY) {
   openaiClient = new OpenAI({
@@ -40,9 +42,11 @@ const resolveProvider = (options = {}) => {
 };
 
 const textToAudioGoogle = async (text, options = {}) => {
-  if (!ttsClient) {
-    throw new Error('Google Text-to-Speech client not initialized');
+  if (!hasGoogleCloudCredentials()) {
+    throw new Error('Google Text-to-Speech credentials are not configured');
   }
+
+  const client = getTtsClient();
 
   const {
     languageCode = 'en-US',
@@ -63,7 +67,7 @@ const textToAudioGoogle = async (text, options = {}) => {
     }
   };
 
-  const [response] = await ttsClient.synthesizeSpeech(request);
+  const [response] = await client.synthesizeSpeech(request);
   return Buffer.from(response.audioContent);
 };
 
@@ -168,12 +172,13 @@ export const textToAudio = async (
 export const getAvailableVoices = async (languageCode = 'en-US') => {
   try {
     if (DEFAULT_PROVIDER === 'google') {
-      if (!ttsClient) {
-        throw new Error('Google Text-to-Speech client not initialized');
+      if (!hasGoogleCloudCredentials()) {
+        throw new Error('Google Text-to-Speech credentials are not configured');
       }
 
+      const client = getTtsClient();
       const request = { languageCode };
-      const [response] = await ttsClient.listVoices(request);
+      const [response] = await client.listVoices(request);
 
       return response.voices.map(voice => ({
         provider: 'google',
@@ -249,5 +254,6 @@ export default {
   resolveProvider,
   textToAudio,
   getAvailableVoices,
-  streamTextToAudio
+  streamTextToAudio,
+  getTtsClient
 };

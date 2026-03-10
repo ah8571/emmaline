@@ -4,9 +4,21 @@
  */
 
 import speech from '@google-cloud/speech';
+import {
+  getGoogleCloudClientOptions,
+  hasGoogleCloudCredentials
+} from './googleCloudAuth.js';
 
-// Initialize client
-const speechClient = new speech.SpeechClient();
+let speechClient = null;
+
+const getSpeechClient = () => {
+  if (speechClient) {
+    return speechClient;
+  }
+
+  speechClient = new speech.SpeechClient(getGoogleCloudClientOptions());
+  return speechClient;
+};
 
 /**
  * Streaming recognition request configuration
@@ -91,7 +103,7 @@ export const parseStreamingResponse = (response) => {
 export const createStreamingRecognizer = async () => {
   try {
     const request = getStreamingRecognizeConfig();
-    const stream = speechClient.streamingRecognize(request);
+    const stream = getSpeechClient().streamingRecognize(request);
 
     console.log('Creating streaming speech recognizer...');
 
@@ -154,13 +166,8 @@ export const processTranscriptResponse = (googleResponse) => {
  */
 export const validateSpeechConfig = () => {
   try {
-    const hasCredentials =
-      process.env.GOOGLE_APPLICATION_CREDENTIALS ||
-      process.env.GOOGLE_CLOUD_CREDENTIALS ||
-      process.env.GOOGLE_CLOUD_PROJECT_ID;
-
-    if (!hasCredentials) {
-      console.warn('Warning: Google Cloud credentials not configured');
+    if (!hasGoogleCloudCredentials()) {
+      console.warn('Warning: Google Cloud credentials not configured for Speech-to-Text');
       return false;
     }
 
@@ -179,5 +186,5 @@ export default {
   processAudioChunk,
   createStreamingRecognizeRequest,
   validateSpeechConfig,
-  speechClient
+  getSpeechClient
 };

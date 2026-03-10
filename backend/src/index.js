@@ -24,6 +24,7 @@ import { errorHandler, requestLogger } from './middleware/index.js';
 // Import WebSocket handler
 import { handleMediaStreamWebSocket } from './websocket/mediaStreamHandler.js';
 import { handleEchoWebSocket } from './websocket/echoHandler.js';
+import { getGoogleCloudConfigStatus } from './services/googleCloudAuth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -141,6 +142,8 @@ app.use(errorHandler);
 
 // Start server
 server.listen(PORT, () => {
+  const googleCloudStatus = getGoogleCloudConfigStatus();
+
   console.log(`🚀 Emmaline backend running on port ${PORT}`);
   websocketRoutes.forEach(({ path }) => {
     console.log(`📡 WebSocket server listening at wss://localhost:${PORT}${path}`);
@@ -149,7 +152,8 @@ server.listen(PORT, () => {
   console.log(`Twilio account configured: ${process.env.TWILIO_ACCOUNT_SID ? '✓' : '✗'}`);
   console.log(`Supabase configured: ${process.env.SUPABASE_URL ? '✓' : '✗'}`);
   console.log(`OpenAI configured: ${process.env.OPENAI_API_KEY ? '✓' : '✗'}`);
-  console.log(`Google Cloud configured: ${process.env.GOOGLE_APPLICATION_CREDENTIALS ? '✓' : '✗'}`);
+  console.log(`Google Cloud project configured: ${googleCloudStatus.hasProjectId ? '✓' : '✗'}`);
+  console.log(`Google Cloud credentials configured: ${googleCloudStatus.hasCredentials ? '✓' : '✗'}`);
 });
 
 export default app;
