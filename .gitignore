@@ -46,3 +46,5 @@ node_modules/
 android/
 ios/
 .watchman-cookie
+.eas-inspect*/
+mobile/.eas-inspect*/

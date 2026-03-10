@@ -1,0 +1,12 @@
+.git
+backend
+database
+docs
+website
+archive
+services
+shared
+node_modules
+mobile/.eas-inspect*
+mobile/.expo
+mobile/.env

@@ -1,0 +1,4 @@
+node_modules
+.eas-inspect*
+.expo
+.env

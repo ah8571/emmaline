@@ -4,7 +4,12 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import AppNavigator from './navigation/AppNavigator';
 import FloatingCallButton from './components/FloatingCallButton';
 import { getVoiceToken } from './services/api.js';
-import { endVoiceCall, getVoiceCallActive, startVoiceCall } from './services/voiceService.js';
+import {
+  endVoiceCall,
+  ensureMicrophonePermission,
+  getVoiceCallActive,
+  startVoiceCall
+} from './services/voiceService.js';
 
 const CALL_DOCK_HEIGHT = 84;
 
@@ -45,6 +50,18 @@ const AppContent = () => {
     setCallStatus('connecting');
 
     try {
+      const permissionResponse = await ensureMicrophonePermission();
+
+      if (!permissionResponse.success) {
+        setIsCalling(false);
+        setCallStatus('failed');
+        Alert.alert(
+          'Microphone permission required',
+          permissionResponse.error || 'Please allow microphone access to start an in-app call.'
+        );
+        return;
+      }
+
       const tokenResponse = await getVoiceToken();
 
       if (!tokenResponse.success || !tokenResponse.token) {

@@ -5,8 +5,170 @@
  */
 
 import { mediaStreamManager } from '../services/mediaStreamManager.js';
-import { processAudioChunk, processTranscriptResponse } from '../services/speechToTextService.js';
-import { saveCall, saveTranscript } from '../services/databaseService.js';
+import {
+  createStreamingRecognizer,
+  processTranscriptResponse,
+  validateSpeechConfig
+} from '../services/speechToTextService.js';
+import { saveCall, saveSummary, saveTranscript } from '../services/databaseService.js';
+import { generateResponse, summarizeTranscript } from '../services/aiService.js';
+import { textToAudio } from '../services/textToSpeechService.js';
+
+const TWILIO_FRAME_SIZE = 160;
+const INITIAL_GREETING = 'Hi, this is Emmaline. Tell me what you want to think through, and I will help turn it into notes.';
+
+const parseUserIdFromIdentity = (identity) => {
+  const value = String(identity || '').trim();
+  return value.startsWith('user_') ? value.slice(5) : null;
+};
+
+const extractAudioPayload = (audioBuffer) => {
+  if (!audioBuffer || audioBuffer.length < 12) {
+    return audioBuffer;
+  }
+
+  const hasRiffHeader = audioBuffer.subarray(0, 4).toString('ascii') === 'RIFF';
+  if (!hasRiffHeader) {
+    return audioBuffer;
+  }
+
+  let offset = 12;
+  while (offset + 8 <= audioBuffer.length) {
+    const chunkId = audioBuffer.subarray(offset, offset + 4).toString('ascii');
+    const chunkSize = audioBuffer.readUInt32LE(offset + 4);
+    const chunkStart = offset + 8;
+    const chunkEnd = chunkStart + chunkSize;
+
+    if (chunkId === 'data' && chunkEnd <= audioBuffer.length) {
+      return audioBuffer.subarray(chunkStart, chunkEnd);
+    }
+
+    offset = chunkEnd + (chunkSize % 2);
+  }
+
+  return audioBuffer;
+};
+
+const streamAudioResponse = async (ws, streamSid, audioBuffer) => {
+  const payload = extractAudioPayload(audioBuffer);
+
+  for (let index = 0; index < payload.length; index += TWILIO_FRAME_SIZE) {
+    const chunk = payload.subarray(index, index + TWILIO_FRAME_SIZE);
+    if (chunk.length > 0) {
+      sendAudioResponse(ws, streamSid, chunk);
+    }
+  }
+};
+
+const synthesizeAssistantReply = async (text) => {
+  return textToAudio(text, {
+    provider: 'google',
+    voice: process.env.GOOGLE_TTS_VOICE || 'en-US-Neural2-C',
+    audioEncoding: 'MULAW',
+    sampleRateHertz: 8000
+  });
+};
+
+const maybeCreateRecognizer = async (mediaConnection, ws) => {
+  if (!validateSpeechConfig()) {
+    mediaConnection.sttDisabled = true;
+    return null;
+  }
+
+  const recognizer = await createStreamingRecognizer();
+  const stream = recognizer.stream;
+
+  stream.on('data', async (response) => {
+    try {
+      const transcript = processTranscriptResponse(response);
+      const text = transcript.text?.trim();
+
+      if (!text) {
+        return;
+      }
+
+      if (!transcript.isFinal) {
+        return;
+      }
+
+      if (mediaConnection.lastFinalTranscript === text) {
+        return;
+      }
+
+      mediaConnection.lastFinalTranscript = text;
+      mediaConnection.addTranscriptLine(text, true);
+
+      if (mediaConnection.isResponding) {
+        return;
+      }
+
+      mediaConnection.isResponding = true;
+      mediaConnection.conversationHistory.push({ role: 'user', content: text });
+
+      try {
+        const assistantReply = await generateResponse(mediaConnection.conversationHistory);
+        if (!assistantReply) {
+          return;
+        }
+
+        mediaConnection.conversationHistory.push({ role: 'assistant', content: assistantReply });
+        const audio = await synthesizeAssistantReply(assistantReply);
+        await streamAudioResponse(ws, mediaConnection.streamSid, audio);
+      } finally {
+        mediaConnection.isResponding = false;
+      }
+    } catch (error) {
+      mediaConnection.isResponding = false;
+      console.error('Error processing streaming transcript:', error);
+    }
+  });
+
+  stream.on('error', (error) => {
+    console.error('Streaming speech recognizer error:', error);
+  });
+
+  mediaConnection.recognizer = recognizer;
+  return recognizer;
+};
+
+const finalizeCallArtifacts = async (mediaConnection, stats) => {
+  if (!mediaConnection.userId || mediaConnection.transcriptBuffer.length === 0) {
+    return;
+  }
+
+  const fullTranscript = mediaConnection.transcriptBuffer
+    .filter((line) => line.isFinal)
+    .map((line) => line.text)
+    .join('\n')
+    .trim();
+
+  if (!fullTranscript) {
+    return;
+  }
+
+  const callRecord = await saveCall(mediaConnection.userId, {
+    phoneNumber: mediaConnection.identity || `client:${mediaConnection.userId}`,
+    duration: Math.round(stats.duration / 1000),
+    startedAt: mediaConnection.createdAt.toISOString(),
+    endedAt: new Date().toISOString(),
+    status: 'completed',
+    twilioCallSid: mediaConnection.callSid
+  });
+
+  await saveTranscript(callRecord.id, mediaConnection.userId, fullTranscript);
+
+  try {
+    const summary = await summarizeTranscript(fullTranscript);
+    await saveSummary(callRecord.id, mediaConnection.userId, {
+      text: summary.summary || '',
+      keyPoints: summary.keyPoints || [],
+      actionItems: summary.actionItems || [],
+      sentiment: summary.sentiment || 'neutral'
+    });
+  } catch (error) {
+    console.error('Error generating or saving call summary:', error);
+  }
+};
 
 /**
  * Handle incoming WebSocket connection for media streaming
@@ -34,7 +196,7 @@ export const handleMediaStreamWebSocket = (ws, req) => {
 
         case 'start':
           callSid = message.start?.callSid;
-          userId = message.start?.customParameters?.userId;
+          userId = message.start?.customParameters?.userId || parseUserIdFromIdentity(message.start?.customParameters?.identity);
           mediaConnection = mediaStreamManager.createConnection(callSid, userId);
           handleStart(message, mediaConnection, ws);
           break;
@@ -108,15 +270,29 @@ function handleConnected(message, ws) {
  */
 function handleStart(message, mediaConnection, ws) {
   const { streamSid, callSid, customParameters } = message.start;
+  const identity = customParameters?.identity || null;
 
   mediaConnection.activate();
+  mediaConnection.streamSid = streamSid;
+  mediaConnection.identity = identity;
+  mediaConnection.userId = mediaConnection.userId || parseUserIdFromIdentity(identity);
+  mediaConnection.conversationHistory = [];
+  mediaConnection.lastFinalTranscript = null;
+  mediaConnection.isResponding = false;
 
   console.log(`🎤 Media stream started:`);
   console.log(`   Call SID: ${callSid}`);
   console.log(`   Stream SID: ${streamSid}`);
 
-  // Store stream SID for later reference
-  mediaConnection.streamSid = streamSid;
+  maybeCreateRecognizer(mediaConnection, ws).catch((error) => {
+    console.error('Unable to create streaming recognizer:', error);
+  });
+
+  synthesizeAssistantReply(INITIAL_GREETING)
+    .then((audio) => streamAudioResponse(ws, streamSid, audio))
+    .catch((error) => {
+      console.error('Error sending initial greeting audio:', error);
+    });
 
 }
 
@@ -134,12 +310,9 @@ async function handleMedia(message, mediaConnection, ws) {
     // Add to connection buffer
     mediaConnection.addAudioChunk(audioBuffer);
 
-    // TODO: Send to Google Cloud Speech-to-Text
-    // This would involve:
-    // 1. Accumulating audio chunks
-    // 2. Sending to streaming speech-to-text
-    // 3. Receiving interim and final transcripts
-    // 4. Sending results back via WebSocket
+    if (mediaConnection.recognizer?.stream?.writable) {
+      mediaConnection.recognizer.stream.write(audioBuffer);
+    }
 
     // For now, log chunk received
     if (sequenceNumber && sequenceNumber % 100 === 0) {
@@ -167,12 +340,11 @@ async function handleStop(message, mediaConnection, ws) {
     console.log(`   Audio chunks: ${stats.audioChunksReceived}`);
     console.log(`   Bytes received: ${stats.bytesReceived}`);
 
-    // TODO: Process final transcript and save to database
-    // Steps:
-    // 1. Finalize any pending audio
-    // 2. Save complete transcript to database
-    // 3. Generate summary with AI
-    // 4. Store summary in database
+    if (mediaConnection.recognizer?.stream) {
+      mediaConnection.recognizer.stream.end();
+    }
+
+    await finalizeCallArtifacts(mediaConnection, stats);
 
     mediaConnection.close();
 

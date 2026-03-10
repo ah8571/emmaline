@@ -90,13 +90,14 @@ export const parseStreamingResponse = (response) => {
  */
 export const createStreamingRecognizer = async () => {
   try {
-    // Create request stream
-    const request = createStreamingRecognizeRequest();
+    const request = getStreamingRecognizeConfig();
+    const stream = speechClient.streamingRecognize(request);
 
     console.log('Creating streaming speech recognizer...');
 
     return {
       request,
+      stream,
       isActive: true,
       createdAt: Date.now()
     };
@@ -153,10 +154,10 @@ export const processTranscriptResponse = (googleResponse) => {
  */
 export const validateSpeechConfig = () => {
   try {
-    // Check if credentials are set
     const hasCredentials =
       process.env.GOOGLE_APPLICATION_CREDENTIALS ||
-      process.env.GOOGLE_CLOUD_CREDENTIALS;
+      process.env.GOOGLE_CLOUD_CREDENTIALS ||
+      process.env.GOOGLE_CLOUD_PROJECT_ID;
 
     if (!hasCredentials) {
       console.warn('Warning: Google Cloud credentials not configured');

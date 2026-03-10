@@ -1,4 +1,5 @@
 import { Voice, Call } from '@twilio/voice-react-native-sdk';
+import { PermissionsAndroid, Platform } from 'react-native';
 
 let voiceInstance = null;
 let activeCall = null;
@@ -9,6 +10,44 @@ const getVoiceInstance = () => {
   }
 
   return voiceInstance;
+};
+
+export const ensureMicrophonePermission = async () => {
+  if (Platform.OS !== 'android') {
+    return { success: true };
+  }
+
+  try {
+    const hasPermission = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+
+    if (hasPermission) {
+      return { success: true };
+    }
+
+    const result = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+      {
+        title: 'Microphone permission required',
+        message: 'Emmaline needs microphone access for in-app VoIP calls.',
+        buttonPositive: 'Allow',
+        buttonNegative: 'Deny'
+      }
+    );
+
+    if (result === PermissionsAndroid.RESULTS.GRANTED) {
+      return { success: true };
+    }
+
+    return {
+      success: false,
+      error: 'Microphone permission denied'
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error?.message || 'Unable to request microphone permission'
+    };
+  }
 };
 
 export const startVoiceCall = async ({ token, params = {}, onStatusChange, onError }) => {
