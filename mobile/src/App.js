@@ -7,8 +7,11 @@ import { getVoiceToken } from './services/api.js';
 import {
   endVoiceCall,
   ensureMicrophonePermission,
+  getAudioDeviceState,
   getVoiceCallActive,
-  startVoiceCall
+  selectAudioDevice,
+  startVoiceCall,
+  subscribeToAudioDevices
 } from './services/voiceService.js';
 import {
   getCallLanguagePreference,
@@ -22,8 +25,24 @@ const AppContent = () => {
   const [isCalling, setIsCalling] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [callStatus, setCallStatus] = useState('idle');
+  const [audioDevices, setAudioDevices] = useState([]);
+  const [selectedAudioDevice, setSelectedAudioDevice] = useState(null);
 
-  const callDockHeight = CALL_DOCK_HEIGHT + insets.bottom;
+  const showAudioControls = isCalling && audioDevices.length > 0;
+  const callDockHeight = CALL_DOCK_HEIGHT + (showAudioControls ? 116 : 0) + insets.bottom;
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAudioDevices(({ audioDevices: nextAudioDevices, selectedDevice }) => {
+      setAudioDevices(nextAudioDevices || []);
+      setSelectedAudioDevice(selectedDevice || null);
+    });
+
+    const currentAudioState = getAudioDeviceState();
+    setAudioDevices(currentAudioState.audioDevices || []);
+    setSelectedAudioDevice(currentAudioState.selectedDevice || null);
+
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -119,6 +138,37 @@ const AppContent = () => {
     }
   };
 
+  const handleSelectAudioRoute = async (deviceUuid) => {
+    const response = await selectAudioDevice(deviceUuid);
+
+    if (!response.success) {
+      Alert.alert('Audio route unavailable', response.error || 'Unable to switch the call audio route.');
+    }
+  };
+
+  const audioRouteOptions = audioDevices
+    .map((device) => ({
+      uuid: device.uuid,
+      type: device.type,
+      label:
+        device.type === 'earpiece'
+          ? 'Phone'
+          : device.type === 'speaker'
+            ? 'Speaker'
+            : device.type === 'bluetooth'
+              ? 'Bluetooth'
+              : device.name
+    }))
+    .sort((left, right) => {
+      const order = {
+        earpiece: 0,
+        speaker: 1,
+        bluetooth: 2
+      };
+
+      return (order[left.type] ?? 99) - (order[right.type] ?? 99);
+    });
+
   return (
     <View style={styles.container}>
       <View style={[styles.navigatorContainer, isAuthenticated && { paddingBottom: callDockHeight }]}>
@@ -130,6 +180,7 @@ const AppContent = () => {
           <View style={[styles.callDock, { height: callDockHeight, paddingBottom: insets.bottom }]} pointerEvents="none" />
           <FloatingCallButton
             onPress={handleInitiateCall}
+            isActiveCall={isCalling}
             statusLabel={
               callStatus === 'idle'
                 ? null
@@ -145,6 +196,9 @@ const AppContent = () => {
                           ? 'Call ended'
                           : 'Call failed'
             }
+            audioRoutes={audioRouteOptions}
+            selectedAudioRoute={selectedAudioDevice?.uuid || null}
+            onSelectAudioRoute={handleSelectAudioRoute}
           />
         </>
       ) : null}

@@ -12,7 +12,14 @@ import {
  * Floating action button for initiating phone calls
  * Appears in the corner of the screen across all tabs
  */
-const FloatingCallButton = ({ onPress, statusLabel = null }) => {
+const FloatingCallButton = ({
+  onPress,
+  statusLabel = null,
+  isActiveCall = false,
+  audioRoutes = [],
+  selectedAudioRoute = null,
+  onSelectAudioRoute
+}) => {
   const [scaleAnim] = React.useState(new Animated.Value(1));
 
   const handlePressIn = () => {
@@ -34,8 +41,34 @@ const FloatingCallButton = ({ onPress, statusLabel = null }) => {
     onPress();
   };
 
+  const showAudioRoutes = isActiveCall && audioRoutes.length > 0;
+
   return (
     <>
+      {showAudioRoutes ? (
+        <View style={styles.audioRouteCard}>
+          <Text style={styles.audioRouteTitle}>Audio</Text>
+          <View style={styles.audioRouteList}>
+            {audioRoutes.map((route) => {
+              const selected = selectedAudioRoute === route.uuid;
+
+              return (
+                <TouchableOpacity
+                  key={route.uuid}
+                  style={[styles.audioRouteChip, selected && styles.audioRouteChipSelected]}
+                  onPress={() => onSelectAudioRoute?.(route.uuid)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.audioRouteChipText, selected && styles.audioRouteChipTextSelected]}>
+                    {route.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+
       <Animated.View
         style={[
           styles.floatingContainer,
@@ -45,13 +78,13 @@ const FloatingCallButton = ({ onPress, statusLabel = null }) => {
         ]}
       >
         <TouchableOpacity
-          style={styles.button}
+          style={[styles.button, isActiveCall && styles.buttonActive]}
           onPress={handlePress}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
           activeOpacity={0.8}
         >
-          <Text style={styles.phoneIcon}>📞</Text>
+          <Text style={styles.phoneIcon}>{isActiveCall ? '✕' : '📞'}</Text>
         </TouchableOpacity>
       </Animated.View>
 
@@ -84,12 +117,15 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 12
   },
+  buttonActive: {
+    backgroundColor: '#d9485f'
+  },
   phoneIcon: {
     fontSize: 32
   },
   statusIndicator: {
     position: 'absolute',
-    bottom: 160,
+    bottom: 196,
     right: 20,
     backgroundColor: '#007AFF',
     paddingHorizontal: 12,
@@ -105,6 +141,49 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: '600'
+  },
+  audioRouteCard: {
+    position: 'absolute',
+    right: 20,
+    bottom: 160,
+    width: 220,
+    borderRadius: 18,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8
+  },
+  audioRouteTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#495057',
+    marginBottom: 10
+  },
+  audioRouteList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8
+  },
+  audioRouteChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#f1f3f5'
+  },
+  audioRouteChipSelected: {
+    backgroundColor: '#d9ecff'
+  },
+  audioRouteChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#495057'
+  },
+  audioRouteChipTextSelected: {
+    color: '#0056b3'
   }
 });
 

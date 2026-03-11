@@ -3,6 +3,12 @@ import { PermissionsAndroid, Platform } from 'react-native';
 
 let voiceInstance = null;
 let activeCall = null;
+let audioDeviceState = {
+  audioDevices: [],
+  selectedDevice: null
+};
+const audioDeviceListeners = new Set();
+let audioDeviceEventsBound = false;
 
 const getVoiceInstance = () => {
   if (!voiceInstance) {
@@ -10,6 +16,65 @@ const getVoiceInstance = () => {
   }
 
   return voiceInstance;
+};
+
+const notifyAudioDeviceListeners = () => {
+  audioDeviceListeners.forEach((listener) => {
+    try {
+      listener(audioDeviceState);
+    } catch (error) {
+      // Ignore listener failures so audio routing remains usable.
+    }
+  });
+};
+
+const updateAudioDeviceState = ({ audioDevices = [], selectedDevice = null } = {}) => {
+  audioDeviceState = {
+    audioDevices,
+    selectedDevice
+  };
+  notifyAudioDeviceListeners();
+};
+
+const handleAudioDevicesUpdated = (audioDevices = [], selectedDevice = null) => {
+  updateAudioDeviceState({ audioDevices, selectedDevice });
+};
+
+const ensureAudioDeviceEventsBound = () => {
+  if (audioDeviceEventsBound) {
+    return;
+  }
+
+  const voice = getVoiceInstance();
+  voice.addListener(Voice.Event.AudioDevicesUpdated, handleAudioDevicesUpdated);
+  audioDeviceEventsBound = true;
+};
+
+const requestBluetoothAudioPermission = async () => {
+  if (Platform.OS !== 'android' || Number(Platform.Version) < 31) {
+    return true;
+  }
+
+  const bluetoothPermission = PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT;
+
+  if (!bluetoothPermission) {
+    return true;
+  }
+
+  const hasPermission = await PermissionsAndroid.check(bluetoothPermission);
+
+  if (hasPermission) {
+    return true;
+  }
+
+  const result = await PermissionsAndroid.request(bluetoothPermission, {
+    title: 'Bluetooth access for call audio',
+    message: 'Emmaline uses Bluetooth access so you can route VoIP calls to headphones or your car audio.',
+    buttonPositive: 'Allow',
+    buttonNegative: 'Not now'
+  });
+
+  return result === PermissionsAndroid.RESULTS.GRANTED;
 };
 
 export const ensureMicrophonePermission = async () => {
@@ -21,6 +86,7 @@ export const ensureMicrophonePermission = async () => {
     const hasPermission = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
 
     if (hasPermission) {
+      await requestBluetoothAudioPermission();
       return { success: true };
     }
 
@@ -35,6 +101,7 @@ export const ensureMicrophonePermission = async () => {
     );
 
     if (result === PermissionsAndroid.RESULTS.GRANTED) {
+      await requestBluetoothAudioPermission();
       return { success: true };
     }
 
@@ -46,6 +113,76 @@ export const ensureMicrophonePermission = async () => {
     return {
       success: false,
       error: error?.message || 'Unable to request microphone permission'
+    };
+  }
+};
+
+export const refreshAudioDevices = async () => {
+  try {
+    ensureAudioDeviceEventsBound();
+
+    const voice = getVoiceInstance();
+    const { audioDevices = [], selectedDevice = null } = await voice.getAudioDevices();
+
+    updateAudioDeviceState({ audioDevices, selectedDevice });
+    return {
+      success: true,
+      ...audioDeviceState
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error?.message || 'Unable to read audio devices',
+      ...audioDeviceState
+    };
+  }
+};
+
+export const subscribeToAudioDevices = (listener) => {
+  ensureAudioDeviceEventsBound();
+  audioDeviceListeners.add(listener);
+  listener(audioDeviceState);
+
+  return () => {
+    audioDeviceListeners.delete(listener);
+  };
+};
+
+export const selectAudioDevice = async (deviceIdentifier) => {
+  const currentState = audioDeviceState.audioDevices.length > 0
+    ? { success: true, ...audioDeviceState }
+    : await refreshAudioDevices();
+
+  if (!currentState.success && currentState.audioDevices.length === 0) {
+    return {
+      success: false,
+      error: currentState.error || 'No audio devices available'
+    };
+  }
+
+  const audioDevice = currentState.audioDevices.find((device) => {
+    return device.uuid === deviceIdentifier || device.type === deviceIdentifier;
+  });
+
+  if (!audioDevice) {
+    return {
+      success: false,
+      error: 'That audio route is not available right now.'
+    };
+  }
+
+  try {
+    await audioDevice.select();
+    await refreshAudioDevices();
+
+    return {
+      success: true,
+      selectedDevice: audioDeviceState.selectedDevice
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error?.message || 'Unable to switch audio route'
     };
   }
 };
@@ -67,6 +204,7 @@ export const startVoiceCall = async ({ token, params = {}, onStatusChange, onErr
     }
 
     const voice = getVoiceInstance();
+    ensureAudioDeviceEventsBound();
 
     onStatusChange?.('connecting');
 
@@ -77,6 +215,9 @@ export const startVoiceCall = async ({ token, params = {}, onStatusChange, onErr
     });
 
     activeCall = call;
+    refreshAudioDevices().catch(() => {
+      // Best-effort sync for audio routes.
+    });
 
     call.on(Call.Event.Ringing, () => {
       onStatusChange?.('ringing');
@@ -84,6 +225,9 @@ export const startVoiceCall = async ({ token, params = {}, onStatusChange, onErr
 
     call.on(Call.Event.Connected, () => {
       onStatusChange?.('live');
+      refreshAudioDevices().catch(() => {
+        // Best-effort sync for audio routes.
+      });
     });
 
     call.on(Call.Event.Reconnecting, () => {
@@ -96,12 +240,14 @@ export const startVoiceCall = async ({ token, params = {}, onStatusChange, onErr
 
     call.on(Call.Event.ConnectFailure, (error) => {
       activeCall = null;
+      updateAudioDeviceState({ audioDevices: [], selectedDevice: null });
       onStatusChange?.('failed');
       onError?.(error?.message || 'Failed to connect call');
     });
 
     call.on(Call.Event.Disconnected, () => {
       activeCall = null;
+      updateAudioDeviceState({ audioDevices: [], selectedDevice: null });
       onStatusChange?.('ended');
     });
 
@@ -111,6 +257,7 @@ export const startVoiceCall = async ({ token, params = {}, onStatusChange, onErr
     };
   } catch (error) {
     activeCall = null;
+    updateAudioDeviceState({ audioDevices: [], selectedDevice: null });
     onStatusChange?.('failed');
 
     return {
@@ -122,6 +269,7 @@ export const startVoiceCall = async ({ token, params = {}, onStatusChange, onErr
 
 export const endVoiceCall = async () => {
   if (!activeCall) {
+    updateAudioDeviceState({ audioDevices: [], selectedDevice: null });
     return {
       success: true
     };
@@ -130,6 +278,7 @@ export const endVoiceCall = async () => {
   try {
     await activeCall.disconnect();
     activeCall = null;
+    updateAudioDeviceState({ audioDevices: [], selectedDevice: null });
 
     return {
       success: true
@@ -143,3 +292,5 @@ export const endVoiceCall = async () => {
 };
 
 export const getVoiceCallActive = () => Boolean(activeCall);
+
+export const getAudioDeviceState = () => audioDeviceState;
