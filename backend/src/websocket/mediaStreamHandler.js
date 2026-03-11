@@ -17,6 +17,10 @@ import { textToAudio } from '../services/textToSpeechService.js';
 const TWILIO_FRAME_SIZE = 160;
 const INITIAL_GREETING = 'Hi, this is Emmaline. Tell me what you want to think through, and I will help turn it into notes.';
 
+const getCallLogPrefix = (mediaConnection) => {
+  return `[call:${mediaConnection?.callSid || 'unknown'} stream:${mediaConnection?.streamSid || 'unknown'}]`;
+};
+
 const parseUserIdFromIdentity = (identity) => {
   const value = String(identity || '').trim();
   return value.startsWith('user_') ? value.slice(5) : null;
@@ -72,11 +76,14 @@ const synthesizeAssistantReply = async (text) => {
 const maybeCreateRecognizer = async (mediaConnection, ws) => {
   if (!validateSpeechConfig()) {
     mediaConnection.sttDisabled = true;
+    console.warn(`${getCallLogPrefix(mediaConnection)} Speech-to-Text disabled because Google credentials are unavailable`);
     return null;
   }
 
   const recognizer = await createStreamingRecognizer();
   const stream = recognizer.stream;
+
+  console.log(`${getCallLogPrefix(mediaConnection)} Streaming speech recognizer created`);
 
   stream.on('data', async (response) => {
     try {
@@ -86,6 +93,10 @@ const maybeCreateRecognizer = async (mediaConnection, ws) => {
       if (!text) {
         return;
       }
+
+      console.log(
+        `${getCallLogPrefix(mediaConnection)} Transcript ${transcript.isFinal ? 'final' : 'interim'}: ${text}`
+      );
 
       if (!transcript.isFinal) {
         return;
@@ -99,6 +110,7 @@ const maybeCreateRecognizer = async (mediaConnection, ws) => {
       mediaConnection.addTranscriptLine(text, true);
 
       if (mediaConnection.isResponding) {
+        console.log(`${getCallLogPrefix(mediaConnection)} Ignoring final transcript while assistant response is in progress`);
         return;
       }
 
@@ -106,25 +118,29 @@ const maybeCreateRecognizer = async (mediaConnection, ws) => {
       mediaConnection.conversationHistory.push({ role: 'user', content: text });
 
       try {
+        console.log(`${getCallLogPrefix(mediaConnection)} Generating assistant response`);
         const assistantReply = await generateResponse(mediaConnection.conversationHistory);
         if (!assistantReply) {
+          console.warn(`${getCallLogPrefix(mediaConnection)} AI returned an empty response`);
           return;
         }
 
+        console.log(`${getCallLogPrefix(mediaConnection)} Assistant reply: ${assistantReply}`);
         mediaConnection.conversationHistory.push({ role: 'assistant', content: assistantReply });
         const audio = await synthesizeAssistantReply(assistantReply);
+        console.log(`${getCallLogPrefix(mediaConnection)} Synthesized assistant audio (${audio.length} bytes)`);
         await streamAudioResponse(ws, mediaConnection.streamSid, audio);
       } finally {
         mediaConnection.isResponding = false;
       }
     } catch (error) {
       mediaConnection.isResponding = false;
-      console.error('Error processing streaming transcript:', error);
+      console.error(`${getCallLogPrefix(mediaConnection)} Error processing streaming transcript:`, error);
     }
   });
 
   stream.on('error', (error) => {
-    console.error('Streaming speech recognizer error:', error);
+    console.error(`${getCallLogPrefix(mediaConnection)} Streaming speech recognizer error:`, error);
   });
 
   mediaConnection.recognizer = recognizer;
@@ -283,15 +299,19 @@ function handleStart(message, mediaConnection, ws) {
   console.log(`🎤 Media stream started:`);
   console.log(`   Call SID: ${callSid}`);
   console.log(`   Stream SID: ${streamSid}`);
+  console.log(`   Identity: ${identity || 'unknown'}`);
 
   maybeCreateRecognizer(mediaConnection, ws).catch((error) => {
-    console.error('Unable to create streaming recognizer:', error);
+    console.error(`${getCallLogPrefix(mediaConnection)} Unable to create streaming recognizer:`, error);
   });
 
   synthesizeAssistantReply(INITIAL_GREETING)
-    .then((audio) => streamAudioResponse(ws, streamSid, audio))
+    .then((audio) => {
+      console.log(`${getCallLogPrefix(mediaConnection)} Sending initial greeting audio (${audio.length} bytes)`);
+      return streamAudioResponse(ws, streamSid, audio);
+    })
     .catch((error) => {
-      console.error('Error sending initial greeting audio:', error);
+      console.error(`${getCallLogPrefix(mediaConnection)} Error sending initial greeting audio:`, error);
     });
 
 }
@@ -317,10 +337,10 @@ async function handleMedia(message, mediaConnection, ws) {
     // For now, log chunk received
     if (sequenceNumber && sequenceNumber % 100 === 0) {
       const stats = mediaConnection.getStats();
-      console.log(`📊 Audio chunks processed: ${stats.audioChunksReceived}`);
+      console.log(`${getCallLogPrefix(mediaConnection)} Audio chunks processed: ${stats.audioChunksReceived}`);
     }
   } catch (error) {
-    console.error('Error handling media chunk:', error);
+    console.error(`${getCallLogPrefix(mediaConnection)} Error handling media chunk:`, error);
   }
 }
 
@@ -346,10 +366,14 @@ async function handleStop(message, mediaConnection, ws) {
 
     await finalizeCallArtifacts(mediaConnection, stats);
 
+    console.log(
+      `${getCallLogPrefix(mediaConnection)} Final transcript lines captured: ${mediaConnection.transcriptBuffer.filter((line) => line.isFinal).length}`
+    );
+
     mediaConnection.close();
 
   } catch (error) {
-    console.error('Error handling media stop:', error);
+    console.error(`${getCallLogPrefix(mediaConnection)} Error handling media stop:`, error);
   }
 }
 
