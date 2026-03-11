@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import {
   getCallLanguagePreference,
   getCallResponseDelayPreference,
@@ -110,7 +110,7 @@ const SettingsScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.headerBar}>
         <Text style={styles.pageTitle}>Settings</Text>
       </View>
@@ -210,7 +210,7 @@ const SettingsScreen = () => {
           );
         })}
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
@@ -218,6 +218,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa'
+  },
+  contentContainer: {
+    paddingBottom: 40
   },
   headerBar: {
     backgroundColor: '#fff',

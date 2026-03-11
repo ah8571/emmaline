@@ -41,7 +41,6 @@ const NotesStack = () => (
 const AppHome = () => {
   const [activeScreen, setActiveScreen] = useState('transcripts');
   const [menuOpen, setMenuOpen] = useState(false);
-  const isSettingsActive = activeScreen === 'settings';
 
   const openScreen = (screen) => {
     setActiveScreen(screen);
@@ -56,17 +55,11 @@ const AppHome = () => {
           onPress={() => setMenuOpen((open) => !open)}
           activeOpacity={0.8}
         >
-          <Text style={styles.menuIcon}>☰</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.settingsShortcut, isSettingsActive && styles.settingsShortcutActive]}
-          onPress={() => openScreen('settings')}
-          activeOpacity={0.85}
-        >
-          <Text style={[styles.settingsShortcutText, isSettingsActive && styles.settingsShortcutTextActive]}>
-            Settings
-          </Text>
+          <View style={styles.menuIconBars}>
+            <View style={styles.menuIconBar} />
+            <View style={styles.menuIconBar} />
+            <View style={styles.menuIconBar} />
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -185,40 +178,27 @@ const styles = StyleSheet.create({
     height: 72,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
     paddingHorizontal: 16,
     backgroundColor: '#ffffff'
   },
   menuButton: {
-    width: 28,
-    height: 28,
-    alignItems: 'center',
+    width: 40,
+    height: 40,
+    alignItems: 'flex-start',
     justifyContent: 'center',
     marginTop: 10
   },
-  menuIcon: {
-    fontSize: 16,
-    color: '#212529'
+  menuIconBars: {
+    width: 24,
+    gap: 4
   },
-  settingsShortcut: {
-    marginTop: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  menuIconBar: {
+    height: 3,
     borderRadius: 999,
-    backgroundColor: '#f1f3f5'
-  },
-  settingsShortcutActive: {
-    backgroundColor: '#e6f0ff'
-  },
-  settingsShortcutText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#495057'
-  },
-  settingsShortcutTextActive: {
-    color: '#0056b3'
+    backgroundColor: '#212529'
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
