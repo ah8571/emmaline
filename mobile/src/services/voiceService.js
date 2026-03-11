@@ -86,7 +86,6 @@ export const ensureMicrophonePermission = async () => {
     const hasPermission = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
 
     if (hasPermission) {
-      await requestBluetoothAudioPermission();
       return { success: true };
     }
 
@@ -101,7 +100,6 @@ export const ensureMicrophonePermission = async () => {
     );
 
     if (result === PermissionsAndroid.RESULTS.GRANTED) {
-      await requestBluetoothAudioPermission();
       return { success: true };
     }
 
@@ -169,6 +167,17 @@ export const selectAudioDevice = async (deviceIdentifier) => {
       success: false,
       error: 'That audio route is not available right now.'
     };
+  }
+
+  if (audioDevice.type === 'bluetooth') {
+    const bluetoothPermissionGranted = await requestBluetoothAudioPermission();
+
+    if (!bluetoothPermissionGranted) {
+      return {
+        success: false,
+        error: 'Bluetooth permission is required only if you want to switch the call to a Bluetooth device.'
+      };
+    }
   }
 
   try {
