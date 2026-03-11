@@ -11,42 +11,66 @@ import CreateNoteScreen from '../screens/CreateNoteScreen';
 import CallDetailScreen from '../screens/CallDetailScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import { isAuthenticated as hasAuthToken, getUser } from '../utils/secureStorage.js';
+import { useAppTheme } from '../theme/appTheme.js';
 
 const Stack = createStackNavigator();
 
-const TranscriptStack = () => (
-  <Stack.Navigator>
-    <Stack.Screen 
-      name="TranscriptList" 
-      component={TranscriptScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen 
-      name="CallDetail" 
-      component={CallDetailScreen}
-      options={{ title: 'Call Details' }}
-    />
-  </Stack.Navigator>
-);
+const TranscriptStack = () => {
+  const { colors } = useAppTheme();
 
-const NotesStack = () => (
-  <Stack.Navigator>
-    <Stack.Screen 
-      name="NotesList" 
-      component={NotesScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="CreateNote"
-      component={CreateNoteScreen}
-      options={{ headerShown: false }}
-    />
-  </Stack.Navigator>
-);
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface, borderBottomColor: colors.border, shadowColor: 'transparent' },
+        headerTintColor: colors.text,
+        headerTitleStyle: { color: colors.text },
+        cardStyle: { backgroundColor: colors.background }
+      }}
+    >
+      <Stack.Screen 
+        name="TranscriptList" 
+        component={TranscriptScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="CallDetail" 
+        component={CallDetailScreen}
+        options={{ title: 'Call Details' }}
+      />
+    </Stack.Navigator>
+  );
+};
+
+const NotesStack = () => {
+  const { colors } = useAppTheme();
+
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface, borderBottomColor: colors.border, shadowColor: 'transparent' },
+        headerTintColor: colors.text,
+        headerTitleStyle: { color: colors.text },
+        cardStyle: { backgroundColor: colors.background }
+      }}
+    >
+      <Stack.Screen 
+        name="NotesList" 
+        component={NotesScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="CreateNote"
+        component={CreateNoteScreen}
+        options={{ headerShown: false }}
+      />
+    </Stack.Navigator>
+  );
+};
 
 const AppHome = () => {
   const [activeScreen, setActiveScreen] = useState('transcripts');
   const [menuOpen, setMenuOpen] = useState(false);
+  const { colors, isDarkMode, toggleTheme } = useAppTheme();
 
   const openScreen = (screen) => {
     setActiveScreen(screen);
@@ -54,18 +78,26 @@ const AppHome = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity
           style={styles.menuButton}
           onPress={() => setMenuOpen((open) => !open)}
           activeOpacity={0.8}
         >
           <View style={styles.menuIconBars}>
-            <View style={styles.menuIconBar} />
-            <View style={styles.menuIconBar} />
-            <View style={styles.menuIconBar} />
+            <View style={[styles.menuIconBar, { backgroundColor: colors.text }]} />
+            <View style={[styles.menuIconBar, { backgroundColor: colors.text }]} />
+            <View style={[styles.menuIconBar, { backgroundColor: colors.text }]} />
           </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.themeToggle, { borderColor: colors.border, backgroundColor: colors.surfaceAlt }]}
+          onPress={toggleTheme}
+          activeOpacity={0.85}
+        >
+          <Text style={[styles.themeToggleText, { color: colors.text }]}>{isDarkMode ? '☀' : '☾'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -76,33 +108,33 @@ const AppHome = () => {
             onPress={() => setMenuOpen(false)}
             activeOpacity={1}
           />
-          <View style={styles.sideMenu}>
+          <View style={[styles.sideMenu, { backgroundColor: colors.surface, borderRightColor: colors.border }]}>
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => openScreen('transcripts')}
               activeOpacity={0.8}
             >
-              <Text style={styles.menuItemText}>Transcripts</Text>
+              <Text style={[styles.menuItemText, { color: colors.text }]}>Transcripts</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => openScreen('notes')}
               activeOpacity={0.8}
             >
-              <Text style={styles.menuItemText}>Notes</Text>
+              <Text style={[styles.menuItemText, { color: colors.text }]}>Notes</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => openScreen('settings')}
               activeOpacity={0.8}
             >
-              <Text style={styles.menuItemText}>Settings</Text>
+              <Text style={[styles.menuItemText, { color: colors.text }]}>Settings</Text>
             </TouchableOpacity>
           </View>
         </View>
       ) : null}
 
-      <View style={styles.content}>
+      <View style={[styles.content, { backgroundColor: colors.background }]}>
         {activeScreen === 'transcripts' ? <TranscriptStack /> : activeScreen === 'notes' ? <NotesStack /> : <SettingsScreen />}
       </View>
     </View>
@@ -188,7 +220,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     paddingHorizontal: 16,
-    backgroundColor: '#ffffff'
+    backgroundColor: '#ffffff',
+    justifyContent: 'space-between'
   },
   menuButton: {
     width: 40,
@@ -196,6 +229,19 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'center',
     marginTop: 10
+  },
+  themeToggle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    marginTop: 10
+  },
+  themeToggleText: {
+    fontSize: 18,
+    fontWeight: '700'
   },
   menuIconBars: {
     width: 24,

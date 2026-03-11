@@ -10,12 +10,14 @@ import {
 } from 'react-native';
 import { getNotes, getTopics } from '../services/api.js';
 import NoteCard from '../components/NoteCard';
+import { useAppTheme } from '../theme/appTheme.js';
 
 /**
  * NotesScreen
  * View notes organized by topic with ability to create new notes
  */
 const NotesScreen = ({ navigation }) => {
+  const { colors } = useAppTheme();
   const [notes, setNotes] = useState([]);
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -116,16 +118,16 @@ const NotesScreen = ({ navigation }) => {
 
   const renderSectionHeader = ({ section: { title } }) => (
     <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text style={[styles.sectionTitle, { color: colors.mutedText }]}>{title}</Text>
     </View>
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerBar}>
-        <Text style={styles.pageTitle}>Notes</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }] }>
+      <View style={[styles.headerBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Text style={[styles.pageTitle, { color: colors.text }]}>Notes</Text>
         <TouchableOpacity
-          style={styles.createButton}
+          style={[styles.createButton, { backgroundColor: colors.accent }]}
           onPress={handleCreateNote}
         >
           <Text style={styles.createButtonText}>+</Text>
@@ -137,19 +139,21 @@ const NotesScreen = ({ navigation }) => {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.topicScroll}
+          style={[styles.topicScroll, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
           contentContainerStyle={styles.topicContent}
         >
           <TouchableOpacity
             style={[
               styles.topicTag,
-              selectedTopic === null && styles.topicTagActive
+              { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+              selectedTopic === null && [styles.topicTagActive, { backgroundColor: colors.accent, borderColor: colors.accent }]
             ]}
             onPress={() => setSelectedTopic(null)}
           >
             <Text
               style={[
                 styles.topicTagText,
+                { color: colors.mutedText },
                 selectedTopic === null && styles.topicTagTextActive
               ]}
             >
@@ -162,13 +166,15 @@ const NotesScreen = ({ navigation }) => {
               key={topic.id}
               style={[
                 styles.topicTag,
-                selectedTopic === topic.id && styles.topicTagActive
+                { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+                selectedTopic === topic.id && [styles.topicTagActive, { backgroundColor: colors.accent, borderColor: colors.accent }]
               ]}
               onPress={() => setSelectedTopic(topic.id)}
             >
               <Text
                 style={[
                   styles.topicTagText,
+                  { color: colors.mutedText },
                   selectedTopic === topic.id && styles.topicTagTextActive
                 ]}
               >
@@ -180,17 +186,17 @@ const NotesScreen = ({ navigation }) => {
       )}
 
       {loading ? (
-        <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+        <ActivityIndicator size="large" color={colors.accent} style={styles.loader} />
       ) : errorMessage ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>Unable to load notes</Text>
-          <Text style={styles.emptySubtext}>{errorMessage}</Text>
+          <Text style={[styles.emptyText, { color: colors.text }]}>Unable to load notes</Text>
+          <Text style={[styles.emptySubtext, { color: colors.mutedText }]}>{errorMessage}</Text>
         </View>
       ) : notes.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>📝</Text>
-          <Text style={styles.emptyText}>No notes yet</Text>
-          <Text style={styles.emptySubtext}>
+          <Text style={[styles.emptyText, { color: colors.text }]}>No notes yet</Text>
+          <Text style={[styles.emptySubtext, { color: colors.mutedText }]}>
             Create a note or extract from a call
           </Text>
         </View>

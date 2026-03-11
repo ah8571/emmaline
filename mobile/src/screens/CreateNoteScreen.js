@@ -11,12 +11,14 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { createNote, getTopics, updateNote } from '../services/api.js';
+import { useAppTheme } from '../theme/appTheme.js';
 
 /**
  * CreateNoteScreen
  * Create or edit a note
  */
 const CreateNoteScreen = ({ route, navigation }) => {
+  const { colors } = useAppTheme();
   const existingNote = route?.params?.note || null;
   const [title, setTitle] = useState(existingNote?.title || '');
   const [content, setContent] = useState(existingNote?.content || '');
@@ -67,15 +69,15 @@ const CreateNoteScreen = ({ route, navigation }) => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.cancelButton}>Cancel</Text>
+          <Text style={[styles.cancelButton, { color: colors.mutedText }]}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{isEditing ? 'Edit Note' : 'New Note'}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{isEditing ? 'Edit Note' : 'New Note'}</Text>
         <TouchableOpacity onPress={handleSave} disabled={loading}>
-          <Text style={[styles.saveButton, loading && styles.disabledButton]}>
+          <Text style={[styles.saveButton, { color: colors.accent }, loading && styles.disabledButton]}>
             {loading ? 'Saving...' : 'Save'}
           </Text>
         </TouchableOpacity>
@@ -83,18 +85,18 @@ const CreateNoteScreen = ({ route, navigation }) => {
 
       <ScrollView style={styles.content}>
         <TextInput
-          style={styles.titleInput}
+          style={[styles.titleInput, { color: colors.text, borderBottomColor: colors.border }]}
           placeholder="Note Title"
-          placeholderTextColor="#adb5bd"
+          placeholderTextColor={colors.mutedText}
           value={title}
           onChangeText={setTitle}
           editable={!loading}
         />
 
         <TextInput
-          style={styles.contentInput}
+          style={[styles.contentInput, { color: colors.text, backgroundColor: colors.input, borderColor: colors.border }]}
           placeholder="Start typing your note... Markdown headings are okay."
-          placeholderTextColor="#adb5bd"
+          placeholderTextColor={colors.mutedText}
           value={content}
           onChangeText={setContent}
           multiline
@@ -104,21 +106,29 @@ const CreateNoteScreen = ({ route, navigation }) => {
 
         {topics.length > 0 ? (
           <View style={styles.topicSelector}>
-            <Text style={styles.topicSelectorLabel}>Topic</Text>
+            <Text style={[styles.topicSelectorLabel, { color: colors.text }]}>Topic</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <TouchableOpacity
-                style={[styles.topicTag, selectedTopic === null && styles.topicTagActive]}
+                style={[
+                  styles.topicTag,
+                  { backgroundColor: colors.surfaceAlt },
+                  selectedTopic === null && [styles.topicTagActive, { backgroundColor: colors.accent }]
+                ]}
                 onPress={() => setSelectedTopic(null)}
               >
-                <Text style={[styles.topicTagText, selectedTopic === null && styles.topicTagTextActive]}>None</Text>
+                <Text style={[styles.topicTagText, { color: colors.mutedText }, selectedTopic === null && styles.topicTagTextActive]}>None</Text>
               </TouchableOpacity>
               {topics.map((topic) => (
                 <TouchableOpacity
                   key={topic.id}
-                  style={[styles.topicTag, selectedTopic === topic.id && styles.topicTagActive]}
+                  style={[
+                    styles.topicTag,
+                    { backgroundColor: colors.surfaceAlt },
+                    selectedTopic === topic.id && [styles.topicTagActive, { backgroundColor: colors.accent }]
+                  ]}
                   onPress={() => setSelectedTopic(topic.id)}
                 >
-                  <Text style={[styles.topicTagText, selectedTopic === topic.id && styles.topicTagTextActive]}>{topic.name}</Text>
+                  <Text style={[styles.topicTagText, { color: colors.mutedText }, selectedTopic === topic.id && styles.topicTagTextActive]}>{topic.name}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -170,7 +180,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#212529',
     marginBottom: 16,
-    paddingVertical: 8
+    paddingVertical: 8,
+    borderBottomWidth: 1
   },
   contentInput: {
     fontSize: 14,
@@ -178,6 +189,7 @@ const styles = StyleSheet.create({
     minHeight: 300,
     backgroundColor: '#fff',
     borderRadius: 8,
+    borderWidth: 1,
     padding: 12,
     paddingTop: 12
   },

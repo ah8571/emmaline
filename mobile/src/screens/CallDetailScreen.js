@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, Text, ActivityIndicator } from 'react-native';
 import { getCallDetail } from '../services/api.js';
+import { useAppTheme } from '../theme/appTheme.js';
 
 const CallDetailScreen = ({ route }) => {
+  const { colors } = useAppTheme();
   const { callId } = route.params;
   const [call, setCall] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -29,13 +31,13 @@ const CallDetailScreen = ({ route }) => {
   };
 
   if (loading) {
-    return <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />;
+    return <ActivityIndicator size="large" color={colors.accent} style={styles.loader} />;
   }
 
   if (!call) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>Call not found</Text>
+      <View style={[styles.container, { backgroundColor: colors.background }] }>
+        <Text style={[styles.errorText, { color: colors.danger }]}>Call not found</Text>
       </View>
     );
   }
@@ -45,64 +47,64 @@ const CallDetailScreen = ({ route }) => {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Summary</Text>
-        <Text style={styles.summaryText}>{call.summary}</Text>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.contentContainer}>
+      <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Summary</Text>
+        <Text style={[styles.summaryText, { color: colors.mutedText }]}>{call.summary}</Text>
       </View>
 
       {call.keyPoints && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Key Points</Text>
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Key Points</Text>
           {call.keyPoints.map((point, idx) => (
-            <Text key={idx} style={styles.bulletPoint}>• {point}</Text>
+            <Text key={idx} style={[styles.bulletPoint, { color: colors.mutedText }]}>• {point}</Text>
           ))}
         </View>
       )}
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Usage and Cost</Text>
-        <Text style={styles.summaryText}>
+      <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Usage and Cost</Text>
+        <Text style={[styles.summaryText, { color: colors.mutedText }]}>
           Tier: {call.pricingTier || 'tier1'}
         </Text>
-        <Text style={styles.summaryText}>
+        <Text style={[styles.summaryText, { color: colors.mutedText }]}>
           Provider cost: {formatUsd(call.totalVendorCostUsd)}
         </Text>
-        <Text style={styles.summaryText}>
+        <Text style={[styles.summaryText, { color: colors.mutedText }]}>
           Tier-adjusted billable cost: {formatUsd(call.totalBillableCostUsd)}
         </Text>
 
         {Array.isArray(call.costs) && call.costs.length > 0 ? (
           call.costs.map((cost) => (
-            <View key={cost.id || `${cost.provider}-${cost.service}`} style={styles.costRow}>
-              <Text style={styles.costLabel}>
+            <View key={cost.id || `${cost.provider}-${cost.service}`} style={[styles.costRow, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.costLabel, { color: colors.text }]}>
                 {cost.provider} / {cost.service}
               </Text>
-              <Text style={styles.costMeta}>
+              <Text style={[styles.costMeta, { color: colors.mutedText }]}>
                 {cost.quantity} {cost.unit} · {cost.measurementSource} · {cost.costSource}
               </Text>
-              <Text style={styles.costValue}>Provider: {formatUsd(cost.vendorCostUsd)}</Text>
-              <Text style={styles.costMeta}>Billable: {formatUsd(cost.billableCostUsd)}</Text>
+              <Text style={[styles.costValue, { color: colors.accent }]}>Provider: {formatUsd(cost.vendorCostUsd)}</Text>
+              <Text style={[styles.costMeta, { color: colors.mutedText }]}>Billable: {formatUsd(cost.billableCostUsd)}</Text>
             </View>
           ))
         ) : (
-          <Text style={styles.transcriptText}>No estimated cost data recorded for this call yet.</Text>
+          <Text style={[styles.transcriptText, { color: colors.mutedText }]}>No estimated cost data recorded for this call yet.</Text>
         )}
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Transcript</Text>
+      <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Transcript</Text>
         {Array.isArray(call.messages) && call.messages.length > 0 ? (
           call.messages.map((message) => (
             <View key={message.id || `${message.sequenceNumber}-${message.speaker}`} style={styles.messageRow}>
-              <Text style={styles.messageSpeaker}>
+              <Text style={[styles.messageSpeaker, { color: colors.text }]}>
                 {message.speaker === 'assistant' ? 'Emmaline' : message.speaker === 'system' ? 'System' : 'You'}
               </Text>
-              <Text style={styles.transcriptText}>{message.text}</Text>
+              <Text style={[styles.transcriptText, { color: colors.mutedText }]}>{message.text}</Text>
             </View>
           ))
         ) : (
-          <Text style={styles.transcriptText}>{call.fullTranscript}</Text>
+          <Text style={[styles.transcriptText, { color: colors.mutedText }]}>{call.fullTranscript}</Text>
         )}
       </View>
     </ScrollView>
@@ -112,7 +114,9 @@ const CallDetailScreen = ({ route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#fff'
+  },
+  contentContainer: {
     padding: 16
   },
   loader: {
@@ -120,7 +124,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   section: {
-    marginBottom: 24
+    marginBottom: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderRadius: 16,
+    borderColor: '#e9ecef'
   },
   sectionTitle: {
     fontSize: 18,
@@ -175,7 +183,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6c757d',
     lineHeight: 22,
-    fontStyle: 'italic'
+    fontStyle: 'normal'
   },
   errorText: {
     fontSize: 16,

@@ -6,6 +6,7 @@ import {
   Text,
   Animated
 } from 'react-native';
+import { useAppTheme } from '../theme/appTheme.js';
 
 /**
  * FloatingCallButton
@@ -20,9 +21,14 @@ const FloatingCallButton = ({
   audioRoutes = [],
   selectedAudioRoute = null,
   onSelectAudioRoute,
-  onToggleMute
+  onToggleMute,
+  bottomInset = 0
 }) => {
   const [scaleAnim] = React.useState(new Animated.Value(1));
+  const { colors, isDarkMode } = useAppTheme();
+  const floatingBottom = Math.max(bottomInset, 12) + 16;
+  const statusBottom = floatingBottom + 116;
+  const audioCardBottom = floatingBottom + 80;
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -48,20 +54,24 @@ const FloatingCallButton = ({
   return (
     <>
       {showAudioRoutes ? (
-        <View style={styles.audioRouteCard}>
+        <View style={[styles.audioRouteCard, { bottom: audioCardBottom, backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.callActionRow}>
             <TouchableOpacity
-              style={[styles.callActionButton, isMuted && styles.callActionButtonActive]}
+              style={[
+                styles.callActionButton,
+                { backgroundColor: colors.surfaceAlt },
+                isMuted && [styles.callActionButtonActive, { backgroundColor: isDarkMode ? '#402128' : '#ffe3e3' }]
+              ]}
               onPress={() => onToggleMute?.()}
               activeOpacity={0.85}
             >
-              <Text style={[styles.callActionButtonText, isMuted && styles.callActionButtonTextActive]}>
+              <Text style={[styles.callActionButtonText, { color: colors.text }, isMuted && styles.callActionButtonTextActive]}>
                 {isMuted ? 'Unmute' : 'Mute'}
               </Text>
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.audioRouteTitle}>Audio</Text>
+          <Text style={[styles.audioRouteTitle, { color: colors.text }]}>Audio</Text>
           <View style={styles.audioRouteList}>
             {audioRoutes.map((route) => {
               const selected = selectedAudioRoute === route.uuid;
@@ -69,11 +79,15 @@ const FloatingCallButton = ({
               return (
                 <TouchableOpacity
                   key={route.uuid}
-                  style={[styles.audioRouteChip, selected && styles.audioRouteChipSelected]}
+                  style={[
+                    styles.audioRouteChip,
+                    { backgroundColor: colors.surfaceAlt },
+                    selected && [styles.audioRouteChipSelected, { backgroundColor: colors.chipSelectedBg }]
+                  ]}
                   onPress={() => onSelectAudioRoute?.(route.uuid)}
                   activeOpacity={0.85}
                 >
-                  <Text style={[styles.audioRouteChipText, selected && styles.audioRouteChipTextSelected]}>
+                  <Text style={[styles.audioRouteChipText, { color: colors.mutedText }, selected && { color: colors.chipSelectedText }]}>
                     {route.label}
                   </Text>
                 </TouchableOpacity>
@@ -86,6 +100,7 @@ const FloatingCallButton = ({
       <Animated.View
         style={[
           styles.floatingContainer,
+          { bottom: floatingBottom },
           {
             transform: [{ scale: scaleAnim }]
           }
@@ -103,7 +118,7 @@ const FloatingCallButton = ({
       </Animated.View>
 
       {statusLabel ? (
-        <View style={styles.statusIndicator}>
+        <View style={[styles.statusIndicator, { bottom: statusBottom, backgroundColor: colors.status }]}>
           <Text style={styles.statusText}>{statusLabel}</Text>
         </View>
       ) : null}
@@ -114,7 +129,6 @@ const FloatingCallButton = ({
 const styles = StyleSheet.create({
   floatingContainer: {
     position: 'absolute',
-    bottom: 80,
     right: 20,
     zIndex: 999
   },
@@ -139,7 +153,6 @@ const styles = StyleSheet.create({
   },
   statusIndicator: {
     position: 'absolute',
-    bottom: 196,
     right: 20,
     backgroundColor: '#007AFF',
     paddingHorizontal: 12,
@@ -159,10 +172,11 @@ const styles = StyleSheet.create({
   audioRouteCard: {
     position: 'absolute',
     right: 20,
-    bottom: 160,
     width: 220,
     borderRadius: 18,
     backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
     paddingHorizontal: 14,
     paddingVertical: 14,
     shadowColor: '#000',
@@ -216,9 +230,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#495057'
-  },
-  audioRouteChipTextSelected: {
-    color: '#0056b3'
   }
 });
 

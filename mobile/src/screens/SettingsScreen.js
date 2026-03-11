@@ -8,6 +8,7 @@ import {
   saveCallLanguagePreference,
   saveSpeechRatePreference
 } from '../utils/secureStorage.js';
+import { useAppTheme } from '../theme/appTheme.js';
 
 const LANGUAGE_OPTIONS = [
   {
@@ -62,6 +63,7 @@ const areRatesEqual = (left, right) => Math.abs(Number(left) - Number(right)) < 
 const areDelayValuesEqual = (left, right) => Number(left) === Number(right);
 
 const SettingsScreen = () => {
+  const { colors, isDarkMode } = useAppTheme();
   const [callLanguage, setCallLanguage] = useState('en');
   const [speechRate, setSpeechRate] = useState(1);
   const [callResponseDelayMs, setCallResponseDelayMs] = useState(1600);
@@ -110,14 +112,14 @@ const SettingsScreen = () => {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.headerBar}>
-        <Text style={styles.pageTitle}>Settings</Text>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.contentContainer}>
+      <View style={[styles.headerBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Text style={[styles.pageTitle, { color: colors.text }]}>Settings</Text>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Call language</Text>
-        <Text style={styles.sectionDescription}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Call language</Text>
+        <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>
           Choose the language Emmaline should expect on voice calls.
         </Text>
 
@@ -127,16 +129,20 @@ const SettingsScreen = () => {
           return (
             <TouchableOpacity
               key={option.value}
-              style={[styles.optionCard, selected && styles.optionCardSelected]}
+              style={[
+                styles.optionCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                selected && [styles.optionCardSelected, { borderColor: colors.accent, backgroundColor: colors.surfaceAlt }]
+              ]}
               onPress={() => handleSelectLanguage(option.value)}
               activeOpacity={0.85}
             >
-              <View style={[styles.radio, selected && styles.radioSelected]}>
-                {selected ? <View style={styles.radioInner} /> : null}
+              <View style={[styles.radio, { borderColor: colors.mutedText }, selected && [styles.radioSelected, { borderColor: colors.accent }]]}>
+                {selected ? <View style={[styles.radioInner, { backgroundColor: colors.accent }]} /> : null}
               </View>
               <View style={styles.optionContent}>
-                <Text style={styles.optionTitle}>{option.title}</Text>
-                <Text style={styles.optionDescription}>{option.description}</Text>
+                <Text style={[styles.optionTitle, { color: colors.text }]}>{option.title}</Text>
+                <Text style={[styles.optionDescription, { color: colors.mutedText }]}>{option.description}</Text>
               </View>
             </TouchableOpacity>
           );
@@ -144,14 +150,14 @@ const SettingsScreen = () => {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Speech speed</Text>
-        <Text style={styles.sectionDescription}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Speech speed</Text>
+        <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>
           Slow Emmaline down if the spoken responses feel too dense to follow in real time.
         </Text>
 
-        <View style={styles.speedometerCard}>
-          <Text style={styles.speedometerLabel}>Current pace</Text>
-          <Text style={styles.speedometerValue}>{speechRate.toFixed(2)}x</Text>
+        <View style={[styles.speedometerCard, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+          <Text style={[styles.speedometerLabel, { color: colors.mutedText }]}>Current pace</Text>
+          <Text style={[styles.speedometerValue, { color: colors.text }]}>{speechRate.toFixed(2)}x</Text>
         </View>
 
         {SPEECH_RATE_OPTIONS.map((option) => {
@@ -160,32 +166,36 @@ const SettingsScreen = () => {
           return (
             <TouchableOpacity
               key={option.value}
-              style={[styles.optionCard, selected && styles.optionCardSelected]}
+              style={[
+                styles.optionCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                selected && [styles.optionCardSelected, { borderColor: colors.accent, backgroundColor: colors.surfaceAlt }]
+              ]}
               onPress={() => handleSelectSpeechRate(option.value)}
               activeOpacity={0.85}
             >
-              <View style={[styles.radio, selected && styles.radioSelected]}>
-                {selected ? <View style={styles.radioInner} /> : null}
+              <View style={[styles.radio, { borderColor: colors.mutedText }, selected && [styles.radioSelected, { borderColor: colors.accent }]]}>
+                {selected ? <View style={[styles.radioInner, { backgroundColor: colors.accent }]} /> : null}
               </View>
               <View style={styles.optionContent}>
-                <Text style={styles.optionTitle}>{option.title}</Text>
-                <Text style={styles.optionDescription}>{option.description}</Text>
+                <Text style={[styles.optionTitle, { color: colors.text }]}>{option.title}</Text>
+                <Text style={[styles.optionDescription, { color: colors.mutedText }]}>{option.description}</Text>
               </View>
-              <Text style={styles.rateBadge}>{option.value.toFixed(2)}x</Text>
+              <Text style={[styles.rateBadge, { color: colors.mutedText }]}>{option.value.toFixed(2)}x</Text>
             </TouchableOpacity>
           );
         })}
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Response timing</Text>
-        <Text style={styles.sectionDescription}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Response timing</Text>
+        <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>
           Adjust how long Emmaline waits after you stop speaking before it responds.
         </Text>
 
-        <View style={styles.speedometerCard}>
-          <Text style={styles.speedometerLabel}>Current wait</Text>
-          <Text style={styles.speedometerValue}>{(callResponseDelayMs / 1000).toFixed(1)}s</Text>
+        <View style={[styles.speedometerCard, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+          <Text style={[styles.speedometerLabel, { color: colors.mutedText }]}>Current wait</Text>
+          <Text style={[styles.speedometerValue, { color: colors.text }]}>{(callResponseDelayMs / 1000).toFixed(1)}s</Text>
         </View>
 
         {RESPONSE_DELAY_OPTIONS.map((option) => {
@@ -194,18 +204,22 @@ const SettingsScreen = () => {
           return (
             <TouchableOpacity
               key={option.value}
-              style={[styles.optionCard, selected && styles.optionCardSelected]}
+              style={[
+                styles.optionCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                selected && [styles.optionCardSelected, { borderColor: colors.accent, backgroundColor: colors.surfaceAlt }]
+              ]}
               onPress={() => handleSelectResponseDelay(option.value)}
               activeOpacity={0.85}
             >
-              <View style={[styles.radio, selected && styles.radioSelected]}>
-                {selected ? <View style={styles.radioInner} /> : null}
+              <View style={[styles.radio, { borderColor: colors.mutedText }, selected && [styles.radioSelected, { borderColor: colors.accent }]]}>
+                {selected ? <View style={[styles.radioInner, { backgroundColor: colors.accent }]} /> : null}
               </View>
               <View style={styles.optionContent}>
-                <Text style={styles.optionTitle}>{option.title}</Text>
-                <Text style={styles.optionDescription}>{option.description}</Text>
+                <Text style={[styles.optionTitle, { color: colors.text }]}>{option.title}</Text>
+                <Text style={[styles.optionDescription, { color: colors.mutedText }]}>{option.description}</Text>
               </View>
-              <Text style={styles.rateBadge}>{(option.value / 1000).toFixed(1)}s</Text>
+              <Text style={[styles.rateBadge, { color: colors.mutedText }]}>{(option.value / 1000).toFixed(1)}s</Text>
             </TouchableOpacity>
           );
         })}

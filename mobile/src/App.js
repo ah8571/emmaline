@@ -19,10 +19,11 @@ import {
 import {
   getCallResponseDelayPreference,
   getCallLanguagePreference,
-  getSpeechRatePreference
+  getSpeechRatePreference,
+  getThemeModePreference,
+  saveThemeModePreference
 } from './utils/secureStorage.js';
-
-const CALL_DOCK_HEIGHT = 26;
+import { AppThemeProvider, darkColors, lightColors } from './theme/appTheme.js';
 
 const AppContent = () => {
   const insets = useSafeAreaInsets();
@@ -32,8 +33,18 @@ const AppContent = () => {
   const [audioDevices, setAudioDevices] = useState([]);
   const [selectedAudioDevice, setSelectedAudioDevice] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
-  const callDockHeight = CALL_DOCK_HEIGHT + insets.bottom;
+  const colors = isDarkMode ? darkColors : lightColors;
+
+  useEffect(() => {
+    const loadThemeMode = async () => {
+      const savedThemeMode = await getThemeModePreference();
+      setIsDarkMode(savedThemeMode === 'dark');
+    };
+
+    loadThemeMode();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = subscribeToAudioDevices(({ audioDevices: nextAudioDevices, selectedDevice }) => {
@@ -166,6 +177,12 @@ const AppContent = () => {
     }
   };
 
+  const handleToggleTheme = async () => {
+    const nextIsDarkMode = !isDarkMode;
+    setIsDarkMode(nextIsDarkMode);
+    await saveThemeModePreference(nextIsDarkMode ? 'dark' : 'light');
+  };
+
   const audioRouteOptions = audioDevices
     .map((device) => ({
       uuid: device.uuid,
@@ -190,14 +207,13 @@ const AppContent = () => {
     });
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.navigatorContainer, isAuthenticated && { paddingBottom: callDockHeight }]}>
-        <AppNavigator onAuthStateChange={setIsAuthenticated} />
-      </View>
+    <AppThemeProvider value={{ isDarkMode, colors, toggleTheme: handleToggleTheme }}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.navigatorContainer}>
+          <AppNavigator onAuthStateChange={setIsAuthenticated} />
+        </View>
 
-      {isAuthenticated ? (
-        <>
-          <View style={[styles.callDock, { height: callDockHeight, paddingBottom: insets.bottom }]} pointerEvents="none" />
+        {isAuthenticated ? (
           <FloatingCallButton
             onPress={handleInitiateCall}
             isActiveCall={isCalling}
@@ -221,10 +237,11 @@ const AppContent = () => {
             onSelectAudioRoute={handleSelectAudioRoute}
             isMuted={isMuted}
             onToggleMute={handleToggleMute}
+            bottomInset={insets.bottom}
           />
-        </>
-      ) : null}
-    </View>
+        ) : null}
+      </View>
+    </AppThemeProvider>
   );
 };
 
@@ -243,15 +260,5 @@ const styles = StyleSheet.create({
   },
   navigatorContainer: {
     flex: 1
-  },
-  callDock: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    paddingRight: 20,
-    backgroundColor: '#fff'
   }
 });

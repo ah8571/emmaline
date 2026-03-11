@@ -11,7 +11,8 @@ const PREFERENCES_KEY = 'emmaline_preferences';
 const DEFAULT_PREFERENCES = {
   callLanguage: 'en',
   speechRate: 1,
-  callResponseDelayMs: 1600
+  callResponseDelayMs: 1600,
+  themeMode: 'light'
 };
 
 /**
@@ -176,6 +177,15 @@ export const saveCallResponseDelayPreference = async (callResponseDelayMs) => {
   return savePreferences({ callResponseDelayMs: Number(callResponseDelayMs) });
 };
 
+export const getThemeModePreference = async () => {
+  const preferences = await getPreferences();
+  return preferences.themeMode === 'dark' ? 'dark' : 'light';
+};
+
+export const saveThemeModePreference = async (themeMode) => {
+  return savePreferences({ themeMode: themeMode === 'dark' ? 'dark' : 'light' });
+};
+
 /**
  * Logout - clear all auth data
  */
@@ -206,5 +216,7 @@ export default {
   saveSpeechRatePreference,
   getCallResponseDelayPreference,
   saveCallResponseDelayPreference,
+  getThemeModePreference,
+  saveThemeModePreference,
   logout
 };

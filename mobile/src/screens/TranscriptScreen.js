@@ -8,12 +8,14 @@ import {
   SectionList
 } from 'react-native';
 import { getCalls } from '../services/api.js';
+import { useAppTheme } from '../theme/appTheme.js';
 
 /**
  * TranscriptScreen
  * View all call transcripts organized chronologically
  */
 const TranscriptScreen = ({ navigation }) => {
+  const { colors } = useAppTheme();
   const [transcripts, setTranscripts] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -75,19 +77,19 @@ const TranscriptScreen = ({ navigation }) => {
 
   const renderTranscript = ({ item }) => (
     <TouchableOpacity
-      style={styles.transcriptCard}
+      style={[styles.transcriptCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
       onPress={() => navigation.navigate('CallDetail', { callId: item.id })}
     >
       <View style={styles.transcriptHeader}>
-        <Text style={styles.time}>
+        <Text style={[styles.time, { color: colors.text }]}>
           {new Date(item.startedAt).toLocaleTimeString('en-US', {
             hour: '2-digit',
             minute: '2-digit'
           })}
         </Text>
-        <Text style={styles.duration}>{item.callDurationSeconds}s</Text>
+        <Text style={[styles.duration, { color: colors.mutedText }]}>{item.callDurationSeconds}s</Text>
       </View>
-      <Text style={styles.preview} numberOfLines={2}>
+      <Text style={[styles.preview, { color: colors.mutedText }]} numberOfLines={2}>
         {item.summary || item.fullTranscript?.substring(0, 100) || 'No transcript'}
       </Text>
     </TouchableOpacity>
@@ -95,22 +97,22 @@ const TranscriptScreen = ({ navigation }) => {
 
   const renderSectionHeader = ({ section: { title } }) => (
     <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text style={[styles.sectionTitle, { color: colors.mutedText }]}>{title}</Text>
     </View>
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerBar}>
-        <Text style={styles.pageTitle}>Transcripts</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }] }>
+      <View style={[styles.headerBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Text style={[styles.pageTitle, { color: colors.text }]}>Transcripts</Text>
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+        <ActivityIndicator size="large" color={colors.accent} style={styles.loader} />
       ) : transcripts.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No transcripts yet</Text>
-          <Text style={styles.emptySubtext}>
+          <Text style={[styles.emptyText, { color: colors.text }]}>No transcripts yet</Text>
+          <Text style={[styles.emptySubtext, { color: colors.mutedText }]}>
             Make a call to see your conversation history
           </Text>
         </View>
@@ -167,8 +169,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#007AFF'
+    borderWidth: 1,
+    borderColor: '#dee2e6'
   },
   transcriptHeader: {
     flexDirection: 'row',
