@@ -128,6 +128,22 @@ CREATE TABLE notes (
   is_archived BOOLEAN DEFAULT FALSE
 );
 
+CREATE TABLE note_revisions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  note_id UUID NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  call_id UUID REFERENCES calls(id) ON DELETE SET NULL,
+  edit_type VARCHAR(50) NOT NULL,
+  edit_summary TEXT,
+  previous_title VARCHAR(255),
+  previous_content TEXT,
+  new_title VARCHAR(255),
+  new_content TEXT,
+  source VARCHAR(50) NOT NULL DEFAULT 'app',
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Call-Topic association (many-to-many)
 CREATE TABLE call_topics (
   call_id UUID NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
@@ -177,6 +193,9 @@ CREATE INDEX idx_user_topics ON topics (user_id);
 CREATE INDEX idx_user_notes ON notes (user_id);
 CREATE INDEX idx_call_notes ON notes (call_id);
 CREATE INDEX idx_topic_notes ON notes (topic_id);
+CREATE INDEX idx_note_revisions_note_id ON note_revisions (note_id);
+CREATE INDEX idx_note_revisions_user_id ON note_revisions (user_id);
+CREATE INDEX idx_note_revisions_call_id ON note_revisions (call_id);
 CREATE INDEX idx_topic_calls ON call_topics (topic_id);
 CREATE INDEX idx_user_keys ON api_keys (user_id);
 CREATE INDEX idx_user_audit ON audit_logs (user_id);
@@ -226,6 +245,7 @@ ALTER TABLE call_costs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE summaries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE topics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE note_revisions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
@@ -249,6 +269,9 @@ CREATE POLICY "Users can view their own topics" ON topics FOR SELECT
   USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can view their own notes" ON notes FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can view their own note revisions" ON note_revisions FOR SELECT
   USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can view their own audit logs" ON audit_logs FOR SELECT

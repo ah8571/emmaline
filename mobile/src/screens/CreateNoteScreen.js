@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -10,17 +10,35 @@ import {
   Platform,
   ActivityIndicator
 } from 'react-native';
+import { createNote, getTopics, updateNote } from '../services/api.js';
 
 /**
  * CreateNoteScreen
  * Create or edit a note
  */
 const CreateNoteScreen = ({ route, navigation }) => {
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  const existingNote = route?.params?.note || null;
+  const [title, setTitle] = useState(existingNote?.title || '');
+  const [content, setContent] = useState(existingNote?.content || '');
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(false);
+  const isEditing = useMemo(() => Boolean(existingNote?.id), [existingNote?.id]);
+
+  useEffect(() => {
+    setSelectedTopic(existingNote?.topicId || null);
+  }, [existingNote?.topicId]);
+
+  useEffect(() => {
+    const loadTopics = async () => {
+      const response = await getTopics();
+      if (response.success) {
+        setTopics(response.topics || []);
+      }
+    };
+
+    loadTopics();
+  }, []);
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -30,20 +48,17 @@ const CreateNoteScreen = ({ route, navigation }) => {
 
     setLoading(true);
     try {
-      // TODO: POST /api/notes - Create new note
-      // const response = await fetch('${BACKEND_URL}/api/notes', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     title,
-      //     content,
-      //     topicId: selectedTopic
-      //   })
-      // });
+      const response = isEditing
+        ? await updateNote(existingNote.id, title.trim(), content.trim(), selectedTopic)
+        : await createNote(title.trim(), content.trim(), selectedTopic);
+
+      if (!response.success) {
+        throw new Error(response.error || 'Unable to save note');
+      }
 
       navigation.goBack();
     } catch (error) {
-      alert('Error saving note');
+      alert(error.message || 'Error saving note');
     } finally {
       setLoading(false);
     }
@@ -58,7 +73,7 @@ const CreateNoteScreen = ({ route, navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>New Note</Text>
+        <Text style={styles.headerTitle}>{isEditing ? 'Edit Note' : 'New Note'}</Text>
         <TouchableOpacity onPress={handleSave} disabled={loading}>
           <Text style={[styles.saveButton, loading && styles.disabledButton]}>
             {loading ? 'Saving...' : 'Save'}
@@ -78,7 +93,7 @@ const CreateNoteScreen = ({ route, navigation }) => {
 
         <TextInput
           style={styles.contentInput}
-          placeholder="Start typing your note..."
+          placeholder="Start typing your note... Markdown headings are okay."
           placeholderTextColor="#adb5bd"
           value={content}
           onChangeText={setContent}
@@ -87,7 +102,28 @@ const CreateNoteScreen = ({ route, navigation }) => {
           textAlignVertical="top"
         />
 
-        {/* TODO: Add topic selector */}
+        {topics.length > 0 ? (
+          <View style={styles.topicSelector}>
+            <Text style={styles.topicSelectorLabel}>Topic</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <TouchableOpacity
+                style={[styles.topicTag, selectedTopic === null && styles.topicTagActive]}
+                onPress={() => setSelectedTopic(null)}
+              >
+                <Text style={[styles.topicTagText, selectedTopic === null && styles.topicTagTextActive]}>None</Text>
+              </TouchableOpacity>
+              {topics.map((topic) => (
+                <TouchableOpacity
+                  key={topic.id}
+                  style={[styles.topicTag, selectedTopic === topic.id && styles.topicTagActive]}
+                  onPress={() => setSelectedTopic(topic.id)}
+                >
+                  <Text style={[styles.topicTagText, selectedTopic === topic.id && styles.topicTagTextActive]}>{topic.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -144,6 +180,32 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     paddingTop: 12
+  },
+  topicSelector: {
+    marginTop: 16
+  },
+  topicSelectorLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#495057',
+    marginBottom: 8
+  },
+  topicTag: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    backgroundColor: '#e9ecef',
+    marginRight: 8
+  },
+  topicTagActive: {
+    backgroundColor: '#007AFF'
+  },
+  topicTagText: {
+    fontSize: 13,
+    color: '#495057'
+  },
+  topicTagTextActive: {
+    color: '#fff'
   }
 });
 

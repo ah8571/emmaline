@@ -271,19 +271,232 @@ export const getCallById = async (userId, callId) => {
   return call;
 };
 
-export const getNotesForUser = async (userId) => {
-  const { data, error } = await supabase
+const persistNoteRevision = async (noteId, userId, revisionData = {}) => {
+  if (!noteId || !userId) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('note_revisions')
+      .insert({
+        note_id: noteId,
+        user_id: userId,
+        call_id: revisionData.callId || null,
+        edit_type: revisionData.editType || 'update',
+        edit_summary: revisionData.editSummary || null,
+        previous_title: revisionData.previousTitle || null,
+        previous_content: revisionData.previousContent || null,
+        new_title: revisionData.newTitle || null,
+        new_content: revisionData.newContent || null,
+        source: revisionData.source || 'app',
+        metadata: revisionData.metadata || {}
+      })
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.warn('Unable to persist note revision:', error.message);
+    return null;
+  }
+};
+
+export const getNotesForUser = async (userId, options = {}) => {
+  const topicId = options.topicId || null;
+  const limit = Number.isFinite(Number(options.limit)) ? Math.max(1, Number(options.limit)) : 50;
+  const offset = Number.isFinite(Number(options.offset)) ? Math.max(0, Number(options.offset)) : 0;
+
+  let query = supabase
     .from('notes')
-    .select('*')
+    .select('*', { count: 'exact' })
     .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+    .eq('is_archived', false)
+    .order('updated_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (topicId) {
+    query = query.eq('topic_id', topicId);
+  }
+
+  const { data, error, count } = await query;
 
   if (error) {
     console.error('Error fetching notes:', error);
     throw error;
   }
 
+  return {
+    notes: data || [],
+    total: count ?? (data || []).length
+  };
+};
+
+export const getTopicsForUser = async (userId) => {
+  const { data, error } = await supabase
+    .from('topics')
+    .select('*')
+    .eq('user_id', userId)
+    .order('name', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching topics:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+export const getNoteById = async (userId, noteId) => {
+  const { data, error } = await supabase
+    .from('notes')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('id', noteId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching note by ID:', error);
+    throw error;
+  }
+
   return data;
+};
+
+export const createNote = async (userId, noteData, options = {}) => {
+  const { data, error } = await supabase
+    .from('notes')
+    .insert({
+      user_id: userId,
+      call_id: noteData.callId || null,
+      topic_id: noteData.topicId || null,
+      title: String(noteData.title || '').trim(),
+      content: String(noteData.content || '').trim(),
+      is_archived: Boolean(noteData.isArchived)
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating note:', error);
+    throw error;
+  }
+
+  await persistNoteRevision(data.id, userId, {
+    callId: noteData.callId || options.callId,
+    editType: options.editType || 'create',
+    editSummary: options.editSummary || 'Created note',
+    previousTitle: null,
+    previousContent: null,
+    newTitle: data.title,
+    newContent: data.content,
+    source: options.source || 'app',
+    metadata: options.metadata || {}
+  });
+
+  return data;
+};
+
+export const updateNote = async (userId, noteId, noteData, options = {}) => {
+  const existingNote = await getNoteById(userId, noteId);
+
+  if (!existingNote) {
+    return null;
+  }
+
+  const payload = {
+    title: noteData.title !== undefined ? String(noteData.title || '').trim() : existingNote.title,
+    content: noteData.content !== undefined ? String(noteData.content || '').trim() : existingNote.content,
+    topic_id: noteData.topicId !== undefined ? noteData.topicId || null : existingNote.topic_id,
+    call_id: noteData.callId !== undefined ? noteData.callId || null : existingNote.call_id,
+    is_archived: noteData.isArchived !== undefined ? Boolean(noteData.isArchived) : existingNote.is_archived
+  };
+
+  const { data, error } = await supabase
+    .from('notes')
+    .update(payload)
+    .eq('user_id', userId)
+    .eq('id', noteId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating note:', error);
+    throw error;
+  }
+
+  await persistNoteRevision(noteId, userId, {
+    callId: payload.call_id || options.callId,
+    editType: options.editType || 'update',
+    editSummary: options.editSummary || 'Updated note',
+    previousTitle: existingNote.title,
+    previousContent: existingNote.content,
+    newTitle: data.title,
+    newContent: data.content,
+    source: options.source || 'app',
+    metadata: options.metadata || {}
+  });
+
+  return data;
+};
+
+export const deleteNote = async (userId, noteId, options = {}) => {
+  const existingNote = await getNoteById(userId, noteId);
+
+  if (!existingNote) {
+    return null;
+  }
+
+  await persistNoteRevision(noteId, userId, {
+    callId: existingNote.call_id || options.callId,
+    editType: options.editType || 'delete',
+    editSummary: options.editSummary || 'Deleted note',
+    previousTitle: existingNote.title,
+    previousContent: existingNote.content,
+    newTitle: null,
+    newContent: null,
+    source: options.source || 'app',
+    metadata: options.metadata || {}
+  });
+
+  const { error } = await supabase
+    .from('notes')
+    .delete()
+    .eq('user_id', userId)
+    .eq('id', noteId);
+
+  if (error) {
+    console.error('Error deleting note:', error);
+    throw error;
+  }
+
+  return existingNote;
+};
+
+export const linkNotesToCall = async (userId, noteIds = [], callId) => {
+  const uniqueNoteIds = [...new Set((noteIds || []).filter(Boolean))];
+
+  if (!callId || uniqueNoteIds.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('notes')
+    .update({ call_id: callId })
+    .eq('user_id', userId)
+    .in('id', uniqueNoteIds)
+    .select();
+
+  if (error) {
+    console.error('Error linking notes to call:', error);
+    throw error;
+  }
+
+  return data || [];
 };
 
 export const getUserPricingTier = async (userId) => {
@@ -393,6 +606,12 @@ export default {
   getCallsForUser,
   getCallById,
   getNotesForUser,
+  getTopicsForUser,
+  getNoteById,
+  createNote,
+  updateNote,
+  deleteNote,
+  linkNotesToCall,
   getUserPricingTier,
   getUserPhoneNumber,
   getUserIdByAssignedPhoneNumber,

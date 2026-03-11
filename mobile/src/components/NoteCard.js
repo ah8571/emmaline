@@ -1,11 +1,11 @@
 import React from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 /**
  * NoteCard component
  * Displays a note preview
  */
-const NoteCard = ({ note }) => {
+const NoteCard = ({ note, onPress }) => {
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -14,17 +14,23 @@ const NoteCard = ({ note }) => {
     });
   };
 
+  const previewText = String(note.content || '')
+    .replace(/^#+\s+/gm, '')
+    .replace(/\n+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle} numberOfLines={1}>{note.title}</Text>
-        <Text style={styles.cardDate}>{formatDate(note.createdAt)}</Text>
+        <Text style={styles.cardDate}>{formatDate(note.updatedAt || note.createdAt)}</Text>
       </View>
       
       <Text style={styles.cardContent} numberOfLines={2}>
-        {note.content}
+        {previewText}
       </Text>
-    </View>
+    </TouchableOpacity>
   );
 };
 

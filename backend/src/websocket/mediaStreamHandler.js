@@ -12,14 +12,24 @@ import {
   validateSpeechConfig
 } from '../services/speechToTextService.js';
 import {
+  createNote,
   getUserPricingTier,
+  getNotesForUser,
+  linkNotesToCall,
   saveCall,
   saveCallMessages,
   saveCallCosts,
   saveSummary,
-  saveTranscript
+  saveTranscript,
+  updateNote
 } from '../services/databaseService.js';
-import { generateResponse, sanitizeSpokenResponse, summarizeTranscript } from '../services/aiService.js';
+import {
+  detectNoteAction,
+  generateResponse,
+  generateStructuredNoteDocument,
+  sanitizeSpokenResponse,
+  summarizeTranscript
+} from '../services/aiService.js';
 import { buildEstimatedCallCostEntries } from '../services/costTrackingService.js';
 import { textToAudio } from '../services/textToSpeechService.js';
 import { getCallFromTwilio } from '../services/twilioService.js';
@@ -36,12 +46,12 @@ const CALL_LANGUAGE_CONFIG = {
   en: {
     languageCode: 'en-US',
     voice: process.env.GOOGLE_TTS_VOICE || 'en-US-Neural2-C',
-    greeting: 'Hi, this is Emmaline. Tell me what you want to think through, and I will help turn it into notes.'
+    greeting: 'Hi, this is Emmaline. Tell me what you want to think through. If you want me to create, update, or read a note while we are speaking, just say so and I can do that for you.'
   },
   es: {
     languageCode: 'es-US',
     voice: process.env.GOOGLE_TTS_VOICE_ES || 'es-US-Neural2-A',
-    greeting: 'Hola, soy Emmaline. Cuéntame qué quieres pensar en voz alta y te ayudaré a convertirlo en notas.'
+    greeting: 'Hola, soy Emmaline. Cuéntame qué quieres pensar en voz alta. Si quieres que cree, actualice o lea una nota mientras hablamos, solo dímelo y puedo hacerlo.'
   }
 };
 
@@ -87,6 +97,251 @@ const normalizeTranscriptText = (value) => {
   return String(value || '')
     .replace(/\s+/g, ' ')
     .trim();
+};
+
+const normalizeTitleKey = (value) => {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const looksLikeNoteInstruction = (value) => {
+  const text = normalizeTranscriptText(value).toLowerCase();
+
+  if (!text) {
+    return false;
+  }
+
+  return [
+    /\bnote\b/,
+    /\bnotes\b/,
+    /\bwrite (this|that) down\b/,
+    /\bsave (this|that)\b/,
+    /\bremember (this|that)\b/,
+    /\bmake a note\b/,
+    /\bcreate a note\b/
+  ].some((pattern) => pattern.test(text));
+};
+
+const findBestMatchingNote = (notes = [], query) => {
+  const normalizedQuery = normalizeTitleKey(query);
+
+  if (!normalizedQuery) {
+    return { note: null, ambiguous: [] };
+  }
+
+  const scored = notes
+    .map((note) => {
+      const normalizedTitle = normalizeTitleKey(note.title);
+      if (!normalizedTitle) {
+        return { note, score: 0 };
+      }
+
+      let score = 0;
+
+      if (normalizedTitle === normalizedQuery) {
+        score = 100;
+      } else if (normalizedTitle.startsWith(normalizedQuery) || normalizedQuery.startsWith(normalizedTitle)) {
+        score = 90;
+      } else if (normalizedTitle.includes(normalizedQuery) || normalizedQuery.includes(normalizedTitle)) {
+        score = 80;
+      } else {
+        const queryTokens = normalizedQuery.split(' ').filter(Boolean);
+        const titleTokens = normalizedTitle.split(' ').filter(Boolean);
+        const overlap = queryTokens.filter((token) => titleTokens.includes(token)).length;
+        score = overlap * 10;
+      }
+
+      return { note, score };
+    })
+    .sort((left, right) => right.score - left.score);
+
+  if (!scored.length || scored[0].score < 10) {
+    return { note: null, ambiguous: [] };
+  }
+
+  if (scored[1] && scored[0].score - scored[1].score <= 5) {
+    return {
+      note: null,
+      ambiguous: scored.slice(0, 3).map((entry) => entry.note)
+    };
+  }
+
+  return { note: scored[0].note, ambiguous: [] };
+};
+
+const markTouchedNote = (mediaConnection, noteId) => {
+  if (!noteId) {
+    return;
+  }
+
+  mediaConnection.touchedNoteIds = mediaConnection.touchedNoteIds || new Set();
+  mediaConnection.touchedNoteIds.add(noteId);
+};
+
+const buildListNotesReply = (notes = [], languagePreference = 'en') => {
+  if (!notes.length) {
+    return String(languagePreference || '').toLowerCase().startsWith('es')
+      ? 'Todavía no tienes notas guardadas.'
+      : 'You do not have any saved notes yet.';
+  }
+
+  const titles = notes.slice(0, 5).map((note) => note.title).join(', ');
+  const hasMore = notes.length > 5;
+
+  return String(languagePreference || '').toLowerCase().startsWith('es')
+    ? `Tienes ${notes.length} notas. ${titles}${hasMore ? ', y algunas más.' : '.'}`
+    : `You have ${notes.length} notes. ${titles}${hasMore ? ', and a few more.' : '.'}`;
+};
+
+const buildReadNoteReply = (note, languagePreference = 'en') => {
+  const excerpt = normalizeTranscriptText(
+    String(note?.content || '')
+      .replace(/^#+\s+/gm, '')
+      .replace(/\n+/g, ' ')
+  ).slice(0, 420);
+
+  if (!excerpt) {
+    return String(languagePreference || '').toLowerCase().startsWith('es')
+      ? `Encontré la nota ${note.title}, pero está vacía.`
+      : `I found the note ${note.title}, but it is empty.`;
+  }
+
+  return String(languagePreference || '').toLowerCase().startsWith('es')
+    ? `Encontré la nota ${note.title}. Empieza así: ${excerpt}`
+    : `I found the note ${note.title}. It starts like this: ${excerpt}`;
+};
+
+const maybeHandleNoteAction = async (mediaConnection, ws, userText) => {
+  if (!mediaConnection.userId || !looksLikeNoteInstruction(userText)) {
+    return false;
+  }
+
+  const noteListResult = await getNotesForUser(mediaConnection.userId, { limit: 25, offset: 0 });
+  const existingNotes = noteListResult.notes || [];
+  const detection = await detectNoteAction(mediaConnection.conversationHistory, {
+    noteTitles: existingNotes.map((note) => note.title),
+    languagePreference: mediaConnection.languagePreference
+  });
+
+  if (mediaConnection.usageMetrics) {
+    recordUsage(mediaConnection.usageMetrics.chatUsage, detection.usage);
+  }
+
+  if (!detection || detection.action === 'none' || detection.confidence < 0.45) {
+    return false;
+  }
+
+  if (detection.action === 'list') {
+    await sendAssistantReply(ws, mediaConnection, buildListNotesReply(existingNotes, mediaConnection.languagePreference));
+    return true;
+  }
+
+  if (detection.action === 'read') {
+    const match = findBestMatchingNote(existingNotes, detection.targetNoteTitle || detection.instruction || userText);
+
+    if (match.ambiguous.length > 0) {
+      await sendAssistantReply(
+        ws,
+        mediaConnection,
+        `I found more than one possible note: ${match.ambiguous.map((note) => note.title).join(', ')}. Tell me which one you want.`
+      );
+      return true;
+    }
+
+    if (!match.note) {
+      await sendAssistantReply(ws, mediaConnection, 'I could not find that note yet.');
+      return true;
+    }
+
+    await sendAssistantReply(ws, mediaConnection, buildReadNoteReply(match.note, mediaConnection.languagePreference));
+    return true;
+  }
+
+  const requestedTitle = detection.targetNoteTitle || detection.newNoteTitle || null;
+  const match = requestedTitle ? findBestMatchingNote(existingNotes, requestedTitle) : { note: null, ambiguous: [] };
+
+  if (match.ambiguous.length > 0) {
+    await sendAssistantReply(
+      ws,
+      mediaConnection,
+      `I found more than one possible note: ${match.ambiguous.map((note) => note.title).join(', ')}. Tell me which one you want me to update.`
+    );
+    return true;
+  }
+
+  const shouldCreate = detection.action === 'create' || (detection.action === 'update' && !match.note && !requestedTitle);
+  const targetNote = shouldCreate ? null : match.note;
+
+  if (detection.action === 'update' && requestedTitle && !targetNote) {
+    await sendAssistantReply(ws, mediaConnection, `I could not find a note called ${requestedTitle}. You can ask me to create it if you want.`);
+    return true;
+  }
+
+  const noteDraft = await generateStructuredNoteDocument({
+    mode: shouldCreate ? 'create' : 'update',
+    preferredTitle: shouldCreate ? requestedTitle : targetNote?.title,
+    existingNote: targetNote,
+    userInstruction: detection.instruction || userText,
+    conversationHistory: detection.useRecentConversation === false
+      ? mediaConnection.conversationHistory.slice(-2)
+      : mediaConnection.conversationHistory,
+    languagePreference: mediaConnection.languagePreference
+  });
+
+  if (mediaConnection.usageMetrics) {
+    recordUsage(mediaConnection.usageMetrics.chatUsage, noteDraft.usage);
+  }
+
+  if (!noteDraft.content) {
+    await sendAssistantReply(ws, mediaConnection, 'I was not able to draft that note yet. Please try again.');
+    return true;
+  }
+
+  if (shouldCreate) {
+    const createdNote = await createNote(
+      mediaConnection.userId,
+      {
+        title: noteDraft.title,
+        content: noteDraft.content
+      },
+      {
+        source: 'voice_assistant',
+        editSummary: 'Created note during live call',
+        metadata: {
+          callSid: mediaConnection.callSid
+        }
+      }
+    );
+
+    markTouchedNote(mediaConnection, createdNote.id);
+    await sendAssistantReply(ws, mediaConnection, `I created a note called ${createdNote.title} and saved what we just discussed.`);
+    return true;
+  }
+
+  const updatedNote = await updateNote(
+    mediaConnection.userId,
+    targetNote.id,
+    {
+      title: noteDraft.title,
+      content: noteDraft.content,
+      topicId: targetNote.topic_id || null,
+      callId: targetNote.call_id || null
+    },
+    {
+      source: 'voice_assistant',
+      editSummary: 'Updated note during live call',
+      metadata: {
+        callSid: mediaConnection.callSid
+      }
+    }
+  );
+
+  markTouchedNote(mediaConnection, updatedNote?.id || targetNote.id);
+  await sendAssistantReply(ws, mediaConnection, `I updated ${updatedNote?.title || targetNote.title} with what we just covered.`);
+  return true;
 };
 
 const isLikelyIncompleteUtterance = (value) => {
@@ -387,6 +642,12 @@ const schedulePendingTurnProcessing = (mediaConnection, ws, delayMs = getTurnRes
       mediaConnection.isResponding = true;
 
       try {
+        const handledNoteAction = await maybeHandleNoteAction(mediaConnection, ws, userText);
+
+        if (handledNoteAction) {
+          return;
+        }
+
         console.log(`${getCallLogPrefix(mediaConnection)} Generating assistant response`);
         const response = await generateResponse(mediaConnection.conversationHistory, {
           languagePreference: mediaConnection.languagePreference
@@ -540,6 +801,14 @@ const finalizeCallArtifacts = async (mediaConnection, stats) => {
     twilioCallSid: mediaConnection.callSid
   });
 
+  if (mediaConnection.touchedNoteIds?.size) {
+    try {
+      await linkNotesToCall(mediaConnection.userId, [...mediaConnection.touchedNoteIds], callRecord.id);
+    } catch (error) {
+      console.warn(`${getCallLogPrefix(mediaConnection)} Unable to link touched notes back to call: ${error.message}`);
+    }
+  }
+
   await saveTranscript(callRecord.id, mediaConnection.userId, fullTranscript);
   await saveCallMessages(callRecord.id, mediaConnection.userId, messages);
 
@@ -691,6 +960,7 @@ function handleStart(message, mediaConnection, ws) {
   mediaConnection.pendingTurnTimer = null;
   mediaConnection.recognizerExpiresAt = 0;
   mediaConnection.recognizerPromise = null;
+  mediaConnection.touchedNoteIds = new Set();
   initializeUsageTracking(mediaConnection);
 
   console.log(`🎤 Media stream started:`);

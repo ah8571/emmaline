@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   ScrollView,
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   SectionList
 } from 'react-native';
+import { getNotes, getTopics } from '../services/api.js';
 import NoteCard from '../components/NoteCard';
 
 /**
@@ -19,38 +20,71 @@ const NotesScreen = ({ navigation }) => {
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  useEffect(() => {
-    loadNotes();
-    loadTopics();
-  }, []);
-
-  const loadNotes = async () => {
-    setLoading(true);
+  const loadNotes = useCallback(async (topicOverride = selectedTopic, options = {}) => {
+    if (!options.silent) {
+      setLoading(true);
+    }
     try {
-      // TODO: Fetch notes from backend API
-      // GET /api/notes
-      // const response = await fetch('${BACKEND_URL}/api/notes');
-      // const data = await response.json();
-      // setNotes(data);
+      const response = await getNotes(topicOverride, 100, 0);
+
+      if (!response.success) {
+        throw new Error(response.error || 'Unable to load notes');
+      }
+
+      setNotes(response.notes || []);
+      setErrorMessage('');
     } catch (error) {
       console.error('Error loading notes:', error);
+      setErrorMessage(error.message || 'Unable to load notes');
     } finally {
-      setLoading(false);
+      if (!options.silent) {
+        setLoading(false);
+      }
     }
-  };
+  }, [selectedTopic]);
 
-  const loadTopics = async () => {
+  const loadTopics = useCallback(async () => {
     try {
-      // TODO: Fetch topics from backend API
-      // GET /api/topics
+      const response = await getTopics();
+
+      if (!response.success) {
+        throw new Error(response.error || 'Unable to load topics');
+      }
+
+      setTopics(response.topics || []);
     } catch (error) {
       console.error('Error loading topics:', error);
+      setTopics([]);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadNotes(selectedTopic);
+  }, [loadNotes, selectedTopic]);
+
+  useEffect(() => {
+    loadTopics();
+  }, [loadTopics]);
+
+  useEffect(() => {
+    const unsubscribeFocus = navigation.addListener('focus', () => {
+      loadNotes(selectedTopic, { silent: true });
+      loadTopics();
+    });
+
+    const pollId = setInterval(() => {
+      loadNotes(selectedTopic, { silent: true });
+    }, 4000);
+
+    return () => {
+      clearInterval(pollId);
+      unsubscribeFocus();
+    };
+  }, [loadNotes, loadTopics, navigation, selectedTopic]);
 
   const handleCreateNote = () => {
-    // TODO: Navigate to create note screen
     navigation.navigate('CreateNote');
   };
 
@@ -74,7 +108,11 @@ const NotesScreen = ({ navigation }) => {
     });
   }
 
-  const renderNote = ({ item }) => <NoteCard note={item} />;
+  const handleEditNote = (note) => {
+    navigation.navigate('CreateNote', { note });
+  };
+
+  const renderNote = ({ item }) => <NoteCard note={item} onPress={() => handleEditNote(item)} />;
 
   const renderSectionHeader = ({ section: { title } }) => (
     <View style={styles.sectionHeader}>
@@ -143,6 +181,11 @@ const NotesScreen = ({ navigation }) => {
 
       {loading ? (
         <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+      ) : errorMessage ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>Unable to load notes</Text>
+          <Text style={styles.emptySubtext}>{errorMessage}</Text>
+        </View>
       ) : notes.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>📝</Text>

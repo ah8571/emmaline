@@ -22,7 +22,7 @@ import {
   getSpeechRatePreference
 } from './utils/secureStorage.js';
 
-const CALL_DOCK_HEIGHT = 52;
+const CALL_DOCK_HEIGHT = 26;
 
 const AppContent = () => {
   const insets = useSafeAreaInsets();

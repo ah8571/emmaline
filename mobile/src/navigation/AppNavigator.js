@@ -7,6 +7,7 @@ import LoginScreen from '../screens/LoginScreen';
 import TimelineScreen from '../screens/TimelineScreen';
 import TranscriptScreen from '../screens/TranscriptScreen';
 import NotesScreen from '../screens/NotesScreen';
+import CreateNoteScreen from '../screens/CreateNoteScreen';
 import CallDetailScreen from '../screens/CallDetailScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import { isAuthenticated as hasAuthToken, getUser } from '../utils/secureStorage.js';
@@ -33,6 +34,11 @@ const NotesStack = () => (
     <Stack.Screen 
       name="NotesList" 
       component={NotesScreen}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name="CreateNote"
+      component={CreateNoteScreen}
       options={{ headerShown: false }}
     />
   </Stack.Navigator>

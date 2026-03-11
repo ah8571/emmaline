@@ -36,6 +36,20 @@ const getLanguageInstruction = (languagePreference) => {
     : 'Respond in English.';
 };
 
+const getNoteLanguageInstruction = (languagePreference) => {
+  return String(languagePreference || '').toLowerCase().startsWith('es')
+    ? 'Write note content in Spanish.'
+    : 'Write note content in English.';
+};
+
+const serializeConversationHistory = (conversationHistory = []) => {
+  return conversationHistory
+    .slice(-12)
+    .map((entry) => `${entry.role === 'assistant' ? 'Assistant' : entry.role === 'system' ? 'System' : 'User'}: ${String(entry.content || '').trim()}`)
+    .join('\n')
+    .trim();
+};
+
 export const sanitizeSpokenResponse = (value) => {
   return String(value || '')
     .replace(/```[\s\S]*?```/g, ' ')
@@ -138,8 +152,133 @@ Return strict JSON only with keys: summary, keyPoints, actionItems, sentiment. D
   };
 };
 
+export const detectNoteAction = async (conversationHistory, options = {}) => {
+  const noteTitles = Array.isArray(options.noteTitles) && options.noteTitles.length > 0
+    ? options.noteTitles.join(', ')
+    : 'None';
+  const prompt = `
+You are classifying the latest user utterance in a live voice call.
+
+Only return a note action when the latest user request is explicitly about notes or saving information for later.
+Examples that SHOULD trigger: "create a note of that", "add that to my app ideas note", "what notes do I have", "read my startup ideas note", "organize that note".
+Examples that SHOULD NOT trigger: general brainstorming, planning, summarizing, or any request that does not explicitly mention a note or saving something.
+
+Available existing note titles:
+${noteTitles}
+
+Recent conversation:
+${serializeConversationHistory(conversationHistory) || 'None'}
+
+Return strict JSON with keys:
+- action: one of none, create, update, list, read
+- targetNoteTitle: string or null
+- newNoteTitle: string or null
+- instruction: string or null
+- useRecentConversation: boolean
+- confidence: number from 0 to 1
+`;
+
+  const response = await getOpenAIClient().chat.completions.create({
+    model: getChatModel(),
+    messages: [
+      {
+        role: 'system',
+        content: 'You detect explicit note-management requests in a live voice conversation and return strict JSON only.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ],
+    temperature: 0.1,
+    response_format: { type: 'json_object' }
+  });
+
+  const parsed = extractJsonObject(response.choices[0].message.content);
+
+  return {
+    action: parsed.action || 'none',
+    targetNoteTitle: parsed.targetNoteTitle || null,
+    newNoteTitle: parsed.newNoteTitle || null,
+    instruction: parsed.instruction || null,
+    useRecentConversation: parsed.useRecentConversation !== false,
+    confidence: Number(parsed.confidence || 0),
+    usage: {
+      model: response.model || getChatModel(),
+      inputTokens: response.usage?.prompt_tokens || 0,
+      outputTokens: response.usage?.completion_tokens || 0,
+      totalTokens: response.usage?.total_tokens || 0
+    }
+  };
+};
+
+export const generateStructuredNoteDocument = async (options = {}) => {
+  const prompt = `
+You are writing a durable working note for Emmaline.
+
+House style for notes:
+- Use markdown for storage.
+- Start with one H1 title line.
+- Use clear sections.
+- If the content contains multiple ideas, use numbered H2 sections like "## 1. Idea Name".
+- Use optional H3 subsections like "### Details", "### Audience", "### Next Steps" when helpful.
+- Prefer concise but meaningful paragraphs over long walls of text.
+- Do not use tables or code fences.
+- Preserve useful existing information when updating a note.
+- Ignore purely procedural commands like "make a note of that" when drafting the note body.
+
+${getNoteLanguageInstruction(options.languagePreference)}
+
+Mode: ${options.mode || 'create'}
+Requested title: ${options.preferredTitle || 'Infer an appropriate title'}
+Instruction: ${options.userInstruction || 'Create a useful structured note from the discussion.'}
+
+Existing note title:
+${options.existingNote?.title || 'None'}
+
+Existing note content:
+${options.existingNote?.content || 'None'}
+
+Recent conversation:
+${serializeConversationHistory(options.conversationHistory || []) || 'None'}
+
+Return strict JSON only with keys: title, content.
+`;
+
+  const response = await getOpenAIClient().chat.completions.create({
+    model: getChatModel(),
+    messages: [
+      {
+        role: 'system',
+        content: 'You write structured markdown notes for storage and return strict JSON only.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ],
+    temperature: 0.3,
+    response_format: { type: 'json_object' }
+  });
+
+  const parsed = extractJsonObject(response.choices[0].message.content);
+
+  return {
+    title: String(parsed.title || options.preferredTitle || options.existingNote?.title || 'Untitled Note').trim().slice(0, 255),
+    content: String(parsed.content || '').trim(),
+    usage: {
+      model: response.model || getChatModel(),
+      inputTokens: response.usage?.prompt_tokens || 0,
+      outputTokens: response.usage?.completion_tokens || 0,
+      totalTokens: response.usage?.total_tokens || 0
+    }
+  };
+};
+
 export default {
   generateResponse,
   summarizeTranscript,
-  sanitizeSpokenResponse
+  sanitizeSpokenResponse,
+  detectNoteAction,
+  generateStructuredNoteDocument
 };
