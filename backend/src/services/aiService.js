@@ -7,7 +7,8 @@ import { OpenAI } from 'openai';
 const SYSTEM_PROMPT = [
   'You are Emmaline, a concise voice-first AI phone assistant.',
   'You help users think out loud, organize ideas, and capture actionable notes.',
-  'Respond naturally for spoken conversation, keep replies brief, and ask one focused follow-up when useful.'
+  'Respond naturally for spoken conversation, keep replies brief, and ask one focused follow-up when useful.',
+  'Use plain conversational text only. Never use markdown, asterisks, bullet symbols, numbered lists, or code fences.'
 ].join(' ');
 
 let openaiClient = null;
@@ -29,20 +30,65 @@ const getOpenAIClient = () => {
 const getChatModel = () => process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini';
 const getSummaryModel = () => process.env.OPENAI_SUMMARY_MODEL || getChatModel();
 
-export const generateResponse = async (conversationHistory) => {
+const getLanguageInstruction = (languagePreference) => {
+  return String(languagePreference || '').toLowerCase().startsWith('es')
+    ? 'Respond in Spanish.'
+    : 'Respond in English.';
+};
+
+export const sanitizeSpokenResponse = (value) => {
+  return String(value || '')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^\s*#{1,6}\s+/gm, '')
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    .replace(/[\*_~]/g, '')
+    .replace(/\[(.*?)\]\((.*?)\)/g, '$1')
+    .replace(/\s*\n+\s*/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+};
+
+const extractJsonObject = (content) => {
+  const text = String(content || '').trim();
+
+  if (!text) {
+    throw new Error('Summary response was empty');
+  }
+
+  const fencedMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  const candidate = fencedMatch?.[1] || text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1);
+
+  if (!candidate || !candidate.trim().startsWith('{')) {
+    throw new Error('Summary response did not contain a JSON object');
+  }
+
+  return JSON.parse(candidate);
+};
+
+export const generateResponse = async (conversationHistory, options = {}) => {
   const response = await getOpenAIClient().chat.completions.create({
     model: getChatModel(),
     messages: [
       {
         role: 'system',
-        content: SYSTEM_PROMPT
+        content: `${SYSTEM_PROMPT} ${getLanguageInstruction(options.languagePreference)}`
       },
       ...conversationHistory
     ],
     temperature: 0.7
   });
 
-  return response.choices[0].message.content?.trim() || '';
+  return {
+    text: sanitizeSpokenResponse(response.choices[0].message.content?.trim() || ''),
+    usage: {
+      model: response.model || getChatModel(),
+      inputTokens: response.usage?.prompt_tokens || 0,
+      outputTokens: response.usage?.completion_tokens || 0,
+      totalTokens: response.usage?.total_tokens || 0
+    }
+  };
 };
 
 export const summarizeTranscript = async (fullTranscript) => {
@@ -57,7 +103,7 @@ Please analyze the following conversation and provide:
 Conversation:
 ${fullTranscript}
 
-Please respond in JSON format with keys: summary, keyPoints, actionItems, sentiment
+Return strict JSON only with keys: summary, keyPoints, actionItems, sentiment. Do not wrap the JSON in markdown or code fences.
 `;
 
   const response = await getOpenAIClient().chat.completions.create({
@@ -72,13 +118,23 @@ Please respond in JSON format with keys: summary, keyPoints, actionItems, sentim
         content: summaryPrompt
       }
     ],
-    temperature: 0.5
+    temperature: 0.5,
+    response_format: { type: 'json_object' }
   });
 
-  return JSON.parse(response.choices[0].message.content);
+  return {
+    ...extractJsonObject(response.choices[0].message.content),
+    usage: {
+      model: response.model || getSummaryModel(),
+      inputTokens: response.usage?.prompt_tokens || 0,
+      outputTokens: response.usage?.completion_tokens || 0,
+      totalTokens: response.usage?.total_tokens || 0
+    }
+  };
 };
 
 export default {
   generateResponse,
-  summarizeTranscript
+  summarizeTranscript,
+  sanitizeSpokenResponse
 };

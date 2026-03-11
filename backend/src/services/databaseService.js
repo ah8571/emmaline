@@ -87,6 +87,63 @@ export const saveTranscript = async (callId, userId, fullText) => {
   return data[0];
 };
 
+export const saveCallMessages = async (callId, userId, messages = []) => {
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('call_messages')
+    .insert(
+      messages.map((message, index) => ({
+        call_id: callId,
+        user_id: userId,
+        sequence_number: index + 1,
+        speaker: message.speaker,
+        content: message.text,
+        created_at: message.createdAt || new Date().toISOString()
+      }))
+    )
+    .select();
+
+  if (error) {
+    console.error('Error saving call messages:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const saveCallCosts = async (callId, userId, costEntries = []) => {
+  if (!Array.isArray(costEntries) || costEntries.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('call_costs')
+    .insert(
+      costEntries.map((entry) => ({
+        call_id: callId,
+        user_id: userId,
+        pricing_tier: entry.pricingTier,
+        provider: entry.provider,
+        service: entry.service,
+        quantity: entry.quantity,
+        unit: entry.unit,
+        estimated_cost_usd: entry.estimatedCostUsd,
+        metadata: entry.metadata || {}
+      }))
+    )
+    .select();
+
+  if (error) {
+    console.error('Error saving call costs:', error);
+    throw error;
+  }
+
+  return data;
+};
+
 export const saveSummary = async (callId, userId, summaryData) => {
   const { data, error } = await supabase
     .from('summaries')
@@ -114,13 +171,36 @@ export const getCallsForUser = async (userId) => {
     .select(`
       *,
       transcripts(*),
-      summaries(*)
+      summaries(*),
+      call_costs(*)
     `)
     .eq('user_id', userId)
     .order('started_at', { ascending: false });
 
   if (error) {
     console.error('Error fetching calls:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const getCallById = async (userId, callId) => {
+  const { data, error } = await supabase
+    .from('calls')
+    .select(`
+      *,
+      transcripts(*),
+      summaries(*),
+      call_messages(*),
+      call_costs(*)
+    `)
+    .eq('user_id', userId)
+    .eq('id', callId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching call by ID:', error);
     throw error;
   }
 
@@ -140,6 +220,21 @@ export const getNotesForUser = async (userId) => {
   }
 
   return data;
+};
+
+export const getUserPricingTier = async (userId) => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('privacy_tier')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching user pricing tier:', error);
+    throw error;
+  }
+
+  return data?.privacy_tier || 'tier1';
 };
 
 export const getUserPhoneNumber = async (userId) => {
@@ -228,9 +323,13 @@ export default {
   getSupabaseClient,
   saveCall,
   saveTranscript,
+  saveCallMessages,
+  saveCallCosts,
   saveSummary,
   getCallsForUser,
+  getCallById,
   getNotesForUser,
+  getUserPricingTier,
   getUserPhoneNumber,
   getUserIdByAssignedPhoneNumber,
   saveUserPhoneNumber,

@@ -25,6 +25,7 @@ class MediaStreamConnection extends EventEmitter {
       bytesReceived: 0,
       transcriptLinesReceived: 0
     };
+    this.transcriptSequence = 0;
   }
 
   /**
@@ -53,11 +54,15 @@ class MediaStreamConnection extends EventEmitter {
   /**
    * Add transcript line to buffer
    */
-  addTranscriptLine(text, isFinal = false) {
+  addTranscriptLine(text, isFinal = false, speaker = 'user', metadata = {}) {
     const line = {
       text,
       isFinal,
-      timestamp: Date.now()
+      speaker,
+      sequenceNumber: ++this.transcriptSequence,
+      timestamp: Date.now(),
+      createdAt: new Date().toISOString(),
+      ...metadata
     };
 
     this.transcriptBuffer.push(line);

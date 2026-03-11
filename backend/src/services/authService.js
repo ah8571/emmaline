@@ -98,7 +98,8 @@ export const registerUser = async (email, password, marketingOptIn = false) => {
     user: {
       id: newUser.id,
       email: newUser.email,
-      marketingOptIn: Boolean(newUser.marketing_opt_in)
+      marketingOptIn: Boolean(newUser.marketing_opt_in),
+      pricingTier: newUser.privacy_tier || 'tier1'
     },
     token
   };
@@ -140,7 +141,8 @@ export const loginUser = async (email, password) => {
     user: {
       id: user.id,
       email: user.email,
-      marketingOptIn: Boolean(user.marketing_opt_in)
+      marketingOptIn: Boolean(user.marketing_opt_in),
+      pricingTier: user.privacy_tier || 'tier1'
     },
     token
   };
@@ -154,7 +156,7 @@ export const getUserById = async (userId) => {
 
   const { data: user, error } = await supabase
     .from('users')
-    .select('id, email, created_at, marketing_opt_in')
+    .select('id, email, created_at, marketing_opt_in, privacy_tier')
     .eq('id', userId)
     .single();
 
@@ -166,7 +168,8 @@ export const getUserById = async (userId) => {
     id: user.id,
     email: user.email,
     created_at: user.created_at,
-    marketingOptIn: Boolean(user.marketing_opt_in)
+    marketingOptIn: Boolean(user.marketing_opt_in),
+    pricingTier: user.privacy_tier || 'tier1'
   };
 };
 

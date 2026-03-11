@@ -8,14 +8,39 @@ import { mediaStreamManager } from '../services/mediaStreamManager.js';
 import {
   createStreamingRecognizer,
   processTranscriptResponse,
+  resolveLanguagePreference,
   validateSpeechConfig
 } from '../services/speechToTextService.js';
-import { saveCall, saveSummary, saveTranscript } from '../services/databaseService.js';
-import { generateResponse, summarizeTranscript } from '../services/aiService.js';
+import {
+  getUserPricingTier,
+  saveCall,
+  saveCallMessages,
+  saveCallCosts,
+  saveSummary,
+  saveTranscript
+} from '../services/databaseService.js';
+import { generateResponse, sanitizeSpokenResponse, summarizeTranscript } from '../services/aiService.js';
+import { buildEstimatedCallCostEntries } from '../services/costTrackingService.js';
 import { textToAudio } from '../services/textToSpeechService.js';
 
 const TWILIO_FRAME_SIZE = 160;
-const INITIAL_GREETING = 'Hi, this is Emmaline. Tell me what you want to think through, and I will help turn it into notes.';
+const TURN_RESPONSE_DELAY_MS = parseInt(process.env.VOICE_TURN_RESPONSE_DELAY_MS || '1600', 10);
+const CONTINUE_LISTENING_BRIDGE = {
+  en: "Go ahead, I'm listening.",
+  es: 'Adelante, te escucho.'
+};
+const CALL_LANGUAGE_CONFIG = {
+  en: {
+    languageCode: 'en-US',
+    voice: process.env.GOOGLE_TTS_VOICE || 'en-US-Neural2-C',
+    greeting: 'Hi, this is Emmaline. Tell me what you want to think through, and I will help turn it into notes.'
+  },
+  es: {
+    languageCode: 'es-US',
+    voice: process.env.GOOGLE_TTS_VOICE_ES || 'es-US-Neural2-A',
+    greeting: 'Hola, soy Emmaline. Cuéntame qué quieres pensar en voz alta y te ayudaré a convertirlo en notas.'
+  }
+};
 
 const getCallLogPrefix = (mediaConnection) => {
   return `[call:${mediaConnection?.callSid || 'unknown'} stream:${mediaConnection?.streamSid || 'unknown'}]`;
@@ -24,6 +49,45 @@ const getCallLogPrefix = (mediaConnection) => {
 const parseUserIdFromIdentity = (identity) => {
   const value = String(identity || '').trim();
   return value.startsWith('user_') ? value.slice(5) : null;
+};
+
+const resolveCallLanguageConfig = (languagePreference) => {
+  const language = resolveLanguagePreference(languagePreference);
+
+  return {
+    preference: language,
+    ...CALL_LANGUAGE_CONFIG[language]
+  };
+};
+
+const normalizeTranscriptText = (value) => {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const isLikelyIncompleteUtterance = (value) => {
+  const text = normalizeTranscriptText(value).toLowerCase();
+
+  if (!text) {
+    return false;
+  }
+
+  if (/[.!?]$/.test(text)) {
+    return false;
+  }
+
+  if (/[,:;\-]$/.test(text)) {
+    return true;
+  }
+
+  const incompleteEndings = [
+    'and', 'or', 'but', 'to', 'for', 'with', 'about', 'on', 'in', 'at', 'from',
+    'uh', 'um', 'like', 'actually', 'because', 'if', 'when', 'then',
+    'y', 'o', 'pero', 'para', 'con', 'sobre', 'en', 'de', 'eh', 'este'
+  ];
+
+  return incompleteEndings.some((ending) => text.endsWith(` ${ending}`) || text === ending);
 };
 
 const extractAudioPayload = (audioBuffer) => {
@@ -64,13 +128,189 @@ const streamAudioResponse = async (ws, streamSid, audioBuffer) => {
   }
 };
 
-const synthesizeAssistantReply = async (text) => {
-  return textToAudio(text, {
+const synthesizeAssistantReply = async (mediaConnection, text) => {
+  const safeText = sanitizeSpokenResponse(text);
+  const languageConfig = resolveCallLanguageConfig(mediaConnection.languagePreference);
+
+  return textToAudio(safeText, {
     provider: 'google',
-    voice: process.env.GOOGLE_TTS_VOICE || 'en-US-Neural2-C',
+    languageCode: languageConfig.languageCode,
+    voice: languageConfig.voice,
     audioEncoding: 'MULAW',
     sampleRateHertz: 8000
   });
+};
+
+const addTranscriptTurn = (mediaConnection, speaker, text, metadata = {}) => {
+  mediaConnection.addTranscriptLine(normalizeTranscriptText(text), true, speaker, metadata);
+};
+
+const initializeUsageTracking = (mediaConnection) => {
+  mediaConnection.usageMetrics = {
+    pricingTier: 'tier1',
+    assistantCharacters: 0,
+    chatUsage: {
+      model: process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini',
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0
+    },
+    summaryUsage: {
+      model: process.env.OPENAI_SUMMARY_MODEL || process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini',
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0
+    }
+  };
+};
+
+const recordUsage = (target, usage = {}) => {
+  target.model = usage.model || target.model;
+  target.inputTokens += Number(usage.inputTokens || 0);
+  target.outputTokens += Number(usage.outputTokens || 0);
+  target.totalTokens += Number(usage.totalTokens || 0);
+};
+
+const getStructuredTranscript = (mediaConnection) => {
+  return mediaConnection.transcriptBuffer
+    .filter((line) => line.isFinal)
+    .map((line) => ({
+      speaker: line.speaker || 'user',
+      text: normalizeTranscriptText(line.text),
+      createdAt: line.createdAt,
+      sequenceNumber: line.sequenceNumber
+    }))
+    .filter((line) => line.text);
+};
+
+const buildFullTranscript = (messages) => {
+  return messages
+    .map((message) => `${message.speaker === 'assistant' ? 'Assistant' : message.speaker === 'system' ? 'System' : 'User'}: ${message.text}`)
+    .join('\n')
+    .trim();
+};
+
+const clearPendingTurnTimer = (mediaConnection) => {
+  if (mediaConnection.pendingTurnTimer) {
+    clearTimeout(mediaConnection.pendingTurnTimer);
+    mediaConnection.pendingTurnTimer = null;
+  }
+};
+
+const getPendingUserTurnText = (mediaConnection) => {
+  return normalizeTranscriptText((mediaConnection.pendingUserSegments || []).join(' '));
+};
+
+const commitPendingUserTurn = (mediaConnection) => {
+  const text = getPendingUserTurnText(mediaConnection);
+
+  if (!text) {
+    mediaConnection.pendingUserSegments = [];
+    mediaConnection.pendingPromptSent = false;
+    return '';
+  }
+
+  addTranscriptTurn(mediaConnection, 'user', text);
+  mediaConnection.conversationHistory.push({ role: 'user', content: text });
+  mediaConnection.pendingUserSegments = [];
+  mediaConnection.pendingPromptSent = false;
+  return text;
+};
+
+const sendAssistantReply = async (ws, mediaConnection, text, options = {}) => {
+  const reply = sanitizeSpokenResponse(text);
+
+  if (!reply) {
+    return '';
+  }
+
+  if (options.includeInConversationHistory !== false) {
+    mediaConnection.conversationHistory.push({ role: 'assistant', content: reply });
+  }
+
+  if (mediaConnection.usageMetrics) {
+    mediaConnection.usageMetrics.assistantCharacters += reply.length;
+  }
+
+  addTranscriptTurn(mediaConnection, options.speaker || 'assistant', reply);
+
+  const audio = await synthesizeAssistantReply(mediaConnection, reply);
+  console.log(`${getCallLogPrefix(mediaConnection)} Synthesized assistant audio (${audio.length} bytes)`);
+  await streamAudioResponse(ws, mediaConnection.streamSid, audio);
+  return reply;
+};
+
+const schedulePendingTurnProcessing = (mediaConnection, ws, delayMs = TURN_RESPONSE_DELAY_MS) => {
+  clearPendingTurnTimer(mediaConnection);
+
+  mediaConnection.pendingTurnTimer = setTimeout(async () => {
+    try {
+      if (!mediaConnection?.isActive) {
+        return;
+      }
+
+      if (mediaConnection.isResponding) {
+        schedulePendingTurnProcessing(mediaConnection, ws, TURN_RESPONSE_DELAY_MS);
+        return;
+      }
+
+      const pendingText = getPendingUserTurnText(mediaConnection);
+      if (!pendingText) {
+        return;
+      }
+
+      if (isLikelyIncompleteUtterance(pendingText) && !mediaConnection.pendingPromptSent) {
+        mediaConnection.pendingPromptSent = true;
+        mediaConnection.isResponding = true;
+
+        try {
+          const bridge = CONTINUE_LISTENING_BRIDGE[mediaConnection.languagePreference] || CONTINUE_LISTENING_BRIDGE.en;
+          console.log(`${getCallLogPrefix(mediaConnection)} Prompting user to continue before responding fully`);
+          await sendAssistantReply(ws, mediaConnection, bridge, { includeInConversationHistory: false });
+        } finally {
+          mediaConnection.isResponding = false;
+        }
+
+        return;
+      }
+
+      const userText = commitPendingUserTurn(mediaConnection);
+      if (!userText) {
+        return;
+      }
+
+      mediaConnection.isResponding = true;
+
+      try {
+        console.log(`${getCallLogPrefix(mediaConnection)} Generating assistant response`);
+        const response = await generateResponse(mediaConnection.conversationHistory, {
+          languagePreference: mediaConnection.languagePreference
+        });
+        const assistantReply = response.text;
+
+        if (mediaConnection.usageMetrics) {
+          recordUsage(mediaConnection.usageMetrics.chatUsage, response.usage);
+        }
+
+        if (!assistantReply) {
+          console.warn(`${getCallLogPrefix(mediaConnection)} AI returned an empty response`);
+          return;
+        }
+
+        console.log(`${getCallLogPrefix(mediaConnection)} Assistant reply: ${assistantReply}`);
+        await sendAssistantReply(ws, mediaConnection, assistantReply);
+      } finally {
+        mediaConnection.isResponding = false;
+
+        if (getPendingUserTurnText(mediaConnection)) {
+          schedulePendingTurnProcessing(mediaConnection, ws, TURN_RESPONSE_DELAY_MS);
+        }
+      }
+    } catch (error) {
+      mediaConnection.isResponding = false;
+      console.error(`${getCallLogPrefix(mediaConnection)} Error processing queued turn:`, error);
+    }
+  }, delayMs);
 };
 
 const maybeCreateRecognizer = async (mediaConnection, ws) => {
@@ -80,7 +320,9 @@ const maybeCreateRecognizer = async (mediaConnection, ws) => {
     return null;
   }
 
-  const recognizer = await createStreamingRecognizer();
+  const recognizer = await createStreamingRecognizer({
+    languagePreference: mediaConnection.languagePreference
+  });
   const stream = recognizer.stream;
 
   console.log(`${getCallLogPrefix(mediaConnection)} Streaming speech recognizer created`);
@@ -107,32 +349,10 @@ const maybeCreateRecognizer = async (mediaConnection, ws) => {
       }
 
       mediaConnection.lastFinalTranscript = text;
-      mediaConnection.addTranscriptLine(text, true);
-
-      if (mediaConnection.isResponding) {
-        console.log(`${getCallLogPrefix(mediaConnection)} Ignoring final transcript while assistant response is in progress`);
-        return;
-      }
-
-      mediaConnection.isResponding = true;
-      mediaConnection.conversationHistory.push({ role: 'user', content: text });
-
-      try {
-        console.log(`${getCallLogPrefix(mediaConnection)} Generating assistant response`);
-        const assistantReply = await generateResponse(mediaConnection.conversationHistory);
-        if (!assistantReply) {
-          console.warn(`${getCallLogPrefix(mediaConnection)} AI returned an empty response`);
-          return;
-        }
-
-        console.log(`${getCallLogPrefix(mediaConnection)} Assistant reply: ${assistantReply}`);
-        mediaConnection.conversationHistory.push({ role: 'assistant', content: assistantReply });
-        const audio = await synthesizeAssistantReply(assistantReply);
-        console.log(`${getCallLogPrefix(mediaConnection)} Synthesized assistant audio (${audio.length} bytes)`);
-        await streamAudioResponse(ws, mediaConnection.streamSid, audio);
-      } finally {
-        mediaConnection.isResponding = false;
-      }
+      mediaConnection.pendingUserSegments = mediaConnection.pendingUserSegments || [];
+      mediaConnection.pendingUserSegments.push(text);
+      mediaConnection.pendingPromptSent = false;
+      schedulePendingTurnProcessing(mediaConnection, ws);
     } catch (error) {
       mediaConnection.isResponding = false;
       console.error(`${getCallLogPrefix(mediaConnection)} Error processing streaming transcript:`, error);
@@ -152,11 +372,8 @@ const finalizeCallArtifacts = async (mediaConnection, stats) => {
     return;
   }
 
-  const fullTranscript = mediaConnection.transcriptBuffer
-    .filter((line) => line.isFinal)
-    .map((line) => line.text)
-    .join('\n')
-    .trim();
+  const messages = getStructuredTranscript(mediaConnection);
+  const fullTranscript = buildFullTranscript(messages);
 
   if (!fullTranscript) {
     return;
@@ -172,9 +389,15 @@ const finalizeCallArtifacts = async (mediaConnection, stats) => {
   });
 
   await saveTranscript(callRecord.id, mediaConnection.userId, fullTranscript);
+  await saveCallMessages(callRecord.id, mediaConnection.userId, messages);
 
   try {
     const summary = await summarizeTranscript(fullTranscript);
+
+    if (mediaConnection.usageMetrics) {
+      recordUsage(mediaConnection.usageMetrics.summaryUsage, summary.usage);
+    }
+
     await saveSummary(callRecord.id, mediaConnection.userId, {
       text: summary.summary || '',
       keyPoints: summary.keyPoints || [],
@@ -184,11 +407,24 @@ const finalizeCallArtifacts = async (mediaConnection, stats) => {
   } catch (error) {
     console.error('Error generating or saving call summary:', error);
   }
+
+  try {
+    const pricingTier = await getUserPricingTier(mediaConnection.userId);
+    const usageMetrics = mediaConnection.usageMetrics || {};
+    const estimatedCostEntries = buildEstimatedCallCostEntries({
+      pricingTier,
+      callDurationSeconds: Math.round(stats.duration / 1000),
+      assistantCharacters: usageMetrics.assistantCharacters || 0,
+      chatUsage: usageMetrics.chatUsage || {},
+      summaryUsage: usageMetrics.summaryUsage || {}
+    });
+
+    await saveCallCosts(callRecord.id, mediaConnection.userId, estimatedCostEntries);
+  } catch (error) {
+    console.error('Error generating or saving call cost estimates:', error);
+  }
 };
 
-/**
- * Handle incoming WebSocket connection for media streaming
- */
 export const handleMediaStreamWebSocket = (ws, req) => {
   let mediaConnection = null;
   let callSid = null;
@@ -196,15 +432,10 @@ export const handleMediaStreamWebSocket = (ws, req) => {
 
   console.log('📞 New WebSocket connection for media stream');
 
-  /**
-   * Handle WebSocket messages from Twilio
-   */
   ws.on('message', async (data) => {
     try {
-      // Parse incoming message
       const message = JSON.parse(data.toString());
 
-      // Handle different event types
       switch (message.event) {
         case 'connected':
           handleConnected(message, ws);
@@ -232,7 +463,6 @@ export const handleMediaStreamWebSocket = (ws, req) => {
           break;
 
         case 'mark':
-          // Mark events are for tracking - just acknowledge
           break;
 
         default:
@@ -243,13 +473,11 @@ export const handleMediaStreamWebSocket = (ws, req) => {
     }
   });
 
-  /**
-   * Handle WebSocket close
-   */
   ws.on('close', () => {
     console.log('📞 WebSocket connection closed');
 
     if (mediaConnection) {
+      clearPendingTurnTimer(mediaConnection);
       mediaConnection.close();
       if (callSid) {
         mediaStreamManager.closeConnection(callSid);
@@ -257,13 +485,11 @@ export const handleMediaStreamWebSocket = (ws, req) => {
     }
   });
 
-  /**
-   * Handle WebSocket errors
-   */
   ws.on('error', (error) => {
     console.error('WebSocket error:', error);
 
     if (mediaConnection) {
+      clearPendingTurnTimer(mediaConnection);
       mediaConnection.close();
       if (callSid) {
         mediaStreamManager.closeConnection(callSid);
@@ -272,69 +498,59 @@ export const handleMediaStreamWebSocket = (ws, req) => {
   });
 };
 
-/**
- * Handle 'connected' event
- * Confirms WebSocket connection establishment
- */
 function handleConnected(message, ws) {
   console.log('✓ WebSocket connected to Twilio');
 }
 
-/**
- * Handle 'start' event
- * Marks beginning of media stream for a call
- */
 function handleStart(message, mediaConnection, ws) {
   const { streamSid, callSid, customParameters } = message.start;
   const identity = customParameters?.identity || null;
+  const languagePreference = resolveLanguagePreference(customParameters?.language);
+  const languageConfig = resolveCallLanguageConfig(languagePreference);
 
   mediaConnection.activate();
   mediaConnection.streamSid = streamSid;
   mediaConnection.identity = identity;
   mediaConnection.userId = mediaConnection.userId || parseUserIdFromIdentity(identity);
+  mediaConnection.languagePreference = languagePreference;
   mediaConnection.conversationHistory = [];
   mediaConnection.lastFinalTranscript = null;
   mediaConnection.isResponding = false;
+  mediaConnection.pendingUserSegments = [];
+  mediaConnection.pendingPromptSent = false;
+  mediaConnection.pendingTurnTimer = null;
+  initializeUsageTracking(mediaConnection);
 
   console.log(`🎤 Media stream started:`);
   console.log(`   Call SID: ${callSid}`);
   console.log(`   Stream SID: ${streamSid}`);
   console.log(`   Identity: ${identity || 'unknown'}`);
+  console.log(`   Language: ${languagePreference}`);
 
   maybeCreateRecognizer(mediaConnection, ws).catch((error) => {
     console.error(`${getCallLogPrefix(mediaConnection)} Unable to create streaming recognizer:`, error);
   });
 
-  synthesizeAssistantReply(INITIAL_GREETING)
-    .then((audio) => {
-      console.log(`${getCallLogPrefix(mediaConnection)} Sending initial greeting audio (${audio.length} bytes)`);
-      return streamAudioResponse(ws, streamSid, audio);
+  sendAssistantReply(ws, mediaConnection, languageConfig.greeting)
+    .then(() => {
+      console.log(`${getCallLogPrefix(mediaConnection)} Sending initial greeting audio`);
     })
     .catch((error) => {
       console.error(`${getCallLogPrefix(mediaConnection)} Error sending initial greeting audio:`, error);
     });
-
 }
 
-/**
- * Handle 'media' event
- * Processes audio chunks from Twilio
- */
 async function handleMedia(message, mediaConnection, ws) {
   try {
-    const { payload, streamSid, sequenceNumber } = message.media;
-
-    // Audio payload is base64 encoded
+    const { payload, sequenceNumber } = message.media;
     const audioBuffer = Buffer.from(payload, 'base64');
 
-    // Add to connection buffer
     mediaConnection.addAudioChunk(audioBuffer);
 
     if (mediaConnection.recognizer?.stream?.writable) {
       mediaConnection.recognizer.stream.write(audioBuffer);
     }
 
-    // For now, log chunk received
     if (sequenceNumber && sequenceNumber % 100 === 0) {
       const stats = mediaConnection.getStats();
       console.log(`${getCallLogPrefix(mediaConnection)} Audio chunks processed: ${stats.audioChunksReceived}`);
@@ -344,14 +560,9 @@ async function handleMedia(message, mediaConnection, ws) {
   }
 }
 
-/**
- * Handle 'stop' event
- * Marks end of media stream for a call
- */
 async function handleStop(message, mediaConnection, ws) {
   try {
-    const { accountSid, callSid, streamSid } = message.stop;
-
+    const { callSid } = message.stop;
     const stats = mediaConnection.getStats();
 
     console.log(`🛑 Media stream stopped:`);
@@ -364,6 +575,12 @@ async function handleStop(message, mediaConnection, ws) {
       mediaConnection.recognizer.stream.end();
     }
 
+    clearPendingTurnTimer(mediaConnection);
+
+    if (getPendingUserTurnText(mediaConnection)) {
+      commitPendingUserTurn(mediaConnection);
+    }
+
     await finalizeCallArtifacts(mediaConnection, stats);
 
     console.log(
@@ -371,20 +588,14 @@ async function handleStop(message, mediaConnection, ws) {
     );
 
     mediaConnection.close();
-
   } catch (error) {
     console.error(`${getCallLogPrefix(mediaConnection)} Error handling media stop:`, error);
   }
 }
 
-/**
- * Send message back through media stream
- * Used for sending audio responses or acknowledgments
- */
 function sendMediaMessage(ws, message) {
   try {
     if (ws.readyState === ws.OPEN) {
-      // Twilio Media Streams expects uncompressed WebSocket frames.
       ws.send(JSON.stringify(message), { compress: false });
     }
   } catch (error) {
@@ -392,9 +603,6 @@ function sendMediaMessage(ws, message) {
   }
 }
 
-/**
- * Send audio chunk back to Twilio (for TTS responses)
- */
 export function sendAudioResponse(ws, streamSid, audioPayload) {
   try {
     const message = {
@@ -411,10 +619,6 @@ export function sendAudioResponse(ws, streamSid, audioPayload) {
   }
 }
 
-/**
- * Send transcript update to client
- * For real-time transcript display in mobile app
- */
 export function sendTranscriptUpdate(ws, streamSid, transcript, isFinal = false) {
   try {
     const message = {

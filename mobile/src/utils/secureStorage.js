@@ -7,6 +7,10 @@ import * as SecureStore from 'expo-secure-store';
 
 const TOKEN_KEY = 'emmaline_auth_token';
 const USER_KEY = 'emmaline_user';
+const PREFERENCES_KEY = 'emmaline_preferences';
+const DEFAULT_PREFERENCES = {
+  callLanguage: 'en'
+};
 
 /**
  * Save authentication token securely
@@ -97,6 +101,49 @@ export const isAuthenticated = async () => {
   return !!token;
 };
 
+export const getPreferences = async () => {
+  try {
+    const preferenceStr = await SecureStore.getItemAsync(PREFERENCES_KEY);
+
+    if (!preferenceStr) {
+      return { ...DEFAULT_PREFERENCES };
+    }
+
+    return {
+      ...DEFAULT_PREFERENCES,
+      ...JSON.parse(preferenceStr)
+    };
+  } catch (error) {
+    console.error('Error retrieving preferences:', error);
+    return { ...DEFAULT_PREFERENCES };
+  }
+};
+
+export const savePreferences = async (preferences) => {
+  try {
+    const nextPreferences = {
+      ...DEFAULT_PREFERENCES,
+      ...(await getPreferences()),
+      ...preferences
+    };
+
+    await SecureStore.setItemAsync(PREFERENCES_KEY, JSON.stringify(nextPreferences));
+    return true;
+  } catch (error) {
+    console.error('Error saving preferences:', error);
+    return false;
+  }
+};
+
+export const getCallLanguagePreference = async () => {
+  const preferences = await getPreferences();
+  return preferences.callLanguage || 'en';
+};
+
+export const saveCallLanguagePreference = async (callLanguage) => {
+  return savePreferences({ callLanguage });
+};
+
 /**
  * Logout - clear all auth data
  */
@@ -119,5 +166,9 @@ export default {
   getUser,
   deleteUser,
   isAuthenticated,
+  getPreferences,
+  savePreferences,
+  getCallLanguagePreference,
+  saveCallLanguagePreference,
   logout
 };

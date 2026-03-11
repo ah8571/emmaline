@@ -10,6 +10,7 @@ import {
   getVoiceCallActive,
   startVoiceCall
 } from './services/voiceService.js';
+import { getCallLanguagePreference } from './utils/secureStorage.js';
 
 const CALL_DOCK_HEIGHT = 84;
 
@@ -63,6 +64,7 @@ const AppContent = () => {
       }
 
       const tokenResponse = await getVoiceToken();
+      const callLanguage = await getCallLanguagePreference();
 
       if (!tokenResponse.success || !tokenResponse.token) {
         setIsCalling(false);
@@ -78,7 +80,8 @@ const AppContent = () => {
       const response = await startVoiceCall({
         token: tokenResponse.token,
         params: {
-          identity: tokenResponse.identity || 'unknown'
+          identity: tokenResponse.identity || 'unknown',
+          language: callLanguage || 'en'
         },
         onStatusChange: (status) => {
           setCallStatus(status);

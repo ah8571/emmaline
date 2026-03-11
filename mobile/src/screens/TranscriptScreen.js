@@ -1,14 +1,13 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import {
   View,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   ActivityIndicator,
-  SectionList,
-  Image
+  SectionList
 } from 'react-native';
+import { getCalls } from '../services/api.js';
 
 /**
  * TranscriptScreen
@@ -25,10 +24,13 @@ const TranscriptScreen = ({ navigation }) => {
   const loadTranscripts = async () => {
     setLoading(true);
     try {
-      // TODO: Fetch transcripts from backend API
-      // GET /api/calls?sort=date_desc
-      // const response = await fetch('${BACKEND_URL}/api/calls');
-      // const data = await response.json();
+      const response = await getCalls();
+
+      if (!response.success) {
+        throw new Error(response.error || 'Unable to load transcripts');
+      }
+
+      setTranscripts(response.calls || []);
     } catch (error) {
       console.error('Error loading transcripts:', error);
     } finally {

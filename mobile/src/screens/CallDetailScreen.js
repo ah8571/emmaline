@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, Text, ActivityIndicator } from 'react-native';
+import { getCallDetail } from '../services/api.js';
 
 const CallDetailScreen = ({ route }) => {
   const { callId } = route.params;
@@ -11,12 +12,15 @@ const CallDetailScreen = ({ route }) => {
   }, [callId]);
 
   const loadCallDetail = async () => {
-    // TODO: Fetch call details from backend
     setLoading(true);
     try {
-      // const response = await fetch(`${BACKEND_URL}/api/calls/${callId}`);
-      // const data = await response.json();
-      // setCall(data);
+      const response = await getCallDetail(callId);
+
+      if (!response.success) {
+        throw new Error(response.error || 'Unable to load call details');
+      }
+
+      setCall(response.call);
     } catch (error) {
       console.error('Error loading call:', error);
     } finally {
@@ -36,6 +40,10 @@ const CallDetailScreen = ({ route }) => {
     );
   }
 
+  const formatUsd = (value) => {
+    return `$${Number(value || 0).toFixed(4)}`;
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.section}>
@@ -53,8 +61,45 @@ const CallDetailScreen = ({ route }) => {
       )}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Full Transcript</Text>
-        <Text style={styles.transcriptText}>{call.fullTranscript}</Text>
+        <Text style={styles.sectionTitle}>Estimated Cost</Text>
+        <Text style={styles.summaryText}>
+          Tier: {call.pricingTier || 'tier1'}
+        </Text>
+        <Text style={styles.summaryText}>
+          Total estimated cost: {formatUsd(call.totalEstimatedCostUsd)}
+        </Text>
+
+        {Array.isArray(call.costs) && call.costs.length > 0 ? (
+          call.costs.map((cost) => (
+            <View key={cost.id || `${cost.provider}-${cost.service}`} style={styles.costRow}>
+              <Text style={styles.costLabel}>
+                {cost.provider} / {cost.service}
+              </Text>
+              <Text style={styles.costMeta}>
+                {cost.quantity} {cost.unit}
+              </Text>
+              <Text style={styles.costValue}>{formatUsd(cost.estimatedCostUsd)}</Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.transcriptText}>No estimated cost data recorded for this call yet.</Text>
+        )}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Transcript</Text>
+        {Array.isArray(call.messages) && call.messages.length > 0 ? (
+          call.messages.map((message) => (
+            <View key={message.id || `${message.sequenceNumber}-${message.speaker}`} style={styles.messageRow}>
+              <Text style={styles.messageSpeaker}>
+                {message.speaker === 'assistant' ? 'Emmaline' : message.speaker === 'system' ? 'System' : 'You'}
+              </Text>
+              <Text style={styles.transcriptText}>{message.text}</Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.transcriptText}>{call.fullTranscript}</Text>
+        )}
       </View>
     </ScrollView>
   );
@@ -88,6 +133,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#495057',
     marginBottom: 8
+  },
+  costRow: {
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f3f5'
+  },
+  costLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#212529',
+    textTransform: 'capitalize'
+  },
+  costMeta: {
+    fontSize: 12,
+    color: '#6c757d',
+    marginTop: 2
+  },
+  costValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+    marginTop: 4
+  },
+  messageRow: {
+    marginBottom: 14
+  },
+  messageSpeaker: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#495057',
+    marginBottom: 4,
+    textTransform: 'uppercase'
   },
   transcriptText: {
     fontSize: 14,

@@ -59,6 +59,34 @@ CREATE TABLE transcripts (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Call messages table (speaker-separated transcript turns)
+CREATE TABLE call_messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  call_id UUID NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  sequence_number INTEGER NOT NULL,
+  speaker VARCHAR(20) NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT call_messages_speaker_check CHECK (speaker IN ('user', 'assistant', 'system')),
+  CONSTRAINT call_messages_sequence_unique UNIQUE (call_id, sequence_number)
+);
+
+-- Call cost ledger (estimated provider usage and cost per call)
+CREATE TABLE call_costs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  call_id UUID NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pricing_tier VARCHAR(50) NOT NULL,
+  provider VARCHAR(50) NOT NULL,
+  service VARCHAR(100) NOT NULL,
+  quantity NUMERIC(12, 4) NOT NULL DEFAULT 0,
+  unit VARCHAR(30) NOT NULL,
+  estimated_cost_usd NUMERIC(12, 6) NOT NULL DEFAULT 0,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Summaries table (AI-generated key points)
 CREATE TABLE summaries (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -136,6 +164,10 @@ CREATE INDEX idx_user_phone_numbers_status ON user_phone_numbers (status);
 CREATE INDEX idx_call_date ON calls (started_at DESC);
 CREATE INDEX idx_user_transcripts ON transcripts (user_id);
 CREATE INDEX idx_call_transcript ON transcripts (call_id);
+CREATE INDEX idx_call_messages_call_id ON call_messages (call_id);
+CREATE INDEX idx_call_messages_user_id ON call_messages (user_id);
+CREATE INDEX idx_call_costs_call_id ON call_costs (call_id);
+CREATE INDEX idx_call_costs_user_id ON call_costs (user_id);
 CREATE INDEX idx_user_summaries ON summaries (user_id);
 CREATE INDEX idx_call_summary ON summaries (call_id);
 CREATE INDEX idx_user_topics ON topics (user_id);
@@ -186,6 +218,8 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_phone_numbers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE calls ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transcripts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE call_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE call_costs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE summaries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE topics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notes ENABLE ROW LEVEL SECURITY;

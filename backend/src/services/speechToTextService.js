@@ -11,6 +11,37 @@ import {
 
 let speechClient = null;
 
+const LANGUAGE_CONFIGS = {
+  en: {
+    languageCode: 'en-US',
+    speechContexts: [
+      'reminder', 'note', 'todo', 'schedule', 'call', 'email',
+      'meeting', 'project', 'task', 'follow up', 'action item'
+    ]
+  },
+  es: {
+    languageCode: 'es-US',
+    speechContexts: [
+      'recordatorio', 'nota', 'tarea', 'agenda', 'llamar', 'correo',
+      'reunion', 'proyecto', 'seguimiento', 'accion'
+    ]
+  }
+};
+
+export const resolveLanguagePreference = (languagePreference) => {
+  const value = String(languagePreference || '').trim().toLowerCase();
+
+  if (value.startsWith('es')) {
+    return 'es';
+  }
+
+  return 'en';
+};
+
+const getLanguageConfig = (languagePreference) => {
+  return LANGUAGE_CONFIGS[resolveLanguagePreference(languagePreference)] || LANGUAGE_CONFIGS.en;
+};
+
 const getSpeechClient = () => {
   if (speechClient) {
     return speechClient;
@@ -23,28 +54,29 @@ const getSpeechClient = () => {
 /**
  * Streaming recognition request configuration
  */
-const getStreamingRecognizeConfig = () => ({
-  config: {
-    encoding: 'MULAW',
-    sampleRateHertz: 8000,
-    languageCode: 'en-US',
-    enableAutomaticPunctuation: true,
-    model: 'default',
-    useEnhanced: true,
-    profanityFilter: false,
-    speechContexts: [
-      {
-        phrases: [
-          'reminder', 'note', 'todo', 'schedule', 'call', 'email',
-          'meeting', 'project', 'task', 'follow up', 'action item'
-        ],
-        boost: 20.0
-      }
-    ]
-  },
-  interimResults: true,
-  singleUtterance: false
-});
+const getStreamingRecognizeConfig = (options = {}) => {
+  const languageConfig = getLanguageConfig(options.languagePreference);
+
+  return {
+    config: {
+      encoding: 'MULAW',
+      sampleRateHertz: 8000,
+      languageCode: languageConfig.languageCode,
+      enableAutomaticPunctuation: true,
+      model: 'phone_call',
+      useEnhanced: true,
+      profanityFilter: false,
+      speechContexts: [
+        {
+          phrases: languageConfig.speechContexts,
+          boost: 20.0
+        }
+      ]
+    },
+    interimResults: true,
+    singleUtterance: false
+  };
+};
 
 /**
  * Create streaming recognize request
@@ -100,9 +132,9 @@ export const parseStreamingResponse = (response) => {
  * Create streaming recognizer
  * Returns bidirectional stream for audio and results
  */
-export const createStreamingRecognizer = async () => {
+export const createStreamingRecognizer = async (options = {}) => {
   try {
-    const request = getStreamingRecognizeConfig();
+    const request = getStreamingRecognizeConfig(options);
     const stream = getSpeechClient().streamingRecognize(request);
 
     console.log('Creating streaming speech recognizer...');
@@ -185,6 +217,7 @@ export default {
   parseStreamingResponse,
   processAudioChunk,
   createStreamingRecognizeRequest,
+  resolveLanguagePreference,
   validateSpeechConfig,
   getSpeechClient
 };

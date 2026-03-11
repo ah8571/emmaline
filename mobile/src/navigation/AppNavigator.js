@@ -8,6 +8,7 @@ import TimelineScreen from '../screens/TimelineScreen';
 import TranscriptScreen from '../screens/TranscriptScreen';
 import NotesScreen from '../screens/NotesScreen';
 import CallDetailScreen from '../screens/CallDetailScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 import { isAuthenticated as hasAuthToken, getUser } from '../utils/secureStorage.js';
 
 const Stack = createStackNavigator();
@@ -80,12 +81,19 @@ const AppHome = () => {
             >
               <Text style={styles.menuItemText}>Notes</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => openScreen('settings')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.menuItemText}>Settings</Text>
+            </TouchableOpacity>
           </View>
         </View>
       ) : null}
 
       <View style={styles.content}>
-        {activeScreen === 'transcripts' ? <TranscriptStack /> : <NotesStack />}
+        {activeScreen === 'transcripts' ? <TranscriptStack /> : activeScreen === 'notes' ? <NotesStack /> : <SettingsScreen />}
       </View>
     </View>
   );
