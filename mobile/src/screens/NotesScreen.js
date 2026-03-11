@@ -18,6 +18,9 @@ import { useAppTheme } from '../theme/appTheme.js';
  */
 const NotesScreen = ({ navigation }) => {
   const { colors } = useAppTheme();
+  const actionCircleBackgroundColor = colors.surface;
+  const actionCircleBorderColor = colors.text;
+  const actionCircleIconColor = colors.text;
   const [notes, setNotes] = useState([]);
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -127,10 +130,16 @@ const NotesScreen = ({ navigation }) => {
       <View style={[styles.headerBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <Text style={[styles.pageTitle, { color: colors.text }]}>Notes</Text>
         <TouchableOpacity
-          style={[styles.createButton, { backgroundColor: colors.accent }]}
+          style={[
+            styles.createButton,
+            {
+              backgroundColor: actionCircleBackgroundColor,
+              borderColor: actionCircleBorderColor
+            }
+          ]}
           onPress={handleCreateNote}
         >
-          <Text style={styles.createButtonText}>+</Text>
+          <Text style={[styles.createButtonText, { color: actionCircleIconColor }]}>+</Text>
         </TouchableOpacity>
       </View>
 
@@ -238,14 +247,17 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#111111',
     justifyContent: 'center',
     alignItems: 'center'
   },
   createButtonText: {
     fontSize: 28,
-    color: '#fff',
-    fontWeight: '300'
+    color: '#111111',
+    fontWeight: '300',
+    lineHeight: 28
   },
   topicScroll: {
     backgroundColor: '#fff',

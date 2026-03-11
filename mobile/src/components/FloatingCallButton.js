@@ -29,6 +29,9 @@ const FloatingCallButton = ({
   const floatingBottom = Math.max(bottomInset, 12) + 16;
   const statusBottom = floatingBottom + 116;
   const audioCardBottom = floatingBottom + 80;
+  const circleBackgroundColor = isDarkMode ? '#0b0b0b' : '#ffffff';
+  const circleBorderColor = isDarkMode ? '#ffffff' : '#111111';
+  const circleIconColor = isDarkMode ? '#ffffff' : '#111111';
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -107,13 +110,20 @@ const FloatingCallButton = ({
         ]}
       >
         <TouchableOpacity
-          style={[styles.button, isActiveCall && styles.buttonActive]}
+          style={[
+            styles.button,
+            {
+              backgroundColor: circleBackgroundColor,
+              borderColor: circleBorderColor
+            },
+            isActiveCall && styles.buttonActive
+          ]}
           onPress={handlePress}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
           activeOpacity={0.8}
         >
-          <Text style={styles.phoneIcon}>{isActiveCall ? '✕' : '📞'}</Text>
+          <Text style={[styles.phoneIcon, { color: circleIconColor }]}>{isActiveCall ? '✕' : '✆'}</Text>
         </TouchableOpacity>
       </Animated.View>
 
@@ -136,7 +146,9 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: '#111111',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -146,10 +158,11 @@ const styles = StyleSheet.create({
     elevation: 12
   },
   buttonActive: {
-    backgroundColor: '#d9485f'
+    transform: [{ scale: 1 }]
   },
   phoneIcon: {
-    fontSize: 32
+    fontSize: 30,
+    color: '#111111'
   },
   statusIndicator: {
     position: 'absolute',
