@@ -168,14 +168,72 @@ export const saveSummary = async (callId, userId, summaryData) => {
   return data[0];
 };
 
+const attachRelatedCallRows = async (calls = [], options = {}) => {
+  if (!Array.isArray(calls) || calls.length === 0) {
+    return calls;
+  }
+
+  const callIds = calls.map((call) => call.id).filter(Boolean);
+
+  if (callIds.length === 0) {
+    return calls;
+  }
+
+  const includeMessages = options.includeMessages === true;
+
+  const [costsResult, messagesResult] = await Promise.all([
+    supabase
+      .from('call_costs')
+      .select('*')
+      .in('call_id', callIds)
+      .order('created_at', { ascending: true }),
+    includeMessages
+      ? supabase
+          .from('call_messages')
+          .select('*')
+          .in('call_id', callIds)
+          .order('sequence_number', { ascending: true })
+      : Promise.resolve({ data: [], error: null })
+  ]);
+
+  if (costsResult.error) {
+    console.error('Error fetching call costs:', costsResult.error);
+    throw costsResult.error;
+  }
+
+  if (messagesResult.error) {
+    console.error('Error fetching call messages:', messagesResult.error);
+    throw messagesResult.error;
+  }
+
+  const costsByCallId = new Map();
+  for (const cost of costsResult.data || []) {
+    const rows = costsByCallId.get(cost.call_id) || [];
+    rows.push(cost);
+    costsByCallId.set(cost.call_id, rows);
+  }
+
+  const messagesByCallId = new Map();
+  for (const message of messagesResult.data || []) {
+    const rows = messagesByCallId.get(message.call_id) || [];
+    rows.push(message);
+    messagesByCallId.set(message.call_id, rows);
+  }
+
+  return calls.map((call) => ({
+    ...call,
+    call_costs: costsByCallId.get(call.id) || [],
+    call_messages: messagesByCallId.get(call.id) || []
+  }));
+};
+
 export const getCallsForUser = async (userId) => {
   const { data, error } = await supabase
     .from('calls')
     .select(`
       *,
       transcripts(*),
-      summaries(*),
-      call_costs(*)
+      summaries(*)
     `)
     .eq('user_id', userId)
     .order('started_at', { ascending: false });
@@ -185,7 +243,7 @@ export const getCallsForUser = async (userId) => {
     throw error;
   }
 
-  return data;
+  return attachRelatedCallRows(data, { includeMessages: false });
 };
 
 export const getCallById = async (userId, callId) => {
@@ -194,9 +252,7 @@ export const getCallById = async (userId, callId) => {
     .select(`
       *,
       transcripts(*),
-      summaries(*),
-      call_messages(*),
-      call_costs(*)
+      summaries(*)
     `)
     .eq('user_id', userId)
     .eq('id', callId)
@@ -207,7 +263,12 @@ export const getCallById = async (userId, callId) => {
     throw error;
   }
 
-  return data;
+  if (!data) {
+    return data;
+  }
+
+  const [call] = await attachRelatedCallRows([data], { includeMessages: true });
+  return call;
 };
 
 export const getNotesForUser = async (userId) => {
