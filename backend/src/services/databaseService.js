@@ -29,12 +29,30 @@ export const getSupabaseClient = () => {
   return supabase;
 };
 
+const normalizePhoneNumberForStorage = (rawValue) => {
+  const value = String(rawValue || '').trim();
+
+  if (!value) {
+    return 'unknown';
+  }
+
+  if (/^\+?[0-9]{1,20}$/.test(value)) {
+    return value;
+  }
+
+  if (value.startsWith('client:') || value.startsWith('user_')) {
+    return 'in-app-voip';
+  }
+
+  return value.slice(0, 20);
+};
+
 export const saveCall = async (userId, callData) => {
   const { data, error } = await supabase
     .from('calls')
     .insert({
       user_id: userId,
-      phone_number: callData.phoneNumber,
+      phone_number: normalizePhoneNumberForStorage(callData.phoneNumber),
       call_duration_seconds: callData.duration,
       started_at: callData.startedAt,
       ended_at: callData.endedAt,
