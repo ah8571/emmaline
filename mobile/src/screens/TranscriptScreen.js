@@ -96,7 +96,7 @@ const TranscriptScreen = ({ navigation }) => {
   );
 
   const renderSectionHeader = ({ section: { title } }) => (
-    <View style={styles.sectionHeader}>
+    <View style={[styles.sectionHeader, { backgroundColor: 'transparent' }]}>
       <Text style={[styles.sectionTitle, { color: colors.mutedText }]}>{title}</Text>
     </View>
   );

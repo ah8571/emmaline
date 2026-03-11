@@ -117,7 +117,7 @@ const NotesScreen = ({ navigation }) => {
   const renderNote = ({ item }) => <NoteCard note={item} onPress={() => handleEditNote(item)} />;
 
   const renderSectionHeader = ({ section: { title } }) => (
-    <View style={styles.sectionHeader}>
+    <View style={[styles.sectionHeader, { backgroundColor: 'transparent' }]}>
       <Text style={[styles.sectionTitle, { color: colors.mutedText }]}>{title}</Text>
     </View>
   );

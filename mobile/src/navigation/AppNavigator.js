@@ -97,7 +97,7 @@ const AppHome = () => {
           onPress={toggleTheme}
           activeOpacity={0.85}
         >
-          <Text style={[styles.themeToggleText, { color: colors.text }]}>{isDarkMode ? '☀' : '☾'}</Text>
+          <Text style={[styles.themeToggleText, { color: colors.text }]}>{isDarkMode ? '☼' : '☾'}</Text>
         </TouchableOpacity>
       </View>
 

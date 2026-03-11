@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Alert, View } from 'react-native';
+import { StyleSheet, Alert, View, Image, Text } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppNavigator from './navigation/AppNavigator';
 import FloatingCallButton from './components/FloatingCallButton';
@@ -34,6 +34,7 @@ const AppContent = () => {
   const [selectedAudioDevice, setSelectedAudioDevice] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [showLaunchSplash, setShowLaunchSplash] = useState(true);
 
   const colors = isDarkMode ? darkColors : lightColors;
 
@@ -44,6 +45,14 @@ const AppContent = () => {
     };
 
     loadThemeMode();
+  }, []);
+
+  useEffect(() => {
+    const splashTimer = setTimeout(() => {
+      setShowLaunchSplash(false);
+    }, 900);
+
+    return () => clearTimeout(splashTimer);
   }, []);
 
   useEffect(() => {
@@ -206,6 +215,17 @@ const AppContent = () => {
       return (order[left.type] ?? 99) - (order[right.type] ?? 99);
     });
 
+  if (showLaunchSplash) {
+    return (
+      <AppThemeProvider value={{ isDarkMode, colors, toggleTheme: handleToggleTheme }}>
+        <View style={[styles.splashScreen, { backgroundColor: colors.background }] }>
+          <Image source={require('../assets/app-icon.png')} style={styles.splashIcon} resizeMode="contain" />
+          <Text style={[styles.splashLabel, { color: colors.text }]}>Emmaline</Text>
+        </View>
+      </AppThemeProvider>
+    );
+  }
+
   return (
     <AppThemeProvider value={{ isDarkMode, colors, toggleTheme: handleToggleTheme }}>
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -257,6 +277,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff'
+  },
+  splashScreen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24
+  },
+  splashIcon: {
+    width: 120,
+    height: 120,
+    borderRadius: 28,
+    marginBottom: 20
+  },
+  splashLabel: {
+    fontSize: 28,
+    fontWeight: '700',
+    letterSpacing: 0.5
   },
   navigatorContainer: {
     flex: 1
