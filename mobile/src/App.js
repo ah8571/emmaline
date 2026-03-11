@@ -22,7 +22,7 @@ import {
   getSpeechRatePreference
 } from './utils/secureStorage.js';
 
-const CALL_DOCK_HEIGHT = 84;
+const CALL_DOCK_HEIGHT = 52;
 
 const AppContent = () => {
   const insets = useSafeAreaInsets();
@@ -33,8 +33,7 @@ const AppContent = () => {
   const [selectedAudioDevice, setSelectedAudioDevice] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
 
-  const showAudioControls = isCalling;
-  const callDockHeight = CALL_DOCK_HEIGHT + (showAudioControls ? 116 : 0) + insets.bottom;
+  const callDockHeight = CALL_DOCK_HEIGHT + insets.bottom;
 
   useEffect(() => {
     const unsubscribe = subscribeToAudioDevices(({ audioDevices: nextAudioDevices, selectedDevice }) => {
