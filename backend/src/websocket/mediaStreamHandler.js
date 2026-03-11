@@ -214,13 +214,56 @@ const buildReadNoteReply = (note, languagePreference = 'en') => {
     : `I found the note ${note.title}. It starts like this: ${excerpt}`;
 };
 
+const buildNoteContextSummary = (notes = [], languagePreference = 'en') => {
+  if (!Array.isArray(notes) || notes.length === 0) {
+    return String(languagePreference || '').toLowerCase().startsWith('es')
+      ? 'No hay notas guardadas todavía.'
+      : 'There are no saved notes yet.';
+  }
+
+  const titles = notes
+    .slice(0, 8)
+    .map((note) => String(note.title || '').trim())
+    .filter(Boolean);
+
+  if (titles.length === 0) {
+    return String(languagePreference || '').toLowerCase().startsWith('es')
+      ? `Hay ${notes.length} notas guardadas.`
+      : `There are ${notes.length} saved notes.`;
+  }
+
+  return String(languagePreference || '').toLowerCase().startsWith('es')
+    ? `Hay ${notes.length} notas guardadas. Los títulos incluyen: ${titles.join(', ')}.`
+    : `There are ${notes.length} saved notes. Titles include: ${titles.join(', ')}.`;
+};
+
+const refreshAvailableNotesContext = async (mediaConnection) => {
+  if (!mediaConnection?.userId) {
+    mediaConnection.availableNotes = [];
+    mediaConnection.noteContextSummary = 'There are no saved notes yet.';
+    return [];
+  }
+
+  try {
+    const noteListResult = await getNotesForUser(mediaConnection.userId, { limit: 25, offset: 0 });
+    const notes = noteListResult.notes || [];
+    mediaConnection.availableNotes = notes;
+    mediaConnection.noteContextSummary = buildNoteContextSummary(notes, mediaConnection.languagePreference);
+    return notes;
+  } catch (error) {
+    console.warn(`${getCallLogPrefix(mediaConnection)} Unable to refresh note context: ${error.message}`);
+    mediaConnection.availableNotes = [];
+    mediaConnection.noteContextSummary = buildNoteContextSummary([], mediaConnection.languagePreference);
+    return [];
+  }
+};
+
 const maybeHandleNoteAction = async (mediaConnection, ws, userText) => {
   if (!mediaConnection.userId || !looksLikeNoteInstruction(userText)) {
     return false;
   }
 
-  const noteListResult = await getNotesForUser(mediaConnection.userId, { limit: 25, offset: 0 });
-  const existingNotes = noteListResult.notes || [];
+  const existingNotes = await refreshAvailableNotesContext(mediaConnection);
   const detection = await detectNoteAction(mediaConnection.conversationHistory, {
     noteTitles: existingNotes.map((note) => note.title),
     languagePreference: mediaConnection.languagePreference
@@ -317,6 +360,7 @@ const maybeHandleNoteAction = async (mediaConnection, ws, userText) => {
     );
 
     markTouchedNote(mediaConnection, createdNote.id);
+    await refreshAvailableNotesContext(mediaConnection);
     await sendAssistantReply(ws, mediaConnection, `I created a note called ${createdNote.title} and saved what we just discussed.`);
     return true;
   }
@@ -340,6 +384,7 @@ const maybeHandleNoteAction = async (mediaConnection, ws, userText) => {
   );
 
   markTouchedNote(mediaConnection, updatedNote?.id || targetNote.id);
+  await refreshAvailableNotesContext(mediaConnection);
   await sendAssistantReply(ws, mediaConnection, `I updated ${updatedNote?.title || targetNote.title} with what we just covered.`);
   return true;
 };
@@ -650,7 +695,9 @@ const schedulePendingTurnProcessing = (mediaConnection, ws, delayMs = getTurnRes
 
         console.log(`${getCallLogPrefix(mediaConnection)} Generating assistant response`);
         const response = await generateResponse(mediaConnection.conversationHistory, {
-          languagePreference: mediaConnection.languagePreference
+          languagePreference: mediaConnection.languagePreference,
+          noteAccessEnabled: true,
+          noteContextSummary: mediaConnection.noteContextSummary || buildNoteContextSummary(mediaConnection.availableNotes || [], mediaConnection.languagePreference)
         });
         const assistantReply = response.text;
 
@@ -961,6 +1008,8 @@ function handleStart(message, mediaConnection, ws) {
   mediaConnection.recognizerExpiresAt = 0;
   mediaConnection.recognizerPromise = null;
   mediaConnection.touchedNoteIds = new Set();
+  mediaConnection.availableNotes = [];
+  mediaConnection.noteContextSummary = buildNoteContextSummary([], mediaConnection.languagePreference);
   initializeUsageTracking(mediaConnection);
 
   console.log(`🎤 Media stream started:`);
@@ -972,6 +1021,7 @@ function handleStart(message, mediaConnection, ws) {
   console.log(`   Response delay: ${turnResponseDelayMs}ms`);
 
   ensureRecognizer(mediaConnection, ws, 'initial');
+  refreshAvailableNotesContext(mediaConnection);
 
   sendAssistantReply(ws, mediaConnection, languageConfig.greeting)
     .then(() => {

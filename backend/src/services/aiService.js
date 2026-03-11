@@ -36,6 +36,21 @@ const getLanguageInstruction = (languagePreference) => {
     : 'Respond in English.';
 };
 
+const getNoteCapabilityInstruction = (options = {}) => {
+  if (options.noteAccessEnabled === false) {
+    return '';
+  }
+
+  const noteContextSummary = String(options.noteContextSummary || '').trim();
+
+  return [
+    'You can access the caller\'s saved notes when they ask about notes.',
+    'Do not say that you cannot access notes, files, or the notes section if the request is specifically about saved notes.',
+    'Be precise: you cannot browse the caller\'s phone UI generally, but you can list saved note titles, read saved notes, and update notes when asked.',
+    noteContextSummary ? `Current saved note context: ${noteContextSummary}` : 'Current saved note context: no saved notes are known right now.'
+  ].join(' ');
+};
+
 const getNoteLanguageInstruction = (languagePreference) => {
   return String(languagePreference || '').toLowerCase().startsWith('es')
     ? 'Write note content in Spanish.'
@@ -87,7 +102,7 @@ export const generateResponse = async (conversationHistory, options = {}) => {
     messages: [
       {
         role: 'system',
-        content: `${SYSTEM_PROMPT} ${getLanguageInstruction(options.languagePreference)}`
+        content: `${SYSTEM_PROMPT} ${getLanguageInstruction(options.languagePreference)} ${getNoteCapabilityInstruction(options)}`.trim()
       },
       ...conversationHistory
     ],
@@ -161,6 +176,8 @@ You are classifying the latest user utterance in a live voice call.
 
 Only return a note action when the latest user request is explicitly about notes or saving information for later.
 Examples that SHOULD trigger: "create a note of that", "add that to my app ideas note", "what notes do I have", "read my startup ideas note", "organize that note".
+Questions about whether you can see or access saved notes should also trigger.
+Examples: "can you see my notes", "look in the notes section", "do you see the test note", "what are my two notes".
 Examples that SHOULD NOT trigger: general brainstorming, planning, summarizing, or any request that does not explicitly mention a note or saving something.
 
 Available existing note titles:
