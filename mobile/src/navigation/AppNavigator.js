@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     height: 72,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     flexDirection: 'row',
     paddingHorizontal: 16,
