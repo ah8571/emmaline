@@ -41,22 +41,22 @@ const buildNoteFromCallContent = (call, fallbackTitle = null) => {
     .trim()
     .slice(0, 255);
 
-  const sections = [`# ${title}`];
+  const sections = [`<h1>${title}</h1>`];
 
   if (summary?.summary_text) {
-    sections.push('## Summary', summary.summary_text.trim());
+    sections.push(`<h2>Summary</h2><p>${summary.summary_text.trim()}</p>`);
   }
 
   if (Array.isArray(summary?.key_points) && summary.key_points.length > 0) {
-    sections.push('## Key Points', summary.key_points.map((point) => `- ${point}`).join('\n'));
+    sections.push(`<h2>Key Points</h2><ul>${summary.key_points.map((point) => `<li>${point}</li>`).join('')}</ul>`);
   }
 
   if (Array.isArray(summary?.action_items) && summary.action_items.length > 0) {
-    sections.push('## Action Items', summary.action_items.map((item) => `- ${item}`).join('\n'));
+    sections.push(`<h2>Action Items</h2><ul>${summary.action_items.map((item) => `<li>${item}</li>`).join('')}</ul>`);
   }
 
   if (transcript?.full_text) {
-    sections.push('## Transcript', transcript.full_text.trim());
+    sections.push(`<h2>Transcript</h2><p>${transcript.full_text.trim().replace(/\n+/g, '<br />')}</p>`);
   }
 
   return {

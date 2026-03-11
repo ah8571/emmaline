@@ -199,6 +199,9 @@ const buildListNotesReply = (notes = [], languagePreference = 'en') => {
 const buildReadNoteReply = (note, languagePreference = 'en') => {
   const excerpt = normalizeTranscriptText(
     String(note?.content || '')
+      .replace(/<\s*br\s*\/?>/gi, ' ')
+      .replace(/<\/(p|div|li|h1|h2|h3|ul|ol)>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
       .replace(/^#+\s+/gm, '')
       .replace(/\n+/g, ' ')
   ).slice(0, 420);

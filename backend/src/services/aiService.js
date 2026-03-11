@@ -234,13 +234,14 @@ export const generateStructuredNoteDocument = async (options = {}) => {
 You are writing a durable working note for Emmaline.
 
 House style for notes:
-- Use markdown for storage.
-- Start with one H1 title line.
+- Use HTML for storage, not markdown.
+- Use semantic tags like <h1>, <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <em>, and <u>.
+- Start with one H1 title line in the content when appropriate.
 - Use clear sections.
-- If the content contains multiple ideas, use numbered H2 sections like "## 1. Idea Name".
-- Use optional H3 subsections like "### Details", "### Audience", "### Next Steps" when helpful.
+- If the content contains multiple ideas, use numbered H2 sections.
+- Use optional H3 subsections like Details, Audience, and Next Steps when helpful.
 - Prefer concise but meaningful paragraphs over long walls of text.
-- Do not use tables or code fences.
+- Do not use markdown markers, tables, or code fences.
 - Preserve useful existing information when updating a note.
 - Ignore purely procedural commands like "make a note of that" when drafting the note body.
 

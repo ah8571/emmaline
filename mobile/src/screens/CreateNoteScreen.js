@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,11 +7,12 @@ import {
   TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator
+  Platform
 } from 'react-native';
+import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
 import { createNote, getTopics, updateNote } from '../services/api.js';
 import { useAppTheme } from '../theme/appTheme.js';
+import { normalizeNoteContentToHtml } from '../utils/noteContent.js';
 
 /**
  * CreateNoteScreen
@@ -21,14 +22,16 @@ const CreateNoteScreen = ({ route, navigation }) => {
   const { colors } = useAppTheme();
   const existingNote = route?.params?.note || null;
   const [title, setTitle] = useState(existingNote?.title || '');
-  const [content, setContent] = useState(existingNote?.content || '');
+  const [content, setContent] = useState(normalizeNoteContentToHtml(existingNote?.content || ''));
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(false);
   const isEditing = useMemo(() => Boolean(existingNote?.id), [existingNote?.id]);
+  const richTextRef = useRef(null);
 
   useEffect(() => {
     setSelectedTopic(existingNote?.topicId || null);
+    setContent(normalizeNoteContentToHtml(existingNote?.content || ''));
   }, [existingNote?.topicId]);
 
   useEffect(() => {
@@ -93,16 +96,50 @@ const CreateNoteScreen = ({ route, navigation }) => {
           editable={!loading}
         />
 
-        <TextInput
-          style={[styles.contentInput, { color: colors.text, backgroundColor: colors.input, borderColor: colors.border }]}
-          placeholder="Start typing your note... Markdown headings are okay."
-          placeholderTextColor={colors.mutedText}
-          value={content}
-          onChangeText={setContent}
-          multiline
-          editable={!loading}
-          textAlignVertical="top"
-        />
+        <View style={[styles.editorShell, { backgroundColor: colors.input, borderColor: colors.border }] }>
+          <RichToolbar
+            editor={richTextRef}
+            style={[styles.toolbar, { backgroundColor: colors.surfaceAlt, borderBottomColor: colors.border }]}
+            selectedIconTint={colors.accent}
+            iconTint={colors.text}
+            disabledIconTint={colors.mutedText}
+            actions={[
+              actions.setBold,
+              actions.setItalic,
+              actions.setUnderline,
+              actions.heading1,
+              actions.heading2,
+              actions.insertBulletsList,
+              actions.insertOrderedList
+            ]}
+            iconMap={{
+              [actions.setBold]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>B</Text>,
+              [actions.setItalic]: ({ tintColor }) => <Text style={[styles.toolbarIconText, styles.toolbarIconItalic, { color: tintColor }]}>I</Text>,
+              [actions.setUnderline]: ({ tintColor }) => <Text style={[styles.toolbarIconText, styles.toolbarIconUnderline, { color: tintColor }]}>U</Text>,
+              [actions.heading1]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>H1</Text>,
+              [actions.heading2]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>H2</Text>,
+              [actions.insertBulletsList]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>•</Text>,
+              [actions.insertOrderedList]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>1.</Text>
+            }}
+          />
+
+          <RichEditor
+            ref={richTextRef}
+            initialContentHTML={content}
+            placeholder="Start typing your note..."
+            onChange={(nextContent) => setContent(nextContent)}
+            useContainer={false}
+            initialHeight={320}
+            disabled={loading}
+            editorStyle={{
+              backgroundColor: colors.input,
+              color: colors.text,
+              contentCSSText: `font-size: 16px; line-height: 1.6; color: ${colors.text}; padding: 12px; background-color: ${colors.input};`,
+              placeholderColor: colors.mutedText,
+              cssText: `body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: ${colors.input}; color: ${colors.text}; margin: 0; padding: 0; } p { margin: 0 0 12px 0; } ul, ol { padding-left: 22px; margin: 0 0 12px 0; } h1, h2, h3 { margin: 0 0 12px 0; }`
+            }}
+          />
+        </View>
 
         {topics.length > 0 ? (
           <View style={styles.topicSelector}>
@@ -192,6 +229,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 12,
     paddingTop: 12
+  },
+  editorShell: {
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden'
+  },
+  toolbar: {
+    borderBottomWidth: 1,
+    paddingHorizontal: 6,
+    minHeight: 46
+  },
+  toolbarIconText: {
+    fontSize: 15,
+    fontWeight: '700'
+  },
+  toolbarIconItalic: {
+    fontStyle: 'italic'
+  },
+  toolbarIconUnderline: {
+    textDecorationLine: 'underline'
   },
   topicSelector: {
     marginTop: 16

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { useAppTheme } from '../theme/appTheme.js';
+import { stripNoteContentToPlainText } from '../utils/noteContent.js';
 
 /**
  * NoteCard component
@@ -16,11 +17,7 @@ const NoteCard = ({ note, onPress }) => {
     });
   };
 
-  const previewText = String(note.content || '')
-    .replace(/^#+\s+/gm, '')
-    .replace(/\n+/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
+  const previewText = stripNoteContentToPlainText(note.content || '');
 
   return (
     <TouchableOpacity style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={onPress} activeOpacity={0.85}>
