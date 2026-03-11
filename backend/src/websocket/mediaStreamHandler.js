@@ -22,6 +22,7 @@ import {
 import { generateResponse, sanitizeSpokenResponse, summarizeTranscript } from '../services/aiService.js';
 import { buildEstimatedCallCostEntries } from '../services/costTrackingService.js';
 import { textToAudio } from '../services/textToSpeechService.js';
+import { getCallFromTwilio } from '../services/twilioService.js';
 
 const TWILIO_FRAME_SIZE = 160;
 const TURN_RESPONSE_DELAY_MS = parseInt(process.env.VOICE_TURN_RESPONSE_DELAY_MS || '1600', 10);
@@ -411,12 +412,21 @@ const finalizeCallArtifacts = async (mediaConnection, stats) => {
   try {
     const pricingTier = await getUserPricingTier(mediaConnection.userId);
     const usageMetrics = mediaConnection.usageMetrics || {};
+    let twilioCall = null;
+
+    try {
+      twilioCall = await getCallFromTwilio(mediaConnection.callSid);
+    } catch (error) {
+      console.warn(`${getCallLogPrefix(mediaConnection)} Unable to fetch Twilio pricing data yet: ${error.message}`);
+    }
+
     const estimatedCostEntries = buildEstimatedCallCostEntries({
       pricingTier,
       callDurationSeconds: Math.round(stats.duration / 1000),
       assistantCharacters: usageMetrics.assistantCharacters || 0,
       chatUsage: usageMetrics.chatUsage || {},
-      summaryUsage: usageMetrics.summaryUsage || {}
+      summaryUsage: usageMetrics.summaryUsage || {},
+      twilioCall
     });
 
     await saveCallCosts(callRecord.id, mediaConnection.userId, estimatedCostEntries);

@@ -39,10 +39,21 @@ export const getPricingTierConfig = (tier) => {
   };
 };
 
-const createCostEntry = ({ pricingTier, provider, service, quantity, unit, baseCostUsd, metadata = {} }) => {
+const createCostEntry = ({
+  pricingTier,
+  provider,
+  service,
+  quantity,
+  unit,
+  vendorCostUsd,
+  measurementSource = 'estimated',
+  costSource = 'rate_card',
+  metadata = {}
+}) => {
   const tierConfig = getPricingTierConfig(pricingTier);
   const roundedQuantity = roundQuantity(quantity);
-  const estimatedCostUsd = roundCost(baseCostUsd * tierConfig.markupMultiplier);
+  const normalizedVendorCostUsd = roundCost(vendorCostUsd);
+  const billableCostUsd = roundCost(normalizedVendorCostUsd * tierConfig.markupMultiplier);
 
   return {
     pricingTier: tierConfig.tier,
@@ -50,7 +61,10 @@ const createCostEntry = ({ pricingTier, provider, service, quantity, unit, baseC
     service,
     quantity: roundedQuantity,
     unit,
-    estimatedCostUsd,
+    vendorCostUsd: normalizedVendorCostUsd,
+    billableCostUsd,
+    measurementSource,
+    costSource,
     metadata: {
       tierLabel: tierConfig.label,
       markupMultiplier: tierConfig.markupMultiplier,
@@ -64,7 +78,8 @@ export const buildEstimatedCallCostEntries = ({
   callDurationSeconds = 0,
   assistantCharacters = 0,
   chatUsage = {},
-  summaryUsage = {}
+  summaryUsage = {},
+  twilioCall = null
 }) => {
   const minutes = Number(callDurationSeconds || 0) / 60;
   const entries = [];
@@ -76,7 +91,8 @@ export const buildEstimatedCallCostEntries = ({
       service: 'chat_input_tokens',
       quantity: chatUsage.inputTokens,
       unit: 'tokens',
-      baseCostUsd: (chatUsage.inputTokens / 1000) * DEFAULT_RATE_CARD.openaiChatInputPer1kTokens,
+      vendorCostUsd: (chatUsage.inputTokens / 1000) * DEFAULT_RATE_CARD.openaiChatInputPer1kTokens,
+      measurementSource: 'provider_usage',
       metadata: { model: chatUsage.model || process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini' }
     }));
   }
@@ -88,7 +104,8 @@ export const buildEstimatedCallCostEntries = ({
       service: 'chat_output_tokens',
       quantity: chatUsage.outputTokens,
       unit: 'tokens',
-      baseCostUsd: (chatUsage.outputTokens / 1000) * DEFAULT_RATE_CARD.openaiChatOutputPer1kTokens,
+      vendorCostUsd: (chatUsage.outputTokens / 1000) * DEFAULT_RATE_CARD.openaiChatOutputPer1kTokens,
+      measurementSource: 'provider_usage',
       metadata: { model: chatUsage.model || process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini' }
     }));
   }
@@ -100,7 +117,8 @@ export const buildEstimatedCallCostEntries = ({
       service: 'summary_input_tokens',
       quantity: summaryUsage.inputTokens,
       unit: 'tokens',
-      baseCostUsd: (summaryUsage.inputTokens / 1000) * DEFAULT_RATE_CARD.openaiSummaryInputPer1kTokens,
+      vendorCostUsd: (summaryUsage.inputTokens / 1000) * DEFAULT_RATE_CARD.openaiSummaryInputPer1kTokens,
+      measurementSource: 'provider_usage',
       metadata: { model: summaryUsage.model || process.env.OPENAI_SUMMARY_MODEL || process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini' }
     }));
   }
@@ -112,7 +130,8 @@ export const buildEstimatedCallCostEntries = ({
       service: 'summary_output_tokens',
       quantity: summaryUsage.outputTokens,
       unit: 'tokens',
-      baseCostUsd: (summaryUsage.outputTokens / 1000) * DEFAULT_RATE_CARD.openaiSummaryOutputPer1kTokens,
+      vendorCostUsd: (summaryUsage.outputTokens / 1000) * DEFAULT_RATE_CARD.openaiSummaryOutputPer1kTokens,
+      measurementSource: 'provider_usage',
       metadata: { model: summaryUsage.model || process.env.OPENAI_SUMMARY_MODEL || process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini' }
     }));
   }
@@ -124,8 +143,11 @@ export const buildEstimatedCallCostEntries = ({
       service: 'speech_to_text',
       quantity: minutes,
       unit: 'minutes',
-      baseCostUsd: minutes * DEFAULT_RATE_CARD.googleSpeechToTextPerMinute
+      vendorCostUsd: minutes * DEFAULT_RATE_CARD.googleSpeechToTextPerMinute,
+      measurementSource: 'stream_measured'
     }));
+
+    const twilioReportedPrice = Math.abs(Number(twilioCall?.price || 0));
 
     entries.push(createCostEntry({
       pricingTier,
@@ -133,7 +155,13 @@ export const buildEstimatedCallCostEntries = ({
       service: 'voice_minutes',
       quantity: minutes,
       unit: 'minutes',
-      baseCostUsd: minutes * DEFAULT_RATE_CARD.twilioVoicePerMinute
+      vendorCostUsd: twilioReportedPrice > 0 ? twilioReportedPrice : minutes * DEFAULT_RATE_CARD.twilioVoicePerMinute,
+      measurementSource: twilioReportedPrice > 0 ? 'vendor_reported' : 'stream_measured',
+      costSource: twilioReportedPrice > 0 ? 'vendor_reported' : 'rate_card',
+      metadata: {
+        twilioPriceUnit: twilioCall?.priceUnit || 'USD',
+        twilioStatus: twilioCall?.status || null
+      }
     }));
   }
 
@@ -144,7 +172,8 @@ export const buildEstimatedCallCostEntries = ({
       service: 'text_to_speech',
       quantity: assistantCharacters,
       unit: 'characters',
-      baseCostUsd: assistantCharacters * DEFAULT_RATE_CARD.googleTextToSpeechPerCharacter
+      vendorCostUsd: assistantCharacters * DEFAULT_RATE_CARD.googleTextToSpeechPerCharacter,
+      measurementSource: 'request_measured'
     }));
   }
 
@@ -155,12 +184,15 @@ export const summarizeEstimatedCallCosts = (entries = []) => {
   const normalizedEntries = Array.isArray(entries) ? entries : [];
 
   return {
-    totalEstimatedCostUsd: roundCost(
-      normalizedEntries.reduce((sum, entry) => sum + Number(entry.estimatedCostUsd || 0), 0)
+    totalVendorCostUsd: roundCost(
+      normalizedEntries.reduce((sum, entry) => sum + Number(entry.vendorCostUsd || 0), 0)
+    ),
+    totalBillableCostUsd: roundCost(
+      normalizedEntries.reduce((sum, entry) => sum + Number(entry.billableCostUsd || 0), 0)
     ),
     providerBreakdown: normalizedEntries.reduce((providers, entry) => {
       const provider = entry.provider || 'unknown';
-      const nextCost = roundCost((providers[provider] || 0) + Number(entry.estimatedCostUsd || 0));
+      const nextCost = roundCost((providers[provider] || 0) + Number(entry.vendorCostUsd || 0));
       return {
         ...providers,
         [provider]: nextCost

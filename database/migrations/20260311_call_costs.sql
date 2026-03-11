@@ -9,7 +9,10 @@ CREATE TABLE IF NOT EXISTS call_costs (
   service VARCHAR(100) NOT NULL,
   quantity NUMERIC(12, 4) NOT NULL DEFAULT 0,
   unit VARCHAR(30) NOT NULL,
-  estimated_cost_usd NUMERIC(12, 6) NOT NULL DEFAULT 0,
+  vendor_cost_usd NUMERIC(12, 6) NOT NULL DEFAULT 0,
+  billable_cost_usd NUMERIC(12, 6) NOT NULL DEFAULT 0,
+  measurement_source VARCHAR(30) NOT NULL DEFAULT 'estimated',
+  cost_source VARCHAR(30) NOT NULL DEFAULT 'rate_card',
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

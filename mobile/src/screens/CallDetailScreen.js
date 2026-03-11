@@ -61,12 +61,15 @@ const CallDetailScreen = ({ route }) => {
       )}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Estimated Cost</Text>
+        <Text style={styles.sectionTitle}>Usage and Cost</Text>
         <Text style={styles.summaryText}>
           Tier: {call.pricingTier || 'tier1'}
         </Text>
         <Text style={styles.summaryText}>
-          Total estimated cost: {formatUsd(call.totalEstimatedCostUsd)}
+          Provider cost: {formatUsd(call.totalVendorCostUsd)}
+        </Text>
+        <Text style={styles.summaryText}>
+          Tier-adjusted billable cost: {formatUsd(call.totalBillableCostUsd)}
         </Text>
 
         {Array.isArray(call.costs) && call.costs.length > 0 ? (
@@ -76,9 +79,10 @@ const CallDetailScreen = ({ route }) => {
                 {cost.provider} / {cost.service}
               </Text>
               <Text style={styles.costMeta}>
-                {cost.quantity} {cost.unit}
+                {cost.quantity} {cost.unit} · {cost.measurementSource} · {cost.costSource}
               </Text>
-              <Text style={styles.costValue}>{formatUsd(cost.estimatedCostUsd)}</Text>
+              <Text style={styles.costValue}>Provider: {formatUsd(cost.vendorCostUsd)}</Text>
+              <Text style={styles.costMeta}>Billable: {formatUsd(cost.billableCostUsd)}</Text>
             </View>
           ))
         ) : (

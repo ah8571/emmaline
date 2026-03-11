@@ -21,7 +21,7 @@ const mapCallRecord = (call) => {
     : [];
   const costs = Array.isArray(call.call_costs)
     ? [...call.call_costs]
-        .sort((left, right) => Number(left.estimated_cost_usd || 0) - Number(right.estimated_cost_usd || 0))
+        .sort((left, right) => Number(left.vendor_cost_usd || 0) - Number(right.vendor_cost_usd || 0))
         .map((cost) => ({
           id: cost.id,
           pricingTier: cost.pricing_tier,
@@ -29,7 +29,10 @@ const mapCallRecord = (call) => {
           service: cost.service,
           quantity: Number(cost.quantity || 0),
           unit: cost.unit,
-          estimatedCostUsd: Number(cost.estimated_cost_usd || 0),
+          vendorCostUsd: Number(cost.vendor_cost_usd || 0),
+          billableCostUsd: Number(cost.billable_cost_usd || 0),
+          measurementSource: cost.measurement_source,
+          costSource: cost.cost_source,
           metadata: cost.metadata || {},
           createdAt: cost.created_at
         }))
@@ -54,7 +57,8 @@ const mapCallRecord = (call) => {
     messages,
     costs,
     pricingTier: costs[0]?.pricingTier || 'tier1',
-    totalEstimatedCostUsd: costSummary.totalEstimatedCostUsd,
+    totalVendorCostUsd: costSummary.totalVendorCostUsd,
+    totalBillableCostUsd: costSummary.totalBillableCostUsd,
     providerCostBreakdown: costSummary.providerBreakdown
   };
 };

@@ -130,7 +130,10 @@ export const saveCallCosts = async (callId, userId, costEntries = []) => {
         service: entry.service,
         quantity: entry.quantity,
         unit: entry.unit,
-        estimated_cost_usd: entry.estimatedCostUsd,
+        vendor_cost_usd: entry.vendorCostUsd,
+        billable_cost_usd: entry.billableCostUsd,
+        measurement_source: entry.measurementSource,
+        cost_source: entry.costSource,
         metadata: entry.metadata || {}
       }))
     )
