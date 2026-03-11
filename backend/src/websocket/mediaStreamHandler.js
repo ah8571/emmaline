@@ -26,6 +26,8 @@ import { getCallFromTwilio } from '../services/twilioService.js';
 
 const TWILIO_FRAME_SIZE = 160;
 const TURN_RESPONSE_DELAY_MS = parseInt(process.env.VOICE_TURN_RESPONSE_DELAY_MS || '1600', 10);
+const STREAMING_RECOGNIZER_REFRESH_MS = parseInt(process.env.GOOGLE_STREAMING_REFRESH_MS || '290000', 10);
+const STREAMING_RECOGNIZER_DURATION_ERROR_CODE = 11;
 const CONTINUE_LISTENING_BRIDGE = {
   en: "Go ahead, I'm listening.",
   es: 'Adelante, te escucho.'
@@ -59,6 +61,16 @@ const resolveCallLanguageConfig = (languagePreference) => {
     preference: language,
     ...CALL_LANGUAGE_CONFIG[language]
   };
+};
+
+const normalizeSpeechRatePreference = (value) => {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return 1;
+  }
+
+  return Math.min(1.15, Math.max(0.75, parsed));
 };
 
 const normalizeTranscriptText = (value) => {
@@ -138,7 +150,8 @@ const synthesizeAssistantReply = async (mediaConnection, text) => {
     languageCode: languageConfig.languageCode,
     voice: languageConfig.voice,
     audioEncoding: 'MULAW',
-    sampleRateHertz: 8000
+    sampleRateHertz: 8000,
+    speakingRate: mediaConnection.speechRatePreference
   });
 };
 
@@ -195,6 +208,75 @@ const clearPendingTurnTimer = (mediaConnection) => {
   if (mediaConnection.pendingTurnTimer) {
     clearTimeout(mediaConnection.pendingTurnTimer);
     mediaConnection.pendingTurnTimer = null;
+  }
+};
+
+const markSpeechActivity = (mediaConnection) => {
+  mediaConnection.lastSpeechEventAt = Date.now();
+};
+
+const appendPendingUserSegment = (mediaConnection, value) => {
+  const text = normalizeTranscriptText(value);
+
+  if (!text) {
+    return false;
+  }
+
+  mediaConnection.pendingUserSegments = mediaConnection.pendingUserSegments || [];
+
+  if (mediaConnection.pendingUserSegments.length === 0) {
+    mediaConnection.pendingUserSegments.push(text);
+    return true;
+  }
+
+  const lastIndex = mediaConnection.pendingUserSegments.length - 1;
+  const previousText = normalizeTranscriptText(mediaConnection.pendingUserSegments[lastIndex]);
+  const normalizedPrevious = previousText.toLowerCase();
+  const normalizedCurrent = text.toLowerCase();
+
+  if (normalizedCurrent === normalizedPrevious) {
+    return false;
+  }
+
+  if (normalizedCurrent.startsWith(`${normalizedPrevious} `)) {
+    mediaConnection.pendingUserSegments[lastIndex] = text;
+    return true;
+  }
+
+  if (normalizedPrevious.startsWith(`${normalizedCurrent} `)) {
+    return false;
+  }
+
+  mediaConnection.pendingUserSegments.push(text);
+  return true;
+};
+
+const releaseRecognizer = (mediaConnection, recognizer = mediaConnection.recognizer) => {
+  const stream = recognizer?.stream;
+
+  if (mediaConnection.recognizer === recognizer) {
+    mediaConnection.recognizer = null;
+    mediaConnection.recognizerExpiresAt = 0;
+  }
+
+  if (!stream) {
+    return;
+  }
+
+  try {
+    if (!stream.destroyed && !stream.writableEnded) {
+      stream.end();
+    }
+  } catch (error) {
+    console.warn(`${getCallLogPrefix(mediaConnection)} Error ending streaming recognizer:`, error.message);
+  }
+
+  try {
+    if (!stream.destroyed) {
+      stream.destroy();
+    }
+  } catch (error) {
+    console.warn(`${getCallLogPrefix(mediaConnection)} Error destroying streaming recognizer:`, error.message);
   }
 };
 
@@ -260,6 +342,12 @@ const schedulePendingTurnProcessing = (mediaConnection, ws, delayMs = TURN_RESPO
         return;
       }
 
+      const silenceElapsedMs = Date.now() - Number(mediaConnection.lastSpeechEventAt || 0);
+      if (silenceElapsedMs < TURN_RESPONSE_DELAY_MS) {
+        schedulePendingTurnProcessing(mediaConnection, ws, TURN_RESPONSE_DELAY_MS - silenceElapsedMs);
+        return;
+      }
+
       if (isLikelyIncompleteUtterance(pendingText) && !mediaConnection.pendingPromptSent) {
         mediaConnection.pendingPromptSent = true;
         mediaConnection.isResponding = true;
@@ -314,28 +402,60 @@ const schedulePendingTurnProcessing = (mediaConnection, ws, delayMs = TURN_RESPO
   }, delayMs);
 };
 
-const maybeCreateRecognizer = async (mediaConnection, ws) => {
+const ensureRecognizer = async (mediaConnection, ws, reason = 'refresh') => {
+  if (mediaConnection.sttDisabled || !mediaConnection.isActive) {
+    return null;
+  }
+
+  if (mediaConnection.recognizerPromise) {
+    return mediaConnection.recognizerPromise;
+  }
+
+  mediaConnection.recognizerPromise = maybeCreateRecognizer(mediaConnection, ws, reason)
+    .catch((error) => {
+      console.error(`${getCallLogPrefix(mediaConnection)} Unable to create streaming recognizer:`, error);
+      return null;
+    })
+    .finally(() => {
+      mediaConnection.recognizerPromise = null;
+    });
+
+  return mediaConnection.recognizerPromise;
+};
+
+const maybeCreateRecognizer = async (mediaConnection, ws, reason = 'initial') => {
   if (!validateSpeechConfig()) {
     mediaConnection.sttDisabled = true;
     console.warn(`${getCallLogPrefix(mediaConnection)} Speech-to-Text disabled because Google credentials are unavailable`);
     return null;
   }
 
+  releaseRecognizer(mediaConnection);
+
   const recognizer = await createStreamingRecognizer({
     languagePreference: mediaConnection.languagePreference
   });
   const stream = recognizer.stream;
 
-  console.log(`${getCallLogPrefix(mediaConnection)} Streaming speech recognizer created`);
+  mediaConnection.recognizer = recognizer;
+  mediaConnection.recognizerExpiresAt = Date.now() + STREAMING_RECOGNIZER_REFRESH_MS;
+
+  console.log(`${getCallLogPrefix(mediaConnection)} Streaming speech recognizer created (${reason})`);
 
   stream.on('data', async (response) => {
     try {
+      if (mediaConnection.recognizer !== recognizer) {
+        return;
+      }
+
       const transcript = processTranscriptResponse(response);
       const text = transcript.text?.trim();
 
       if (!text) {
         return;
       }
+
+      markSpeechActivity(mediaConnection);
 
       console.log(
         `${getCallLogPrefix(mediaConnection)} Transcript ${transcript.isFinal ? 'final' : 'interim'}: ${text}`
@@ -350,10 +470,10 @@ const maybeCreateRecognizer = async (mediaConnection, ws) => {
       }
 
       mediaConnection.lastFinalTranscript = text;
-      mediaConnection.pendingUserSegments = mediaConnection.pendingUserSegments || [];
-      mediaConnection.pendingUserSegments.push(text);
-      mediaConnection.pendingPromptSent = false;
-      schedulePendingTurnProcessing(mediaConnection, ws);
+      if (appendPendingUserSegment(mediaConnection, text)) {
+        mediaConnection.pendingPromptSent = false;
+        schedulePendingTurnProcessing(mediaConnection, ws);
+      }
     } catch (error) {
       mediaConnection.isResponding = false;
       console.error(`${getCallLogPrefix(mediaConnection)} Error processing streaming transcript:`, error);
@@ -361,10 +481,25 @@ const maybeCreateRecognizer = async (mediaConnection, ws) => {
   });
 
   stream.on('error', (error) => {
+    if (mediaConnection.recognizer !== recognizer) {
+      return;
+    }
+
+    const message = String(error?.message || '');
+    const reachedDurationLimit =
+      error?.code === STREAMING_RECOGNIZER_DURATION_ERROR_CODE ||
+      /maximum allowed stream duration/i.test(message);
+
+    if (reachedDurationLimit) {
+      console.warn(`${getCallLogPrefix(mediaConnection)} Streaming recognizer reached duration limit; rotating stream`);
+      releaseRecognizer(mediaConnection, recognizer);
+      return;
+    }
+
     console.error(`${getCallLogPrefix(mediaConnection)} Streaming speech recognizer error:`, error);
+    releaseRecognizer(mediaConnection, recognizer);
   });
 
-  mediaConnection.recognizer = recognizer;
   return recognizer;
 };
 
@@ -488,6 +623,7 @@ export const handleMediaStreamWebSocket = (ws, req) => {
 
     if (mediaConnection) {
       clearPendingTurnTimer(mediaConnection);
+      releaseRecognizer(mediaConnection);
       mediaConnection.close();
       if (callSid) {
         mediaStreamManager.closeConnection(callSid);
@@ -500,6 +636,7 @@ export const handleMediaStreamWebSocket = (ws, req) => {
 
     if (mediaConnection) {
       clearPendingTurnTimer(mediaConnection);
+      releaseRecognizer(mediaConnection);
       mediaConnection.close();
       if (callSid) {
         mediaStreamManager.closeConnection(callSid);
@@ -516,6 +653,7 @@ function handleStart(message, mediaConnection, ws) {
   const { streamSid, callSid, customParameters } = message.start;
   const identity = customParameters?.identity || null;
   const languagePreference = resolveLanguagePreference(customParameters?.language);
+  const speechRatePreference = normalizeSpeechRatePreference(customParameters?.speechRate);
   const languageConfig = resolveCallLanguageConfig(languagePreference);
 
   mediaConnection.activate();
@@ -523,12 +661,16 @@ function handleStart(message, mediaConnection, ws) {
   mediaConnection.identity = identity;
   mediaConnection.userId = mediaConnection.userId || parseUserIdFromIdentity(identity);
   mediaConnection.languagePreference = languagePreference;
+  mediaConnection.speechRatePreference = speechRatePreference;
   mediaConnection.conversationHistory = [];
   mediaConnection.lastFinalTranscript = null;
+  mediaConnection.lastSpeechEventAt = Date.now();
   mediaConnection.isResponding = false;
   mediaConnection.pendingUserSegments = [];
   mediaConnection.pendingPromptSent = false;
   mediaConnection.pendingTurnTimer = null;
+  mediaConnection.recognizerExpiresAt = 0;
+  mediaConnection.recognizerPromise = null;
   initializeUsageTracking(mediaConnection);
 
   console.log(`🎤 Media stream started:`);
@@ -536,10 +678,9 @@ function handleStart(message, mediaConnection, ws) {
   console.log(`   Stream SID: ${streamSid}`);
   console.log(`   Identity: ${identity || 'unknown'}`);
   console.log(`   Language: ${languagePreference}`);
+  console.log(`   Speech rate: ${speechRatePreference}`);
 
-  maybeCreateRecognizer(mediaConnection, ws).catch((error) => {
-    console.error(`${getCallLogPrefix(mediaConnection)} Unable to create streaming recognizer:`, error);
-  });
+  ensureRecognizer(mediaConnection, ws, 'initial');
 
   sendAssistantReply(ws, mediaConnection, languageConfig.greeting)
     .then(() => {
@@ -554,10 +695,25 @@ async function handleMedia(message, mediaConnection, ws) {
   try {
     const { payload, sequenceNumber } = message.media;
     const audioBuffer = Buffer.from(payload, 'base64');
+    const recognizerExpired =
+      Boolean(mediaConnection.recognizer) &&
+      Number(mediaConnection.recognizerExpiresAt || 0) <= Date.now();
 
     mediaConnection.addAudioChunk(audioBuffer);
 
-    if (mediaConnection.recognizer?.stream?.writable) {
+    if (!mediaConnection.sttDisabled && (!mediaConnection.recognizer || recognizerExpired)) {
+      if (recognizerExpired) {
+        console.log(`${getCallLogPrefix(mediaConnection)} Refreshing streaming recognizer before duration limit`);
+      }
+
+      await ensureRecognizer(mediaConnection, ws, recognizerExpired ? 'refresh' : 'recreate');
+    }
+
+    if (
+      mediaConnection.recognizer?.stream?.writable &&
+      !mediaConnection.recognizer.stream.destroyed &&
+      !mediaConnection.recognizer.stream.writableEnded
+    ) {
       mediaConnection.recognizer.stream.write(audioBuffer);
     }
 
@@ -581,9 +737,7 @@ async function handleStop(message, mediaConnection, ws) {
     console.log(`   Audio chunks: ${stats.audioChunksReceived}`);
     console.log(`   Bytes received: ${stats.bytesReceived}`);
 
-    if (mediaConnection.recognizer?.stream) {
-      mediaConnection.recognizer.stream.end();
-    }
+    releaseRecognizer(mediaConnection);
 
     clearPendingTurnTimer(mediaConnection);
 

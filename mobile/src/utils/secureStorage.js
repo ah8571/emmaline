@@ -9,7 +9,8 @@ const TOKEN_KEY = 'emmaline_auth_token';
 const USER_KEY = 'emmaline_user';
 const PREFERENCES_KEY = 'emmaline_preferences';
 const DEFAULT_PREFERENCES = {
-  callLanguage: 'en'
+  callLanguage: 'en',
+  speechRate: 1
 };
 
 /**
@@ -144,6 +145,21 @@ export const saveCallLanguagePreference = async (callLanguage) => {
   return savePreferences({ callLanguage });
 };
 
+export const getSpeechRatePreference = async () => {
+  const preferences = await getPreferences();
+  const speechRate = Number(preferences.speechRate);
+
+  if (!Number.isFinite(speechRate)) {
+    return DEFAULT_PREFERENCES.speechRate;
+  }
+
+  return speechRate;
+};
+
+export const saveSpeechRatePreference = async (speechRate) => {
+  return savePreferences({ speechRate: Number(speechRate) });
+};
+
 /**
  * Logout - clear all auth data
  */
@@ -170,5 +186,7 @@ export default {
   savePreferences,
   getCallLanguagePreference,
   saveCallLanguagePreference,
+  getSpeechRatePreference,
+  saveSpeechRatePreference,
   logout
 };

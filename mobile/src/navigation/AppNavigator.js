@@ -41,6 +41,7 @@ const NotesStack = () => (
 const AppHome = () => {
   const [activeScreen, setActiveScreen] = useState('transcripts');
   const [menuOpen, setMenuOpen] = useState(false);
+  const isSettingsActive = activeScreen === 'settings';
 
   const openScreen = (screen) => {
     setActiveScreen(screen);
@@ -56,6 +57,16 @@ const AppHome = () => {
           activeOpacity={0.8}
         >
           <Text style={styles.menuIcon}>☰</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.settingsShortcut, isSettingsActive && styles.settingsShortcutActive]}
+          onPress={() => openScreen('settings')}
+          activeOpacity={0.85}
+        >
+          <Text style={[styles.settingsShortcutText, isSettingsActive && styles.settingsShortcutTextActive]}>
+            Settings
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -174,8 +185,10 @@ const styles = StyleSheet.create({
     height: 72,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
-    justifyContent: 'center',
-    paddingHorizontal: 10,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexDirection: 'row',
+    paddingHorizontal: 16,
     backgroundColor: '#ffffff'
   },
   menuButton: {
@@ -183,12 +196,29 @@ const styles = StyleSheet.create({
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: '25%',
     marginTop: 10
   },
   menuIcon: {
     fontSize: 16,
     color: '#212529'
+  },
+  settingsShortcut: {
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#f1f3f5'
+  },
+  settingsShortcutActive: {
+    backgroundColor: '#e6f0ff'
+  },
+  settingsShortcutText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#495057'
+  },
+  settingsShortcutTextActive: {
+    color: '#0056b3'
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -202,14 +232,17 @@ const styles = StyleSheet.create({
   sideMenu: {
     position: 'absolute',
     left: 0,
-    top: 0,
+    top: 72,
     bottom: 0,
     width: 220,
-    backgroundColor: '#ffffff'
+    paddingTop: 18,
+    backgroundColor: '#ffffff',
+    borderRightWidth: 1,
+    borderRightColor: '#e9ecef'
   },
   menuItem: {
     paddingHorizontal: 18,
-    paddingVertical: 14
+    paddingVertical: 16
   },
   menuItemText: {
     fontSize: 15,

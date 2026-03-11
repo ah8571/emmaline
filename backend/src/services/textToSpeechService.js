@@ -52,7 +52,8 @@ const textToAudioGoogle = async (text, options = {}) => {
     languageCode = 'en-US',
     voice = 'en-US-Neural2-C',
     audioEncoding = 'LINEAR16',
-    sampleRateHertz
+    sampleRateHertz,
+    speakingRate
   } = options;
 
   const request = {
@@ -63,6 +64,7 @@ const textToAudioGoogle = async (text, options = {}) => {
     },
     audioConfig: {
       audioEncoding,
+      ...(speakingRate ? { speakingRate } : {}),
       ...(sampleRateHertz ? { sampleRateHertz } : {})
     }
   };

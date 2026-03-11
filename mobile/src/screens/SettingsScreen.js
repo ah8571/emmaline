@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import {
   getCallLanguagePreference,
-  saveCallLanguagePreference
+  getSpeechRatePreference,
+  saveCallLanguagePreference,
+  saveSpeechRatePreference
 } from '../utils/secureStorage.js';
 
 const LANGUAGE_OPTIONS = [
@@ -18,13 +20,39 @@ const LANGUAGE_OPTIONS = [
   }
 ];
 
+const SPEECH_RATE_OPTIONS = [
+  {
+    value: 0.82,
+    title: 'Slower',
+    description: 'More breathing room when Emmaline is giving a lot of detail.'
+  },
+  {
+    value: 0.92,
+    title: 'Relaxed',
+    description: 'A little slower than normal without sounding stretched.'
+  },
+  {
+    value: 1,
+    title: 'Normal',
+    description: 'Default speaking speed.'
+  }
+];
+
+const areRatesEqual = (left, right) => Math.abs(Number(left) - Number(right)) < 0.001;
+
 const SettingsScreen = () => {
   const [callLanguage, setCallLanguage] = useState('en');
+  const [speechRate, setSpeechRate] = useState(1);
 
   useEffect(() => {
     const loadPreferences = async () => {
-      const savedLanguage = await getCallLanguagePreference();
+      const [savedLanguage, savedSpeechRate] = await Promise.all([
+        getCallLanguagePreference(),
+        getSpeechRatePreference()
+      ]);
+
       setCallLanguage(savedLanguage || 'en');
+      setSpeechRate(savedSpeechRate || 1);
     };
 
     loadPreferences();
@@ -36,6 +64,15 @@ const SettingsScreen = () => {
 
     if (!saved) {
       Alert.alert('Settings error', 'Unable to save your call language preference.');
+    }
+  };
+
+  const handleSelectSpeechRate = async (value) => {
+    setSpeechRate(value);
+    const saved = await saveSpeechRatePreference(value);
+
+    if (!saved) {
+      Alert.alert('Settings error', 'Unable to save your speech speed preference.');
     }
   };
 
@@ -72,6 +109,40 @@ const SettingsScreen = () => {
           );
         })}
       </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Speech speed</Text>
+        <Text style={styles.sectionDescription}>
+          Slow Emmaline down if the spoken responses feel too dense to follow in real time.
+        </Text>
+
+        <View style={styles.speedometerCard}>
+          <Text style={styles.speedometerLabel}>Current pace</Text>
+          <Text style={styles.speedometerValue}>{speechRate.toFixed(2)}x</Text>
+        </View>
+
+        {SPEECH_RATE_OPTIONS.map((option) => {
+          const selected = areRatesEqual(speechRate, option.value);
+
+          return (
+            <TouchableOpacity
+              key={option.value}
+              style={[styles.optionCard, selected && styles.optionCardSelected]}
+              onPress={() => handleSelectSpeechRate(option.value)}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.radio, selected && styles.radioSelected]}>
+                {selected ? <View style={styles.radioInner} /> : null}
+              </View>
+              <View style={styles.optionContent}>
+                <Text style={styles.optionTitle}>{option.title}</Text>
+                <Text style={styles.optionDescription}>{option.description}</Text>
+              </View>
+              <Text style={styles.rateBadge}>{option.value.toFixed(2)}x</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 };
@@ -97,6 +168,27 @@ const styles = StyleSheet.create({
   section: {
     padding: 16,
     gap: 12
+  },
+  speedometerCard: {
+    backgroundColor: '#fff7e6',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: '#f1d6a8',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  speedometerLabel: {
+    fontSize: 14,
+    color: '#8a5a00',
+    fontWeight: '600'
+  },
+  speedometerValue: {
+    fontSize: 24,
+    color: '#5c3b00',
+    fontWeight: '700'
   },
   sectionTitle: {
     fontSize: 18,
@@ -143,6 +235,12 @@ const styles = StyleSheet.create({
   },
   optionContent: {
     flex: 1
+  },
+  rateBadge: {
+    marginLeft: 12,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#495057'
   },
   optionTitle: {
     fontSize: 16,
