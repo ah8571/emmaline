@@ -91,14 +91,19 @@ export const generateResponse = async (conversationHistory, options = {}) => {
   };
 };
 
-export const summarizeTranscript = async (fullTranscript) => {
-  // TODO: Summarize full transcript into key points
+export const summarizeTranscript = async (fullTranscript, options = {}) => {
+  const summaryLanguageInstruction = String(options.languagePreference || '').toLowerCase().startsWith('es')
+    ? 'Return the summary, key points, and action items in Spanish. Preserve the participant\'s Spanish phrasing where it is natural to do so.'
+    : 'Return the summary, key points, and action items in English.';
+
   const summaryPrompt = `
 Please analyze the following conversation and provide:
 1. A concise summary (2-3 sentences)
 2. Key points (as bullet points)
 3. Any action items mentioned
 4. Overall sentiment (positive/neutral/negative)
+
+${summaryLanguageInstruction}
 
 Conversation:
 ${fullTranscript}
@@ -111,7 +116,7 @@ Return strict JSON only with keys: summary, keyPoints, actionItems, sentiment. D
     messages: [
       {
         role: 'system',
-        content: 'You are a helpful assistant that summarizes conversations.'
+        content: `You are a helpful assistant that summarizes conversations. ${summaryLanguageInstruction}`
       },
       {
         role: 'user',

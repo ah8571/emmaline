@@ -528,7 +528,9 @@ const finalizeCallArtifacts = async (mediaConnection, stats) => {
   await saveCallMessages(callRecord.id, mediaConnection.userId, messages);
 
   try {
-    const summary = await summarizeTranscript(fullTranscript);
+    const summary = await summarizeTranscript(fullTranscript, {
+      languagePreference: mediaConnection.languagePreference
+    });
 
     if (mediaConnection.usageMetrics) {
       recordUsage(mediaConnection.usageMetrics.summaryUsage, summary.usage);
