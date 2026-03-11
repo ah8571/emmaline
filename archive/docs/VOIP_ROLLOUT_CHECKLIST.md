@@ -14,31 +14,6 @@ Goal: make in-app calling the primary UX, keep dialer as fallback, and hide the 
 
 ## 1) Twilio Console Setup (Required)
 
-1) Create a TwiML App (you currently have none)
-
-Go to Twilio Console → Develop → Phone Numbers → TwiML Apps → Create new TwiML App.
-Name: Emmaline VoIP (or similar).
-Voice Request URL: https://emmaline.app/api/voice/connect
-Method: HTTP POST
-Save, then copy the TwiML App SID (starts with AP...).
-2) Create Twilio API Key for Voice tokens
-
-Go to Twilio Console → Account/Project settings → API Keys (or Keys & Credentials).
-Create Standard API Key.
-Copy:
-API Key SID (starts with SK...)
-API Key Secret (shown once only)
-3) Set backend environment vars (DigitalOcean/backend)
-
-TWILIO_ACCOUNT_SID
-TWILIO_AUTH_TOKEN
-TWILIO_API_KEY_SID
-TWILIO_API_KEY_SECRET
-TWILIO_TWIML_APP_SID
-WEBHOOK_URL = https://emmaline.app
-WEBSOCKET_URL = wss://emmaline.app/ws/media-stream
-Then redeploy backend.
-
 ### Account + Voice basics
 - [ ] **[You/Twilio Console]** Verify Voice is enabled on your Twilio project.
 - [ ] **[You/Twilio Console]** Confirm a Twilio phone number is active for inbound fallback.
@@ -126,5 +101,19 @@ Then redeploy backend.
 - [ ] **[Me/Code]** Store mapping in database and assign inbound routing rules.
 - [ ] **[Both]** Add controls for release/reassign/recycle numbers.
 - [ ] **[Both]** Keep in-app VoIP path as primary UX, PSTN number as optional channel.
+
+---
+
+## 7) Future: 
+
+- [ ] **[Me/Code]** Keep the current per-call usage ledger for measured units and vendor-reported values.
+- [ ] **[Me/Code]** Persist exact OpenAI token usage per request and map it into per-call credit events.
+- [ ] **[Me/Code]** Use Twilio call fetch/status data to capture vendor-reported call price when available.
+- [ ] **[Me/Code]** Keep measured Google STT minutes and TTS characters per call as the immediate source of truth for Google usage.
+- [ ] **[Both]** Decide the product credit model: raw vendor pass-through, tiered markup, or bundled monthly credits.
+- [ ] **[Me/Code]** Add a dedicated `credit_ledger` or `usage_events` table so credits are append-only and auditable.
+- [ ] **[Me/Code]** Add nightly reconciliation jobs for provider usage vs stored ledger values.
+- [ ] **[Me/Code]** For true Google invoice-grade accuracy at scale, evaluate Cloud Billing export to BigQuery and map billing rows back to service/SKU/time window.
+- [ ] **[Both]** Add admin reporting for cost per call, average cost per active user, and margin by pricing tier.
 
 

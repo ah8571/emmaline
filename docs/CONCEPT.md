@@ -33,6 +33,7 @@ Emmaline is a hands-free, voice-first AI assistant accessible via phone call. Us
 6. **User authentication** – Basic user accounts and data isolation
 7. **Legal pages** – Create and publish Privacy Policy and Terms of Use
 8. **In-app VoIP-only call path** – Build in-app VoIP as the only call path (no PSTN fallback), and later add dedicated phone numbers per user/org as a separate provisioning layer
+9. Exact Credit Accounting
 
 ### User Flow
 

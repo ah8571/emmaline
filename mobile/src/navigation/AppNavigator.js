@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import LoginScreen from '../screens/LoginScreen';
 import TimelineScreen from '../screens/TimelineScreen';
@@ -71,6 +72,8 @@ const AppHome = () => {
   const [activeScreen, setActiveScreen] = useState('transcripts');
   const [menuOpen, setMenuOpen] = useState(false);
   const { colors, isDarkMode, toggleTheme } = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const headerHeight = 64 + Math.max(insets.top, 10);
 
   const openScreen = (screen) => {
     setActiveScreen(screen);
@@ -79,7 +82,18 @@ const AppHome = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.surface,
+            borderBottomColor: colors.border,
+            minHeight: headerHeight,
+            paddingTop: Math.max(insets.top, 10) + 8,
+            paddingBottom: 12
+          }
+        ]}
+      >
         <TouchableOpacity
           style={styles.menuButton}
           onPress={() => setMenuOpen((open) => !open)}
@@ -97,7 +111,15 @@ const AppHome = () => {
           onPress={toggleTheme}
           activeOpacity={0.85}
         >
-          <Text style={[styles.themeToggleText, { color: colors.text }]}>{isDarkMode ? '☼' : '☾'}</Text>
+          <Text
+            style={[
+              styles.themeToggleText,
+              isDarkMode ? styles.themeToggleTextSun : styles.themeToggleTextMoon,
+              { color: colors.text }
+            ]}
+          >
+            {isDarkMode ? '☼' : '☾'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -108,7 +130,7 @@ const AppHome = () => {
             onPress={() => setMenuOpen(false)}
             activeOpacity={1}
           />
-          <View style={[styles.sideMenu, { backgroundColor: colors.surface, borderRightColor: colors.border }]}>
+          <View style={[styles.sideMenu, { backgroundColor: colors.surface, borderRightColor: colors.border, top: headerHeight }]}>
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => openScreen('transcripts')}
@@ -144,6 +166,20 @@ const AppHome = () => {
 const AppNavigator = ({ onAuthStateChange }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
+  const { colors, isDarkMode } = useAppTheme();
+
+  const navigationTheme = {
+    dark: isDarkMode,
+    colors: {
+      primary: colors.accent,
+      background: colors.background,
+      card: colors.background,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.accent
+    },
+    fonts: undefined
+  };
 
   useEffect(() => {
     const checkAuthStatus = async () => {
@@ -178,9 +214,9 @@ const AppNavigator = ({ onAuthStateChange }) => {
   };
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navigationTheme}>
       {!isAuthenticated ? (
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.background } }}>
           <Stack.Screen 
             name="Login"
             options={{
@@ -191,7 +227,7 @@ const AppNavigator = ({ onAuthStateChange }) => {
           </Stack.Screen>
         </Stack.Navigator>
       ) : (
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.background } }}>
           <Stack.Screen 
             name="App" 
             component={AppHome}
@@ -213,10 +249,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff'
   },
   header: {
-    height: 72,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
-    justifyContent: 'flex-start',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     flexDirection: 'row',
     paddingHorizontal: 16,
@@ -224,31 +259,43 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between'
   },
   menuButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: 'flex-start',
     justifyContent: 'center',
-    marginTop: 10
+    marginTop: 0
   },
   themeToggle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    marginTop: 10
+    marginTop: 0
   },
   themeToggleText: {
-    fontSize: 18,
-    fontWeight: '700'
+    fontSize: 24,
+    fontWeight: '700',
+    includeFontPadding: false,
+    textAlignVertical: 'center'
+  },
+  themeToggleTextMoon: {
+    fontSize: 24,
+    lineHeight: 24,
+    transform: [{ translateY: -1 }]
+  },
+  themeToggleTextSun: {
+    fontSize: 28,
+    lineHeight: 28,
+    transform: [{ translateY: -1 }]
   },
   menuIconBars: {
-    width: 24,
+    width: 28,
     gap: 4
   },
   menuIconBar: {
-    height: 3,
+    height: 3.5,
     borderRadius: 999,
     backgroundColor: '#212529'
   },
@@ -264,7 +311,6 @@ const styles = StyleSheet.create({
   sideMenu: {
     position: 'absolute',
     left: 0,
-    top: 72,
     bottom: 0,
     width: 220,
     paddingTop: 18,
