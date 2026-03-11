@@ -9,6 +9,8 @@ let audioDeviceState = {
 };
 const audioDeviceListeners = new Set();
 let audioDeviceEventsBound = false;
+let muteState = false;
+const muteStateListeners = new Set();
 
 const getVoiceInstance = () => {
   if (!voiceInstance) {
@@ -34,6 +36,21 @@ const updateAudioDeviceState = ({ audioDevices = [], selectedDevice = null } = {
     selectedDevice
   };
   notifyAudioDeviceListeners();
+};
+
+const notifyMuteStateListeners = () => {
+  muteStateListeners.forEach((listener) => {
+    try {
+      listener(muteState);
+    } catch (error) {
+      // Ignore listener failures so mute remains usable.
+    }
+  });
+};
+
+const updateMuteState = (value) => {
+  muteState = Boolean(value);
+  notifyMuteStateListeners();
 };
 
 const handleAudioDevicesUpdated = (audioDevices = [], selectedDevice = null) => {
@@ -146,6 +163,43 @@ export const subscribeToAudioDevices = (listener) => {
   };
 };
 
+export const subscribeToMuteState = (listener) => {
+  muteStateListeners.add(listener);
+  listener(muteState);
+
+  return () => {
+    muteStateListeners.delete(listener);
+  };
+};
+
+export const setCallMuted = async (nextMuted) => {
+  if (!activeCall) {
+    return {
+      success: false,
+      error: 'No active call to mute.'
+    };
+  }
+
+  try {
+    const isMuted = await activeCall.mute(Boolean(nextMuted));
+    updateMuteState(isMuted);
+
+    return {
+      success: true,
+      isMuted
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error?.message || 'Unable to change mute state.'
+    };
+  }
+};
+
+export const toggleMute = async () => {
+  return setCallMuted(!muteState);
+};
+
 export const selectAudioDevice = async (deviceIdentifier) => {
   const currentState = audioDeviceState.audioDevices.length > 0
     ? { success: true, ...audioDeviceState }
@@ -224,6 +278,7 @@ export const startVoiceCall = async ({ token, params = {}, onStatusChange, onErr
     });
 
     activeCall = call;
+    updateMuteState(Boolean(call.isMuted?.() || false));
     refreshAudioDevices().catch(() => {
       // Best-effort sync for audio routes.
     });
@@ -250,6 +305,7 @@ export const startVoiceCall = async ({ token, params = {}, onStatusChange, onErr
     call.on(Call.Event.ConnectFailure, (error) => {
       activeCall = null;
       updateAudioDeviceState({ audioDevices: [], selectedDevice: null });
+      updateMuteState(false);
       onStatusChange?.('failed');
       onError?.(error?.message || 'Failed to connect call');
     });
@@ -257,6 +313,7 @@ export const startVoiceCall = async ({ token, params = {}, onStatusChange, onErr
     call.on(Call.Event.Disconnected, () => {
       activeCall = null;
       updateAudioDeviceState({ audioDevices: [], selectedDevice: null });
+      updateMuteState(false);
       onStatusChange?.('ended');
     });
 
@@ -267,6 +324,7 @@ export const startVoiceCall = async ({ token, params = {}, onStatusChange, onErr
   } catch (error) {
     activeCall = null;
     updateAudioDeviceState({ audioDevices: [], selectedDevice: null });
+    updateMuteState(false);
     onStatusChange?.('failed');
 
     return {
@@ -279,6 +337,7 @@ export const startVoiceCall = async ({ token, params = {}, onStatusChange, onErr
 export const endVoiceCall = async () => {
   if (!activeCall) {
     updateAudioDeviceState({ audioDevices: [], selectedDevice: null });
+    updateMuteState(false);
     return {
       success: true
     };
@@ -288,6 +347,7 @@ export const endVoiceCall = async () => {
     await activeCall.disconnect();
     activeCall = null;
     updateAudioDeviceState({ audioDevices: [], selectedDevice: null });
+    updateMuteState(false);
 
     return {
       success: true
@@ -303,3 +363,5 @@ export const endVoiceCall = async () => {
 export const getVoiceCallActive = () => Boolean(activeCall);
 
 export const getAudioDeviceState = () => audioDeviceState;
+
+export const getMuteState = () => muteState;

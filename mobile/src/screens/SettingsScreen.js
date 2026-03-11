@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import {
   getCallLanguagePreference,
+  getCallResponseDelayPreference,
   getSpeechRatePreference,
+  saveCallResponseDelayPreference,
   saveCallLanguagePreference,
   saveSpeechRatePreference
 } from '../utils/secureStorage.js';
@@ -38,21 +40,43 @@ const SPEECH_RATE_OPTIONS = [
   }
 ];
 
+const RESPONSE_DELAY_OPTIONS = [
+  {
+    value: 900,
+    title: 'Faster',
+    description: 'Emmaline responds sooner after you stop talking. Best for quick back-and-forth.'
+  },
+  {
+    value: 1600,
+    title: 'Balanced',
+    description: 'A middle ground that works well for most conversations.'
+  },
+  {
+    value: 2300,
+    title: 'Patient',
+    description: 'Wait longer before replying if you tend to pause while thinking out loud.'
+  }
+];
+
 const areRatesEqual = (left, right) => Math.abs(Number(left) - Number(right)) < 0.001;
+const areDelayValuesEqual = (left, right) => Number(left) === Number(right);
 
 const SettingsScreen = () => {
   const [callLanguage, setCallLanguage] = useState('en');
   const [speechRate, setSpeechRate] = useState(1);
+  const [callResponseDelayMs, setCallResponseDelayMs] = useState(1600);
 
   useEffect(() => {
     const loadPreferences = async () => {
-      const [savedLanguage, savedSpeechRate] = await Promise.all([
+      const [savedLanguage, savedSpeechRate, savedResponseDelayMs] = await Promise.all([
         getCallLanguagePreference(),
-        getSpeechRatePreference()
+        getSpeechRatePreference(),
+        getCallResponseDelayPreference()
       ]);
 
       setCallLanguage(savedLanguage || 'en');
       setSpeechRate(savedSpeechRate || 1);
+      setCallResponseDelayMs(savedResponseDelayMs || 1600);
     };
 
     loadPreferences();
@@ -73,6 +97,15 @@ const SettingsScreen = () => {
 
     if (!saved) {
       Alert.alert('Settings error', 'Unable to save your speech speed preference.');
+    }
+  };
+
+  const handleSelectResponseDelay = async (value) => {
+    setCallResponseDelayMs(value);
+    const saved = await saveCallResponseDelayPreference(value);
+
+    if (!saved) {
+      Alert.alert('Settings error', 'Unable to save your response timing preference.');
     }
   };
 
@@ -139,6 +172,40 @@ const SettingsScreen = () => {
                 <Text style={styles.optionDescription}>{option.description}</Text>
               </View>
               <Text style={styles.rateBadge}>{option.value.toFixed(2)}x</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Response timing</Text>
+        <Text style={styles.sectionDescription}>
+          Adjust how long Emmaline waits after you stop speaking before it responds.
+        </Text>
+
+        <View style={styles.speedometerCard}>
+          <Text style={styles.speedometerLabel}>Current wait</Text>
+          <Text style={styles.speedometerValue}>{(callResponseDelayMs / 1000).toFixed(1)}s</Text>
+        </View>
+
+        {RESPONSE_DELAY_OPTIONS.map((option) => {
+          const selected = areDelayValuesEqual(callResponseDelayMs, option.value);
+
+          return (
+            <TouchableOpacity
+              key={option.value}
+              style={[styles.optionCard, selected && styles.optionCardSelected]}
+              onPress={() => handleSelectResponseDelay(option.value)}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.radio, selected && styles.radioSelected]}>
+                {selected ? <View style={styles.radioInner} /> : null}
+              </View>
+              <View style={styles.optionContent}>
+                <Text style={styles.optionTitle}>{option.title}</Text>
+                <Text style={styles.optionDescription}>{option.description}</Text>
+              </View>
+              <Text style={styles.rateBadge}>{(option.value / 1000).toFixed(1)}s</Text>
             </TouchableOpacity>
           );
         })}

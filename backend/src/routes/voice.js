@@ -90,12 +90,14 @@ router.post('/connect', verifyTwilioRequest, async (req, res) => {
     const userId = req.body.userId || null;
     const language = req.body.language || 'en';
     const speechRate = req.body.speechRate || '1';
+    const responseDelayMs = req.body.responseDelayMs || '1600';
 
     const twiml = generateClientConnectTwiML({
       userId,
       identity,
       language,
-      speechRate
+      speechRate,
+      responseDelayMs
     });
 
     res.type('text/xml');

@@ -8,12 +8,16 @@ import {
   endVoiceCall,
   ensureMicrophonePermission,
   getAudioDeviceState,
+  getMuteState,
   getVoiceCallActive,
   selectAudioDevice,
   startVoiceCall,
-  subscribeToAudioDevices
+  subscribeToAudioDevices,
+  subscribeToMuteState,
+  toggleMute
 } from './services/voiceService.js';
 import {
+  getCallResponseDelayPreference,
   getCallLanguagePreference,
   getSpeechRatePreference
 } from './utils/secureStorage.js';
@@ -27,8 +31,9 @@ const AppContent = () => {
   const [callStatus, setCallStatus] = useState('idle');
   const [audioDevices, setAudioDevices] = useState([]);
   const [selectedAudioDevice, setSelectedAudioDevice] = useState(null);
+  const [isMuted, setIsMuted] = useState(false);
 
-  const showAudioControls = isCalling && audioDevices.length > 0;
+  const showAudioControls = isCalling;
   const callDockHeight = CALL_DOCK_HEIGHT + (showAudioControls ? 116 : 0) + insets.bottom;
 
   useEffect(() => {
@@ -41,6 +46,12 @@ const AppContent = () => {
     setAudioDevices(currentAudioState.audioDevices || []);
     setSelectedAudioDevice(currentAudioState.selectedDevice || null);
 
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToMuteState(setIsMuted);
+    setIsMuted(getMuteState());
     return unsubscribe;
   }, []);
 
@@ -86,9 +97,10 @@ const AppContent = () => {
       }
 
       const tokenResponse = await getVoiceToken();
-      const [callLanguage, speechRate] = await Promise.all([
+      const [callLanguage, speechRate, callResponseDelayMs] = await Promise.all([
         getCallLanguagePreference(),
-        getSpeechRatePreference()
+        getSpeechRatePreference(),
+        getCallResponseDelayPreference()
       ]);
 
       if (!tokenResponse.success || !tokenResponse.token) {
@@ -107,7 +119,8 @@ const AppContent = () => {
         params: {
           identity: tokenResponse.identity || 'unknown',
           language: callLanguage || 'en',
-          speechRate: String(speechRate || 1)
+          speechRate: String(speechRate || 1),
+          responseDelayMs: String(callResponseDelayMs || 1600)
         },
         onStatusChange: (status) => {
           setCallStatus(status);
@@ -143,6 +156,14 @@ const AppContent = () => {
 
     if (!response.success) {
       Alert.alert('Audio route unavailable', response.error || 'Unable to switch the call audio route.');
+    }
+  };
+
+  const handleToggleMute = async () => {
+    const response = await toggleMute();
+
+    if (!response.success) {
+      Alert.alert('Mute unavailable', response.error || 'Unable to change mute state.');
     }
   };
 
@@ -199,6 +220,8 @@ const AppContent = () => {
             audioRoutes={audioRouteOptions}
             selectedAudioRoute={selectedAudioDevice?.uuid || null}
             onSelectAudioRoute={handleSelectAudioRoute}
+            isMuted={isMuted}
+            onToggleMute={handleToggleMute}
           />
         </>
       ) : null}

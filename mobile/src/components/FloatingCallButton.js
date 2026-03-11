@@ -16,9 +16,11 @@ const FloatingCallButton = ({
   onPress,
   statusLabel = null,
   isActiveCall = false,
+  isMuted = false,
   audioRoutes = [],
   selectedAudioRoute = null,
-  onSelectAudioRoute
+  onSelectAudioRoute,
+  onToggleMute
 }) => {
   const [scaleAnim] = React.useState(new Animated.Value(1));
 
@@ -41,12 +43,24 @@ const FloatingCallButton = ({
     onPress();
   };
 
-  const showAudioRoutes = isActiveCall && audioRoutes.length > 0;
+  const showAudioRoutes = isActiveCall && (audioRoutes.length > 0 || Boolean(onToggleMute));
 
   return (
     <>
       {showAudioRoutes ? (
         <View style={styles.audioRouteCard}>
+          <View style={styles.callActionRow}>
+            <TouchableOpacity
+              style={[styles.callActionButton, isMuted && styles.callActionButtonActive]}
+              onPress={() => onToggleMute?.()}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.callActionButtonText, isMuted && styles.callActionButtonTextActive]}>
+                {isMuted ? 'Unmute' : 'Mute'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           <Text style={styles.audioRouteTitle}>Audio</Text>
           <View style={styles.audioRouteList}>
             {audioRoutes.map((route) => {
@@ -162,6 +176,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#495057',
     marginBottom: 10
+  },
+  callActionRow: {
+    flexDirection: 'row',
+    marginBottom: 12
+  },
+  callActionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#f1f3f5'
+  },
+  callActionButtonActive: {
+    backgroundColor: '#ffe3e3'
+  },
+  callActionButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#495057'
+  },
+  callActionButtonTextActive: {
+    color: '#c92a2a'
   },
   audioRouteList: {
     flexDirection: 'row',

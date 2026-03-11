@@ -10,7 +10,8 @@ const USER_KEY = 'emmaline_user';
 const PREFERENCES_KEY = 'emmaline_preferences';
 const DEFAULT_PREFERENCES = {
   callLanguage: 'en',
-  speechRate: 1
+  speechRate: 1,
+  callResponseDelayMs: 1600
 };
 
 /**
@@ -160,6 +161,21 @@ export const saveSpeechRatePreference = async (speechRate) => {
   return savePreferences({ speechRate: Number(speechRate) });
 };
 
+export const getCallResponseDelayPreference = async () => {
+  const preferences = await getPreferences();
+  const responseDelayMs = Number(preferences.callResponseDelayMs);
+
+  if (!Number.isFinite(responseDelayMs)) {
+    return DEFAULT_PREFERENCES.callResponseDelayMs;
+  }
+
+  return responseDelayMs;
+};
+
+export const saveCallResponseDelayPreference = async (callResponseDelayMs) => {
+  return savePreferences({ callResponseDelayMs: Number(callResponseDelayMs) });
+};
+
 /**
  * Logout - clear all auth data
  */
@@ -188,5 +204,7 @@ export default {
   saveCallLanguagePreference,
   getSpeechRatePreference,
   saveSpeechRatePreference,
+  getCallResponseDelayPreference,
+  saveCallResponseDelayPreference,
   logout
 };

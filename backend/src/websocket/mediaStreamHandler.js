@@ -73,6 +73,16 @@ const normalizeSpeechRatePreference = (value) => {
   return Math.min(1.15, Math.max(0.75, parsed));
 };
 
+const normalizeTurnResponseDelayPreference = (value) => {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return TURN_RESPONSE_DELAY_MS;
+  }
+
+  return Math.min(3000, Math.max(700, parsed));
+};
+
 const normalizeTranscriptText = (value) => {
   return String(value || '')
     .replace(/\s+/g, ' ')
@@ -211,6 +221,10 @@ const clearPendingTurnTimer = (mediaConnection) => {
   }
 };
 
+const getTurnResponseDelayMs = (mediaConnection) => {
+  return Number(mediaConnection?.turnResponseDelayMs || TURN_RESPONSE_DELAY_MS);
+};
+
 const markSpeechActivity = (mediaConnection) => {
   mediaConnection.lastSpeechEventAt = Date.now();
 };
@@ -323,7 +337,7 @@ const sendAssistantReply = async (ws, mediaConnection, text, options = {}) => {
   return reply;
 };
 
-const schedulePendingTurnProcessing = (mediaConnection, ws, delayMs = TURN_RESPONSE_DELAY_MS) => {
+const schedulePendingTurnProcessing = (mediaConnection, ws, delayMs = getTurnResponseDelayMs(mediaConnection)) => {
   clearPendingTurnTimer(mediaConnection);
 
   mediaConnection.pendingTurnTimer = setTimeout(async () => {
@@ -333,7 +347,7 @@ const schedulePendingTurnProcessing = (mediaConnection, ws, delayMs = TURN_RESPO
       }
 
       if (mediaConnection.isResponding) {
-        schedulePendingTurnProcessing(mediaConnection, ws, TURN_RESPONSE_DELAY_MS);
+        schedulePendingTurnProcessing(mediaConnection, ws, getTurnResponseDelayMs(mediaConnection));
         return;
       }
 
@@ -343,8 +357,10 @@ const schedulePendingTurnProcessing = (mediaConnection, ws, delayMs = TURN_RESPO
       }
 
       const silenceElapsedMs = Date.now() - Number(mediaConnection.lastSpeechEventAt || 0);
-      if (silenceElapsedMs < TURN_RESPONSE_DELAY_MS) {
-        schedulePendingTurnProcessing(mediaConnection, ws, TURN_RESPONSE_DELAY_MS - silenceElapsedMs);
+      const targetDelayMs = getTurnResponseDelayMs(mediaConnection);
+
+      if (silenceElapsedMs < targetDelayMs) {
+        schedulePendingTurnProcessing(mediaConnection, ws, targetDelayMs - silenceElapsedMs);
         return;
       }
 
@@ -392,7 +408,7 @@ const schedulePendingTurnProcessing = (mediaConnection, ws, delayMs = TURN_RESPO
         mediaConnection.isResponding = false;
 
         if (getPendingUserTurnText(mediaConnection)) {
-          schedulePendingTurnProcessing(mediaConnection, ws, TURN_RESPONSE_DELAY_MS);
+          schedulePendingTurnProcessing(mediaConnection, ws, getTurnResponseDelayMs(mediaConnection));
         }
       }
     } catch (error) {
@@ -656,6 +672,7 @@ function handleStart(message, mediaConnection, ws) {
   const identity = customParameters?.identity || null;
   const languagePreference = resolveLanguagePreference(customParameters?.language);
   const speechRatePreference = normalizeSpeechRatePreference(customParameters?.speechRate);
+  const turnResponseDelayMs = normalizeTurnResponseDelayPreference(customParameters?.responseDelayMs);
   const languageConfig = resolveCallLanguageConfig(languagePreference);
 
   mediaConnection.activate();
@@ -664,6 +681,7 @@ function handleStart(message, mediaConnection, ws) {
   mediaConnection.userId = mediaConnection.userId || parseUserIdFromIdentity(identity);
   mediaConnection.languagePreference = languagePreference;
   mediaConnection.speechRatePreference = speechRatePreference;
+  mediaConnection.turnResponseDelayMs = turnResponseDelayMs;
   mediaConnection.conversationHistory = [];
   mediaConnection.lastFinalTranscript = null;
   mediaConnection.lastSpeechEventAt = Date.now();
@@ -681,6 +699,7 @@ function handleStart(message, mediaConnection, ws) {
   console.log(`   Identity: ${identity || 'unknown'}`);
   console.log(`   Language: ${languagePreference}`);
   console.log(`   Speech rate: ${speechRatePreference}`);
+  console.log(`   Response delay: ${turnResponseDelayMs}ms`);
 
   ensureRecognizer(mediaConnection, ws, 'initial');
 
