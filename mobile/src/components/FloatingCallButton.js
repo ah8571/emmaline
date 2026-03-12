@@ -29,8 +29,6 @@ const FloatingCallButton = ({
   const floatingBottom = Math.max(bottomInset, 12) + 16;
   const statusBottom = floatingBottom + 116;
   const audioCardBottom = floatingBottom + 80;
-  const circleBackgroundColor = isDarkMode ? '#0b0b0b' : '#ffffff';
-  const circleBorderColor = isDarkMode ? '#ffffff' : '#111111';
   const circleIconColor = isDarkMode ? '#ffffff' : '#111111';
 
   const handlePressIn = () => {
@@ -112,10 +110,6 @@ const FloatingCallButton = ({
         <TouchableOpacity
           style={[
             styles.button,
-            {
-              backgroundColor: circleBackgroundColor,
-              borderColor: circleBorderColor
-            },
             isActiveCall && styles.buttonActive
           ]}
           onPress={handlePress}
@@ -143,35 +137,27 @@ const styles = StyleSheet.create({
     zIndex: 999
   },
   button: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: '#111111',
+    width: 72,
+    height: 72,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 12
+    backgroundColor: 'transparent'
   },
   buttonActive: {
     transform: [{ scale: 1 }]
   },
   phoneIcon: {
-    width: 66,
+    width: 72,
     textAlign: 'center',
-    fontSize: 66,
-    lineHeight: 66,
+    fontSize: 74,
+    lineHeight: 74,
     includeFontPadding: false,
     color: '#111111',
-    transform: [{ translateY: -3 }]
+    transform: [{ translateY: -5 }]
   },
   endCallIcon: {
-    fontSize: 30,
-    lineHeight: 30,
+    fontSize: 42,
+    lineHeight: 42,
     includeFontPadding: false,
     color: '#111111'
   },

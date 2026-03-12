@@ -31,6 +31,7 @@ const CreateNoteScreen = ({ route, navigation }) => {
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [topics, setTopics] = useState([]);
   const [saveState, setSaveState] = useState(existingNote?.id ? 'Saved' : 'Idle');
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const isEditing = useMemo(() => Boolean(noteId || existingNote?.id), [existingNote?.id, noteId]);
   const richTextRef = useRef(null);
   const pendingContentRef = useRef(content);
@@ -259,6 +260,23 @@ const CreateNoteScreen = ({ route, navigation }) => {
   }, []);
 
   useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSubscription = Keyboard.addListener(showEvent, () => {
+      setKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
     if (isHydratingRef.current) {
       return undefined;
     }
@@ -315,7 +333,14 @@ const CreateNoteScreen = ({ route, navigation }) => {
         </Text>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={[
+          styles.contentContainer,
+          keyboardVisible ? styles.contentContainerWithKeyboard : null
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
         <TextInput
           style={[styles.titleInput, { color: colors.text, borderBottomColor: colors.border }]}
           placeholder="Note Title"
@@ -326,40 +351,6 @@ const CreateNoteScreen = ({ route, navigation }) => {
         />
 
         <View style={styles.editorShell}>
-          <RichToolbar
-            editor={richTextRef}
-            style={[styles.toolbar, { backgroundColor: colors.background }]}
-            selectedIconTint={colors.accent}
-            iconTint={colors.text}
-            disabledIconTint={colors.mutedText}
-            actions={[
-              actions.setBold,
-              actions.setItalic,
-              actions.setUnderline,
-              actions.heading1,
-              actions.heading2,
-              actions.setParagraph,
-              actions.removeFormat,
-              actions.insertBulletsList,
-              actions.insertOrderedList,
-              actions.undo,
-              actions.redo
-            ]}
-            iconMap={{
-              [actions.setBold]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>B</Text>,
-              [actions.setItalic]: ({ tintColor }) => <Text style={[styles.toolbarIconText, styles.toolbarIconItalic, { color: tintColor }]}>I</Text>,
-              [actions.setUnderline]: ({ tintColor }) => <Text style={[styles.toolbarIconText, styles.toolbarIconUnderline, { color: tintColor }]}>U</Text>,
-              [actions.heading1]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>H1</Text>,
-              [actions.heading2]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>H2</Text>,
-                [actions.setParagraph]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>P</Text>,
-                [actions.removeFormat]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>Tx</Text>,
-              [actions.insertBulletsList]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>•</Text>,
-                [actions.insertOrderedList]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>1.</Text>,
-                [actions.undo]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>↶</Text>,
-                [actions.redo]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>↷</Text>
-            }}
-          />
-
           <RichEditor
             key={existingNote?.id || 'new-note'}
             ref={richTextRef}
@@ -420,6 +411,44 @@ const CreateNoteScreen = ({ route, navigation }) => {
           </View>
         ) : null}
       </ScrollView>
+
+      {keyboardVisible ? (
+        <View style={[styles.toolbarDock, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <RichToolbar
+            editor={richTextRef}
+            style={[styles.toolbar, { backgroundColor: colors.surface }]}
+            selectedIconTint={colors.accent}
+            iconTint={colors.text}
+            disabledIconTint={colors.mutedText}
+            actions={[
+              actions.setBold,
+              actions.setItalic,
+              actions.setUnderline,
+              actions.heading1,
+              actions.heading2,
+              actions.setParagraph,
+              actions.removeFormat,
+              actions.insertBulletsList,
+              actions.insertOrderedList,
+              actions.undo,
+              actions.redo
+            ]}
+            iconMap={{
+              [actions.setBold]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>B</Text>,
+              [actions.setItalic]: ({ tintColor }) => <Text style={[styles.toolbarIconText, styles.toolbarIconItalic, { color: tintColor }]}>I</Text>,
+              [actions.setUnderline]: ({ tintColor }) => <Text style={[styles.toolbarIconText, styles.toolbarIconUnderline, { color: tintColor }]}>U</Text>,
+              [actions.heading1]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>H1</Text>,
+              [actions.heading2]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>H2</Text>,
+              [actions.setParagraph]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>P</Text>,
+              [actions.removeFormat]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>Tx</Text>,
+              [actions.insertBulletsList]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>•</Text>,
+              [actions.insertOrderedList]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>1.</Text>,
+              [actions.undo]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>↶</Text>,
+              [actions.redo]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>↷</Text>
+            }}
+          />
+        </View>
+      ) : null}
     </KeyboardAvoidingView>
   );
 };
@@ -460,8 +489,13 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 16
+  },
+  contentContainer: {
     paddingBottom: 32
+  },
+  contentContainerWithKeyboard: {
+    paddingBottom: 92
   },
   titleInput: {
     fontSize: 20,
@@ -491,6 +525,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
     paddingHorizontal: 0,
     minHeight: 46
+  },
+  toolbarDock: {
+    borderTopWidth: 1,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 18 : 10
   },
   toolbarIconText: {
     fontSize: 15,
