@@ -72,7 +72,7 @@ const estimateCreditsFromUsd = (value) => {
   return Math.max(1, Math.ceil(usd * 100));
 };
 
-const SettingsScreen = () => {
+const SettingsScreen = ({ onLogout }) => {
   const { colors, isDarkMode, toggleTheme } = useAppTheme();
   const [callLanguage, setCallLanguage] = useState('en');
   const [speechRate, setSpeechRate] = useState(1);
@@ -170,6 +170,24 @@ const SettingsScreen = () => {
     if (!saved) {
       Alert.alert('Settings error', 'Unable to save your response timing preference.');
     }
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Log out',
+      'Log out of Emmaline on this device?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Log out',
+          style: 'destructive',
+          onPress: () => onLogout?.()
+        }
+      ]
+    );
   };
 
   return (
@@ -325,6 +343,19 @@ const SettingsScreen = () => {
           );
         })}
       </View>
+
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Account</Text>
+        <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>End your current session on this device.</Text>
+
+        <TouchableOpacity
+          style={[styles.logoutButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          onPress={handleLogout}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.logoutButtonText}>Log out</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 };
@@ -467,6 +498,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#495057',
     lineHeight: 18
+  },
+  logoutButton: {
+    minHeight: 54,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16
+  },
+  logoutButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#b42318'
   }
 });
 

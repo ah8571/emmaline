@@ -143,9 +143,9 @@ const styles = StyleSheet.create({
     zIndex: 999
   },
   button: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: '#ffffff',
     borderWidth: 2,
     borderColor: '#111111',
@@ -161,10 +161,13 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1 }]
   },
   phoneIcon: {
-    fontSize: 40,
-    lineHeight: 40,
+    width: 54,
+    textAlign: 'center',
+    fontSize: 54,
+    lineHeight: 54,
     includeFontPadding: false,
-    color: '#111111'
+    color: '#111111',
+    transform: [{ translateY: -1 }]
   },
   endCallIcon: {
     fontSize: 30,

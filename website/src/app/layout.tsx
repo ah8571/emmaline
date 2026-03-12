@@ -5,9 +5,9 @@ export const metadata: Metadata = {
   title: 'Emmaline - Your AI Phone Call Buddy',
   description: 'An intelligent companion for phone conversations. Get smarter with every call.',
   icons: {
-    icon: '/black outline favicon.png',
+    icon: '/favicon.png',
     apple: '/apple-touch-icon.png',
-    shortcut: '/black outline favicon.png'
+    shortcut: '/favicon.png'
   },
   openGraph: {
     title: 'Emmaline - Your AI Phone Call Buddy',

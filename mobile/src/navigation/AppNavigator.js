@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ import CallDetailScreen from '../screens/CallDetailScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import { isAuthenticated as hasAuthToken, getUser } from '../utils/secureStorage.js';
 import { useAppTheme } from '../theme/appTheme.js';
+import { logoutUser } from '../services/api.js';
 
 const Stack = createStackNavigator();
 
@@ -68,7 +69,7 @@ const NotesStack = () => {
   );
 };
 
-const AppHome = () => {
+const AppHome = ({ onLogout }) => {
   const [activeScreen, setActiveScreen] = useState('transcripts');
   const [menuOpen, setMenuOpen] = useState(false);
   const { colors, isDarkMode, toggleTheme } = useAppTheme();
@@ -78,6 +79,25 @@ const AppHome = () => {
   const openScreen = (screen) => {
     setActiveScreen(screen);
     setMenuOpen(false);
+  };
+
+  const handleLogoutPress = () => {
+    setMenuOpen(false);
+    Alert.alert(
+      'Log out',
+      'Log out of Emmaline on this device?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Log out',
+          style: 'destructive',
+          onPress: () => onLogout?.()
+        }
+      ]
+    );
   };
 
   return (
@@ -153,12 +173,19 @@ const AppHome = () => {
             >
               <Text style={[styles.menuItemText, { color: colors.text }]}>Settings</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.menuItem, styles.menuItemLast, { borderTopColor: colors.border }]}
+              onPress={handleLogoutPress}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.menuItemDangerText}>Log out</Text>
+            </TouchableOpacity>
           </View>
         </View>
       ) : null}
 
       <View style={[styles.content, { backgroundColor: colors.background }]}>
-        {activeScreen === 'transcripts' ? <TranscriptStack /> : activeScreen === 'notes' ? <NotesStack /> : <SettingsScreen />}
+        {activeScreen === 'transcripts' ? <TranscriptStack /> : activeScreen === 'notes' ? <NotesStack /> : <SettingsScreen onLogout={onLogout} />}
       </View>
     </View>
   );
@@ -214,6 +241,19 @@ const AppNavigator = ({ onAuthStateChange }) => {
     onAuthStateChange?.(true);
   };
 
+  const handleLogout = async () => {
+    const response = await logoutUser();
+
+    if (!response.success) {
+      Alert.alert('Logout failed', response.error || 'Unable to log out right now.');
+      return;
+    }
+
+    setUser(null);
+    setIsAuthenticated(false);
+    onAuthStateChange?.(false);
+  };
+
   return (
     <NavigationContainer theme={navigationTheme}>
       {!isAuthenticated ? (
@@ -231,11 +271,12 @@ const AppNavigator = ({ onAuthStateChange }) => {
         <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.background } }}>
           <Stack.Screen 
             name="App" 
-            component={AppHome}
             options={{
               animationEnabled: false
             }}
-          />
+          >
+            {() => <AppHome onLogout={handleLogout} />}
+          </Stack.Screen>
         </Stack.Navigator>
       )}
     </NavigationContainer>
@@ -322,9 +363,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 16
   },
+  menuItemLast: {
+    marginTop: 4,
+    borderTopWidth: 1
+  },
   menuItemText: {
     fontSize: 15,
     color: '#212529'
+  },
+  menuItemDangerText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#b42318'
   },
   content: {
     flex: 1

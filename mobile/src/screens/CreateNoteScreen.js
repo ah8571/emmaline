@@ -10,7 +10,7 @@ import {
   Platform
 } from 'react-native';
 import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
-import { createNote, getTopics, updateNote } from '../services/api.js';
+import { createNote, getNote, getTopics, updateNote } from '../services/api.js';
 import { useAppTheme } from '../theme/appTheme.js';
 import { normalizeNoteContentToHtml } from '../utils/noteContent.js';
 
@@ -28,18 +28,50 @@ const CreateNoteScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(false);
   const isEditing = useMemo(() => Boolean(existingNote?.id), [existingNote?.id]);
   const richTextRef = useRef(null);
+  const pendingContentRef = useRef(content);
 
-  useEffect(() => {
-    const normalizedContent = normalizeNoteContentToHtml(existingNote?.content || '');
+  const hydrateNote = (noteRecord) => {
+    const normalizedContent = normalizeNoteContentToHtml(noteRecord?.content || '');
 
-    setTitle(existingNote?.title || '');
-    setSelectedTopic(existingNote?.topicId || null);
+    setTitle(noteRecord?.title || '');
+    setSelectedTopic(noteRecord?.topicId || null);
     setContent(normalizedContent);
+    pendingContentRef.current = normalizedContent;
 
     requestAnimationFrame(() => {
-      richTextRef.current?.setContentHTML?.(normalizedContent);
+      richTextRef.current?.setContentHTML?.(normalizedContent || '<p></p>');
     });
+  };
+
+  useEffect(() => {
+    pendingContentRef.current = content;
+  }, [content]);
+
+  useEffect(() => {
+    hydrateNote(existingNote);
   }, [existingNote?.id, existingNote?.title, existingNote?.content, existingNote?.topicId]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadFullNote = async () => {
+      if (!existingNote?.id) {
+        return;
+      }
+
+      const response = await getNote(existingNote.id);
+
+      if (isActive && response.success && response.note) {
+        hydrateNote(response.note);
+      }
+    };
+
+    loadFullNote();
+
+    return () => {
+      isActive = false;
+    };
+  }, [existingNote?.id]);
 
   useEffect(() => {
     const loadTopics = async () => {
@@ -131,10 +163,17 @@ const CreateNoteScreen = ({ route, navigation }) => {
           />
 
           <RichEditor
+            key={existingNote?.id || 'new-note'}
             ref={richTextRef}
-            initialContentHTML={content}
+            initialContentHTML={content || '<p></p>'}
             placeholder="Start typing your note..."
-            onChange={(nextContent) => setContent(nextContent)}
+            editorInitializedCallback={() => {
+              richTextRef.current?.setContentHTML?.(pendingContentRef.current || '<p></p>');
+            }}
+            onChange={(nextContent) => {
+              pendingContentRef.current = nextContent || '';
+              setContent(nextContent || '');
+            }}
             useContainer={false}
             initialHeight={320}
             disabled={loading}

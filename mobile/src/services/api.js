@@ -315,6 +315,26 @@ export const getNotes = async (topic = null, limit = 50, offset = 0) => {
 };
 
 /**
+ * Get a specific note
+ */
+export const getNote = async (noteId) => {
+  try {
+    await addTokenToHeaders();
+    const response = await apiClient.get(`/notes/${noteId}`);
+
+    return {
+      success: true,
+      note: response.data.note
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
  * Get all topics
  */
 export const getTopics = async () => {
@@ -481,6 +501,7 @@ export default {
 
   // Notes
   getNotes,
+  getNote,
   getTopics,
   createNote,
   updateNote,

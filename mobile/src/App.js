@@ -82,6 +82,22 @@ const AppContent = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      return;
+    }
+
+    setIsCalling(false);
+    setCallStatus('idle');
+    setAudioDevices([]);
+    setSelectedAudioDevice(null);
+    setIsMuted(false);
+
+    endVoiceCall().catch(() => {
+      // Best-effort cleanup when the user logs out.
+    });
+  }, [isAuthenticated]);
+
   const handleInitiateCall = async () => {
     if (getVoiceCallActive()) {
       const endResponse = await endVoiceCall();
