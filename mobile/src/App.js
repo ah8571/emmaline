@@ -98,6 +98,18 @@ const AppContent = () => {
     });
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    if (callStatus !== 'ended' && callStatus !== 'failed') {
+      return undefined;
+    }
+
+    const statusTimer = setTimeout(() => {
+      setCallStatus('idle');
+    }, 2200);
+
+    return () => clearTimeout(statusTimer);
+  }, [callStatus]);
+
   const handleInitiateCall = async () => {
     if (getVoiceCallActive()) {
       const endResponse = await endVoiceCall();

@@ -161,13 +161,13 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1 }]
   },
   phoneIcon: {
-    width: 54,
+    width: 66,
     textAlign: 'center',
-    fontSize: 54,
-    lineHeight: 54,
+    fontSize: 66,
+    lineHeight: 66,
     includeFontPadding: false,
     color: '#111111',
-    transform: [{ translateY: -1 }]
+    transform: [{ translateY: -3 }]
   },
   endCallIcon: {
     fontSize: 30,
