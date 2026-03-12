@@ -353,7 +353,7 @@ const SettingsScreen = ({ onLogout }) => {
           onPress={handleLogout}
           activeOpacity={0.85}
         >
-          <Text style={styles.logoutButtonText}>Log out</Text>
+          <Text style={[styles.logoutButtonText, { color: colors.text }]}>Log out</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
   logoutButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#b42318'
+    color: '#212529'
   }
 });
 

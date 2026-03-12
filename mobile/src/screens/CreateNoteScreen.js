@@ -13,7 +13,10 @@ import {
 import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
 import { createNote, getNote, getTopics, updateNote } from '../services/api.js';
 import { useAppTheme } from '../theme/appTheme.js';
-import { normalizeNoteContentToHtml } from '../utils/noteContent.js';
+import { normalizeNoteContentToHtml, stripNoteContentToPlainText } from '../utils/noteContent.js';
+
+const AUTO_SAVE_DELAY_MS = 900;
+const UNTITLED_NOTE_TITLE = 'Untitled note';
 
 /**
  * CreateNoteScreen
@@ -22,35 +25,201 @@ import { normalizeNoteContentToHtml } from '../utils/noteContent.js';
 const CreateNoteScreen = ({ route, navigation }) => {
   const { colors } = useAppTheme();
   const existingNote = route?.params?.note || null;
+  const [noteId, setNoteId] = useState(existingNote?.id || null);
   const [title, setTitle] = useState(existingNote?.title || '');
   const [content, setContent] = useState(normalizeNoteContentToHtml(existingNote?.content || ''));
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [topics, setTopics] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const isEditing = useMemo(() => Boolean(existingNote?.id), [existingNote?.id]);
+  const [saveState, setSaveState] = useState(existingNote?.id ? 'Saved' : 'Idle');
+  const isEditing = useMemo(() => Boolean(noteId || existingNote?.id), [existingNote?.id, noteId]);
   const richTextRef = useRef(null);
   const pendingContentRef = useRef(content);
+  const noteIdRef = useRef(existingNote?.id || null);
+  const draftRef = useRef({
+    title: existingNote?.title || '',
+    content: normalizeNoteContentToHtml(existingNote?.content || ''),
+    selectedTopic: existingNote?.topicId || null
+  });
+  const isHydratingRef = useRef(false);
+  const saveInFlightRef = useRef(false);
+  const saveQueuedRef = useRef(false);
+  const autoSaveTimeoutRef = useRef(null);
+  const lastSavedSnapshotRef = useRef('');
+  const isMountedRef = useRef(true);
+
+  const updateSaveState = (nextValue) => {
+    if (isMountedRef.current) {
+      setSaveState(nextValue);
+    }
+  };
+
+  const clearAutoSaveTimeout = () => {
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+      autoSaveTimeoutRef.current = null;
+    }
+  };
+
+  const buildDraftPayload = () => {
+    const nextTitle = String(draftRef.current.title || '').trim();
+    const nextContent = String(draftRef.current.content || '').trim();
+    const nextTopicId = draftRef.current.selectedTopic || null;
+    const plainTextContent = stripNoteContentToPlainText(nextContent).trim();
+
+    if (!nextTitle && !plainTextContent && !nextTopicId) {
+      return null;
+    }
+
+    const effectiveTitle = nextTitle || UNTITLED_NOTE_TITLE;
+    const normalizedContent = normalizeNoteContentToHtml(nextContent, { title: effectiveTitle });
+
+    return {
+      title: effectiveTitle,
+      content: normalizedContent,
+      topicId: nextTopicId
+    };
+  };
+
+  const buildSnapshot = ({ noteId: snapshotNoteId = noteIdRef.current, title: snapshotTitle, content: snapshotContent, topicId }) => {
+    return JSON.stringify({
+      noteId: snapshotNoteId || null,
+      title: snapshotTitle || '',
+      content: snapshotContent || '',
+      topicId: topicId || null
+    });
+  };
+
+  const flushAutoSave = async (force = false) => {
+    clearAutoSaveTimeout();
+
+    if (isHydratingRef.current) {
+      return true;
+    }
+
+    const payload = buildDraftPayload();
+
+    if (!payload) {
+      updateSaveState('Idle');
+      return true;
+    }
+
+    const snapshot = buildSnapshot(payload);
+
+    if (!force && snapshot === lastSavedSnapshotRef.current) {
+      updateSaveState('Saved');
+      return true;
+    }
+
+    if (saveInFlightRef.current) {
+      saveQueuedRef.current = true;
+      return true;
+    }
+
+    saveInFlightRef.current = true;
+    updateSaveState('Saving...');
+
+    try {
+      const currentNoteId = noteIdRef.current;
+      const response = currentNoteId
+        ? await updateNote(currentNoteId, payload.title, payload.content, payload.topicId)
+        : await createNote(payload.title, payload.content, payload.topicId);
+
+      if (!response.success) {
+        throw new Error(response.error || 'Unable to save note');
+      }
+
+      const savedNote = response.note || {};
+      const savedNoteId = savedNote.id || currentNoteId || null;
+      const savedTitle = savedNote.title || payload.title;
+      const savedTopicId = savedNote.topicId ?? payload.topicId ?? null;
+      const savedContent = normalizeNoteContentToHtml(savedNote.content || payload.content, {
+        title: savedTitle
+      });
+
+      noteIdRef.current = savedNoteId;
+      if (savedNoteId !== noteId) {
+        setNoteId(savedNoteId);
+      }
+
+      lastSavedSnapshotRef.current = buildSnapshot({
+        noteId: savedNoteId,
+        title: savedTitle,
+        content: savedContent,
+        topicId: savedTopicId
+      });
+
+      navigation.setParams?.({
+        note: {
+          ...(existingNote || {}),
+          ...(savedNote || {}),
+          id: savedNoteId,
+          title: savedTitle,
+          content: savedContent,
+          topicId: savedTopicId
+        }
+      });
+
+      updateSaveState('Saved');
+      return true;
+    } catch (error) {
+      updateSaveState('Save failed');
+      return false;
+    } finally {
+      saveInFlightRef.current = false;
+
+      if (saveQueuedRef.current) {
+        saveQueuedRef.current = false;
+        flushAutoSave();
+      }
+    }
+  };
 
   const hydrateNote = (noteRecord) => {
+    isHydratingRef.current = true;
+
     const normalizedContent = normalizeNoteContentToHtml(noteRecord?.content || '', {
       title: noteRecord?.title || ''
     });
 
+    const hydratedNoteId = noteRecord?.id || null;
+
+    noteIdRef.current = hydratedNoteId;
+    setNoteId(hydratedNoteId);
     setTitle(noteRecord?.title || '');
     setSelectedTopic(noteRecord?.topicId || null);
     setContent(normalizedContent);
+    draftRef.current = {
+      title: noteRecord?.title || '',
+      content: normalizedContent,
+      selectedTopic: noteRecord?.topicId || null
+    };
     pendingContentRef.current = normalizedContent;
+    lastSavedSnapshotRef.current = hydratedNoteId
+      ? buildSnapshot({
+          noteId: hydratedNoteId,
+          title: noteRecord?.title || '',
+          content: normalizedContent,
+          topicId: noteRecord?.topicId || null
+        })
+      : '';
+    updateSaveState(hydratedNoteId ? 'Saved' : 'Idle');
 
     requestAnimationFrame(() => {
       richTextRef.current?.setContentHTML?.(normalizedContent || '<p></p>');
       richTextRef.current?.blurContentEditor?.();
       Keyboard.dismiss();
+      isHydratingRef.current = false;
     });
   };
 
   useEffect(() => {
     pendingContentRef.current = content;
-  }, [content]);
+    draftRef.current = {
+      title,
+      content,
+      selectedTopic
+    };
+  }, [content, selectedTopic, title]);
 
   useEffect(() => {
     hydrateNote(existingNote);
@@ -89,38 +258,47 @@ const CreateNoteScreen = ({ route, navigation }) => {
     loadTopics();
   }, []);
 
-  const handleSave = async () => {
-    if (!title.trim()) {
-      alert('Please add a title');
-      return;
+  useEffect(() => {
+    if (isHydratingRef.current) {
+      return undefined;
     }
 
-    setLoading(true);
-    try {
-      const response = isEditing
-        ? await updateNote(
-            existingNote.id,
-            title.trim(),
-            normalizeNoteContentToHtml(content.trim(), { title: title.trim() }),
-            selectedTopic
-          )
-        : await createNote(
-            title.trim(),
-            normalizeNoteContentToHtml(content.trim(), { title: title.trim() }),
-            selectedTopic
-          );
+    const payload = buildDraftPayload();
 
-      if (!response.success) {
-        throw new Error(response.error || 'Unable to save note');
-      }
-
-      navigation.goBack();
-    } catch (error) {
-      alert(error.message || 'Error saving note');
-    } finally {
-      setLoading(false);
+    if (!payload) {
+      clearAutoSaveTimeout();
+      updateSaveState('Idle');
+      return undefined;
     }
-  };
+
+    const nextSnapshot = buildSnapshot(payload);
+
+    if (nextSnapshot === lastSavedSnapshotRef.current) {
+      clearAutoSaveTimeout();
+      updateSaveState('Saved');
+      return undefined;
+    }
+
+    updateSaveState('Unsaved');
+    clearAutoSaveTimeout();
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      flushAutoSave();
+    }, AUTO_SAVE_DELAY_MS);
+
+    return () => {
+      clearAutoSaveTimeout();
+    };
+  }, [title, content, selectedTopic]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      clearAutoSaveTimeout();
+      flushAutoSave(true).catch(() => {
+        // Best-effort save when leaving the note screen.
+      });
+    };
+  }, []);
 
   return (
     <KeyboardAvoidingView
@@ -129,14 +307,12 @@ const CreateNoteScreen = ({ route, navigation }) => {
     >
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={[styles.cancelButton, { color: colors.mutedText }]}>Cancel</Text>
+          <Text style={[styles.backButton, { color: colors.mutedText }]}>Back</Text>
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>{isEditing ? 'Edit Note' : 'New Note'}</Text>
-        <TouchableOpacity onPress={handleSave} disabled={loading}>
-          <Text style={[styles.saveButton, { color: colors.accent }, loading && styles.disabledButton]}>
-            {loading ? 'Saving...' : 'Save'}
-          </Text>
-        </TouchableOpacity>
+        <Text style={[styles.saveStateText, { color: saveState === 'Save failed' ? colors.mutedText : colors.mutedText }]}>
+          {saveState === 'Idle' ? '' : saveState}
+        </Text>
       </View>
 
       <ScrollView style={styles.content}>
@@ -146,7 +322,7 @@ const CreateNoteScreen = ({ route, navigation }) => {
           placeholderTextColor={colors.mutedText}
           value={title}
           onChangeText={setTitle}
-          editable={!loading}
+          editable
         />
 
         <View style={styles.editorShell}>
@@ -202,7 +378,7 @@ const CreateNoteScreen = ({ route, navigation }) => {
             style={styles.richEditor}
             useContainer
             initialHeight={320}
-            disabled={loading}
+            disabled={false}
             editorStyle={{
               backgroundColor: colors.background,
               color: colors.text,
@@ -268,14 +444,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#212529'
   },
-  cancelButton: {
+  backButton: {
     color: '#6c757d',
     fontSize: 14
   },
-  saveButton: {
-    color: '#007AFF',
-    fontSize: 14,
-    fontWeight: '600'
+  saveStateText: {
+    minWidth: 72,
+    textAlign: 'right',
+    fontSize: 13,
+    color: '#6c757d'
   },
   disabledButton: {
     opacity: 0.5

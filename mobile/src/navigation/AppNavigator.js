@@ -178,7 +178,7 @@ const AppHome = ({ onLogout }) => {
               onPress={handleLogoutPress}
               activeOpacity={0.8}
             >
-              <Text style={styles.menuItemDangerText}>Log out</Text>
+              <Text style={[styles.menuItemDangerText, { color: colors.text }]}>Log out</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   menuItemDangerText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#b42318'
+    color: '#212529'
   },
   content: {
     flex: 1
