@@ -119,7 +119,7 @@ const AppHome = () => {
               { color: colors.text }
             ]}
           >
-            {isDarkMode ? '☀' : '☾'}
+            {isDarkMode ? '☼' : '☾'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -282,11 +282,13 @@ const styles = StyleSheet.create({
   },
   themeToggleTextMoon: {
     fontSize: 27,
-    lineHeight: 27
+    lineHeight: 27,
+    transform: [{ translateY: -1 }]
   },
   themeToggleTextSun: {
-    fontSize: 28,
-    lineHeight: 28
+    fontSize: 29,
+    lineHeight: 29,
+    transform: [{ translateY: -1 }]
   },
   menuIconBars: {
     width: 28,

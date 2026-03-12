@@ -30,9 +30,16 @@ const CreateNoteScreen = ({ route, navigation }) => {
   const richTextRef = useRef(null);
 
   useEffect(() => {
+    const normalizedContent = normalizeNoteContentToHtml(existingNote?.content || '');
+
+    setTitle(existingNote?.title || '');
     setSelectedTopic(existingNote?.topicId || null);
-    setContent(normalizeNoteContentToHtml(existingNote?.content || ''));
-  }, [existingNote?.topicId]);
+    setContent(normalizedContent);
+
+    requestAnimationFrame(() => {
+      richTextRef.current?.setContentHTML?.(normalizedContent);
+    });
+  }, [existingNote?.id, existingNote?.title, existingNote?.content, existingNote?.topicId]);
 
   useEffect(() => {
     const loadTopics = async () => {
