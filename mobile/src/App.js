@@ -218,9 +218,9 @@ const AppContent = () => {
   if (showLaunchSplash) {
     return (
       <AppThemeProvider value={{ isDarkMode, colors, toggleTheme: handleToggleTheme }}>
-        <View style={[styles.splashScreen, { backgroundColor: colors.background }] }>
-          <Image source={require('../assets/app-icon.png')} style={styles.splashIcon} resizeMode="contain" />
-          <Text style={[styles.splashLabel, { color: colors.text }]}>Emmaline</Text>
+        <View style={styles.splashScreen}>
+          <Image source={require('../assets/launch-splash-icon.png')} style={styles.splashIcon} resizeMode="contain" />
+          <Text style={styles.splashLabel}>Emmaline</Text>
         </View>
       </AppThemeProvider>
     );
@@ -282,18 +282,21 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24
+    paddingHorizontal: 24,
+    gap: 18,
+    backgroundColor: '#000000'
   },
   splashIcon: {
-    width: 120,
-    height: 120,
+    width: 136,
+    height: 136,
     borderRadius: 28,
     marginBottom: 20
   },
   splashLabel: {
     fontSize: 28,
     fontWeight: '700',
-    letterSpacing: 0.5
+    letterSpacing: 0.5,
+    color: '#ffffff'
   },
   navigatorContainer: {
     flex: 1

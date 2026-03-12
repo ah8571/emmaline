@@ -3,6 +3,16 @@ import { View, ScrollView, StyleSheet, Text, ActivityIndicator } from 'react-nat
 import { getCallDetail } from '../services/api.js';
 import { useAppTheme } from '../theme/appTheme.js';
 
+const estimateCreditsFromUsd = (value) => {
+  const usd = Number(value || 0);
+
+  if (usd <= 0) {
+    return 0;
+  }
+
+  return Math.max(1, Math.ceil(usd * 100));
+};
+
 const CallDetailScreen = ({ route }) => {
   const { colors } = useAppTheme();
   const { callId } = route.params;
@@ -46,15 +56,17 @@ const CallDetailScreen = ({ route }) => {
     return `$${Number(value || 0).toFixed(4)}`;
   };
 
+  const estimatedCredits = estimateCreditsFromUsd(call.totalBillableCostUsd);
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.contentContainer}>
-      <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+      <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Summary</Text>
         <Text style={[styles.summaryText, { color: colors.mutedText }]}>{call.summary}</Text>
       </View>
 
       {call.keyPoints && (
-        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+        <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Key Points</Text>
           {call.keyPoints.map((point, idx) => (
             <Text key={idx} style={[styles.bulletPoint, { color: colors.mutedText }]}>• {point}</Text>
@@ -62,37 +74,19 @@ const CallDetailScreen = ({ route }) => {
         </View>
       )}
 
-      <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }] }>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Usage and Cost</Text>
-        <Text style={[styles.summaryText, { color: colors.mutedText }]}>
-          Tier: {call.pricingTier || 'tier1'}
-        </Text>
-        <Text style={[styles.summaryText, { color: colors.mutedText }]}>
-          Provider cost: {formatUsd(call.totalVendorCostUsd)}
-        </Text>
-        <Text style={[styles.summaryText, { color: colors.mutedText }]}>
-          Tier-adjusted billable cost: {formatUsd(call.totalBillableCostUsd)}
-        </Text>
-
-        {Array.isArray(call.costs) && call.costs.length > 0 ? (
-          call.costs.map((cost) => (
-            <View key={cost.id || `${cost.provider}-${cost.service}`} style={[styles.costRow, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.costLabel, { color: colors.text }]}>
-                {cost.provider} / {cost.service}
-              </Text>
-              <Text style={[styles.costMeta, { color: colors.mutedText }]}>
-                {cost.quantity} {cost.unit} · {cost.measurementSource} · {cost.costSource}
-              </Text>
-              <Text style={[styles.costValue, { color: colors.accent }]}>Provider: {formatUsd(cost.vendorCostUsd)}</Text>
-              <Text style={[styles.costMeta, { color: colors.mutedText }]}>Billable: {formatUsd(cost.billableCostUsd)}</Text>
-            </View>
-          ))
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Estimated Usage</Text>
+        {Number(call.totalBillableCostUsd || 0) > 0 ? (
+          <>
+            <Text style={[styles.usageValue, { color: colors.text }]}>{estimatedCredits} credit{estimatedCredits === 1 ? '' : 's'}</Text>
+            <Text style={[styles.usageMeta, { color: colors.mutedText }]}>Estimated from the current billable usage total of {formatUsd(call.totalBillableCostUsd)}.</Text>
+          </>
         ) : (
           <Text style={[styles.transcriptText, { color: colors.mutedText }]}>No estimated cost data recorded for this call yet.</Text>
         )}
       </View>
 
-      <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+      <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Transcript</Text>
         {Array.isArray(call.messages) && call.messages.length > 0 ? (
           call.messages.map((message) => (
@@ -117,18 +111,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff'
   },
   contentContainer: {
-    padding: 16
+    padding: 20,
+    paddingBottom: 32
   },
   loader: {
     flex: 1,
     justifyContent: 'center'
   },
   section: {
-    marginBottom: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderRadius: 16,
-    borderColor: '#e9ecef'
+    marginBottom: 28
   },
   sectionTitle: {
     fontSize: 18,
@@ -146,28 +137,14 @@ const styles = StyleSheet.create({
     color: '#495057',
     marginBottom: 8
   },
-  costRow: {
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f3f5'
+  usageValue: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: 6
   },
-  costLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#212529',
-    textTransform: 'capitalize'
-  },
-  costMeta: {
-    fontSize: 12,
-    color: '#6c757d',
-    marginTop: 2
-  },
-  costValue: {
+  usageMeta: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#007AFF',
-    marginTop: 4
+    lineHeight: 20
   },
   messageRow: {
     marginBottom: 14

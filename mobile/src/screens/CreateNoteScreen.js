@@ -96,10 +96,10 @@ const CreateNoteScreen = ({ route, navigation }) => {
           editable={!loading}
         />
 
-        <View style={[styles.editorShell, { backgroundColor: colors.input, borderColor: colors.border }] }>
+        <View style={styles.editorShell}>
           <RichToolbar
             editor={richTextRef}
-            style={[styles.toolbar, { backgroundColor: colors.surfaceAlt, borderBottomColor: colors.border }]}
+            style={[styles.toolbar, { backgroundColor: colors.background }]}
             selectedIconTint={colors.accent}
             iconTint={colors.text}
             disabledIconTint={colors.mutedText}
@@ -132,11 +132,11 @@ const CreateNoteScreen = ({ route, navigation }) => {
             initialHeight={320}
             disabled={loading}
             editorStyle={{
-              backgroundColor: colors.input,
+              backgroundColor: colors.background,
               color: colors.text,
-              contentCSSText: `font-size: 16px; line-height: 1.6; color: ${colors.text}; padding: 12px; background-color: ${colors.input};`,
+              contentCSSText: `font-size: 16px; line-height: 1.7; color: ${colors.text}; padding: 0; background-color: ${colors.background};`,
               placeholderColor: colors.mutedText,
-              cssText: `body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: ${colors.input}; color: ${colors.text}; margin: 0; padding: 0; } p { margin: 0 0 12px 0; } ul, ol { padding-left: 22px; margin: 0 0 12px 0; } h1, h2, h3 { margin: 0 0 12px 0; }`
+              cssText: `body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: ${colors.background}; color: ${colors.text}; margin: 0; padding: 0; } p { margin: 0 0 12px 0; } ul, ol { padding-left: 22px; margin: 0 0 12px 0; } h1, h2, h3 { margin: 0 0 12px 0; }`
             }}
           />
         </View>
@@ -210,15 +210,17 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 32
   },
   titleInput: {
     fontSize: 20,
     fontWeight: '600',
     color: '#212529',
-    marginBottom: 16,
+    marginBottom: 12,
     paddingVertical: 8,
-    borderBottomWidth: 1
+    borderBottomWidth: 0
   },
   contentInput: {
     fontSize: 14,
@@ -231,13 +233,11 @@ const styles = StyleSheet.create({
     paddingTop: 12
   },
   editorShell: {
-    borderWidth: 1,
-    borderRadius: 12,
-    overflow: 'hidden'
+    marginTop: 4
   },
   toolbar: {
-    borderBottomWidth: 1,
-    paddingHorizontal: 6,
+    borderBottomWidth: 0,
+    paddingHorizontal: 0,
     minHeight: 46
   },
   toolbarIconText: {

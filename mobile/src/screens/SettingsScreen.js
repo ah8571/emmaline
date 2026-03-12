@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { getCalls } from '../services/api.js';
 import {
   getCallLanguagePreference,
   getCallResponseDelayPreference,
@@ -61,12 +62,26 @@ const RESPONSE_DELAY_OPTIONS = [
 
 const areRatesEqual = (left, right) => Math.abs(Number(left) - Number(right)) < 0.001;
 const areDelayValuesEqual = (left, right) => Number(left) === Number(right);
+const estimateCreditsFromUsd = (value) => {
+  const usd = Number(value || 0);
+
+  if (usd <= 0) {
+    return 0;
+  }
+
+  return Math.max(1, Math.ceil(usd * 100));
+};
 
 const SettingsScreen = () => {
-  const { colors, isDarkMode } = useAppTheme();
+  const { colors, isDarkMode, toggleTheme } = useAppTheme();
   const [callLanguage, setCallLanguage] = useState('en');
   const [speechRate, setSpeechRate] = useState(1);
   const [callResponseDelayMs, setCallResponseDelayMs] = useState(1600);
+  const [usageSummary, setUsageSummary] = useState({
+    loading: true,
+    estimatedCredits: 0,
+    callCount: 0
+  });
 
   useEffect(() => {
     const loadPreferences = async () => {
@@ -82,6 +97,52 @@ const SettingsScreen = () => {
     };
 
     loadPreferences();
+  }, []);
+
+  useEffect(() => {
+    const loadUsageSummary = async () => {
+      try {
+        const limit = 100;
+        let offset = 0;
+        let allCalls = [];
+
+        while (true) {
+          const response = await getCalls(limit, offset);
+
+          if (!response.success) {
+            throw new Error(response.error || 'Unable to load usage totals');
+          }
+
+          const nextCalls = response.calls || [];
+          allCalls = allCalls.concat(nextCalls);
+
+          if (allCalls.length >= Number(response.total || 0) || nextCalls.length < limit) {
+            break;
+          }
+
+          offset += limit;
+        }
+
+        const totalBillableCostUsd = allCalls.reduce(
+          (sum, call) => sum + Number(call.totalBillableCostUsd || 0),
+          0
+        );
+
+        setUsageSummary({
+          loading: false,
+          estimatedCredits: estimateCreditsFromUsd(totalBillableCostUsd),
+          callCount: allCalls.length
+        });
+      } catch (error) {
+        setUsageSummary({
+          loading: false,
+          estimatedCredits: 0,
+          callCount: 0
+        });
+      }
+    };
+
+    loadUsageSummary();
   }, []);
 
   const handleSelectLanguage = async (value) => {
@@ -115,6 +176,46 @@ const SettingsScreen = () => {
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.contentContainer}>
       <View style={[styles.headerBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <Text style={[styles.pageTitle, { color: colors.text }]}>Settings</Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Appearance</Text>
+        <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>Keep the quick theme icon in the header, or switch modes here with a little more context.</Text>
+
+        <View style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.infoCardCopy}>
+            <Text style={[styles.infoCardTitle, { color: colors.text }]}>{isDarkMode ? 'Dark mode' : 'Light mode'}</Text>
+            <Text style={[styles.infoCardDescription, { color: colors.mutedText }]}>
+              {isDarkMode
+                ? 'Use the darker palette for a quieter look and less glare.'
+                : 'Use the lighter palette for maximum contrast in bright settings.'}
+            </Text>
+          </View>
+          <Switch
+            value={isDarkMode}
+            onValueChange={toggleTheme}
+            trackColor={{ false: colors.border, true: colors.accent }}
+            thumbColor={colors.surface}
+          />
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Estimated usage</Text>
+        <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>A simple internal estimate of your usage so far across all saved calls.</Text>
+
+        <View style={[styles.speedometerCard, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+          <Text style={[styles.speedometerLabel, { color: colors.mutedText }]}>Estimated credits used</Text>
+          <Text style={[styles.speedometerValue, { color: colors.text }]}>
+            {usageSummary.loading ? '...' : usageSummary.estimatedCredits}
+          </Text>
+        </View>
+
+        <Text style={[styles.usageFootnote, { color: colors.mutedText }]}>
+          {usageSummary.loading
+            ? 'Loading your total usage.'
+            : `Across ${usageSummary.callCount} call${usageSummary.callCount === 1 ? '' : 's'} so far.`}
+        </Text>
       </View>
 
       <View style={styles.section}>
@@ -283,6 +384,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6c757d',
     lineHeight: 20
+  },
+  infoCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16
+  },
+  infoCardCopy: {
+    flex: 1
+  },
+  infoCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#212529',
+    marginBottom: 4
+  },
+  infoCardDescription: {
+    fontSize: 13,
+    color: '#495057',
+    lineHeight: 18
+  },
+  usageFootnote: {
+    fontSize: 13,
+    lineHeight: 18
   },
   optionCard: {
     backgroundColor: '#fff',

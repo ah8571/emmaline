@@ -107,9 +107,10 @@ const AppHome = () => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.themeToggle, { borderColor: colors.border, backgroundColor: colors.surfaceAlt }]}
+          style={styles.themeToggle}
           onPress={toggleTheme}
           activeOpacity={0.85}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Text
             style={[
@@ -118,7 +119,7 @@ const AppHome = () => {
               { color: colors.text }
             ]}
           >
-            {isDarkMode ? '☼' : '☾'}
+            {isDarkMode ? '☀' : '☾'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -266,29 +267,26 @@ const styles = StyleSheet.create({
     marginTop: 0
   },
   themeToggle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    minWidth: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
     marginTop: 0
   },
   themeToggleText: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
     includeFontPadding: false,
-    textAlignVertical: 'center'
+    textAlignVertical: 'center',
+    lineHeight: 28
   },
   themeToggleTextMoon: {
-    fontSize: 24,
-    lineHeight: 24,
-    transform: [{ translateY: -1 }]
+    fontSize: 27,
+    lineHeight: 27
   },
   themeToggleTextSun: {
     fontSize: 28,
-    lineHeight: 28,
-    transform: [{ translateY: -1 }]
+    lineHeight: 28
   },
   menuIconBars: {
     width: 28,

@@ -123,7 +123,7 @@ const FloatingCallButton = ({
           onPressOut={handlePressOut}
           activeOpacity={0.8}
         >
-          <Text style={[styles.phoneIcon, { color: circleIconColor }]}>{isActiveCall ? '✕' : '✆'}</Text>
+          <Text style={[isActiveCall ? styles.endCallIcon : styles.phoneIcon, { color: circleIconColor }]}>{isActiveCall ? '✕' : '☎'}</Text>
         </TouchableOpacity>
       </Animated.View>
 
@@ -161,7 +161,15 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1 }]
   },
   phoneIcon: {
+    fontSize: 38,
+    lineHeight: 38,
+    includeFontPadding: false,
+    color: '#111111'
+  },
+  endCallIcon: {
     fontSize: 30,
+    lineHeight: 30,
+    includeFontPadding: false,
     color: '#111111'
   },
   statusIndicator: {
