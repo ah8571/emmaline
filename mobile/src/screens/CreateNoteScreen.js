@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
+  Keyboard,
   Platform
 } from 'react-native';
 import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
@@ -31,7 +32,9 @@ const CreateNoteScreen = ({ route, navigation }) => {
   const pendingContentRef = useRef(content);
 
   const hydrateNote = (noteRecord) => {
-    const normalizedContent = normalizeNoteContentToHtml(noteRecord?.content || '');
+    const normalizedContent = normalizeNoteContentToHtml(noteRecord?.content || '', {
+      title: noteRecord?.title || ''
+    });
 
     setTitle(noteRecord?.title || '');
     setSelectedTopic(noteRecord?.topicId || null);
@@ -40,6 +43,8 @@ const CreateNoteScreen = ({ route, navigation }) => {
 
     requestAnimationFrame(() => {
       richTextRef.current?.setContentHTML?.(normalizedContent || '<p></p>');
+      richTextRef.current?.blurContentEditor?.();
+      Keyboard.dismiss();
     });
   };
 
@@ -93,8 +98,17 @@ const CreateNoteScreen = ({ route, navigation }) => {
     setLoading(true);
     try {
       const response = isEditing
-        ? await updateNote(existingNote.id, title.trim(), content.trim(), selectedTopic)
-        : await createNote(title.trim(), content.trim(), selectedTopic);
+        ? await updateNote(
+            existingNote.id,
+            title.trim(),
+            normalizeNoteContentToHtml(content.trim(), { title: title.trim() }),
+            selectedTopic
+          )
+        : await createNote(
+            title.trim(),
+            normalizeNoteContentToHtml(content.trim(), { title: title.trim() }),
+            selectedTopic
+          );
 
       if (!response.success) {
         throw new Error(response.error || 'Unable to save note');
@@ -148,8 +162,12 @@ const CreateNoteScreen = ({ route, navigation }) => {
               actions.setUnderline,
               actions.heading1,
               actions.heading2,
+              actions.setParagraph,
+              actions.removeFormat,
               actions.insertBulletsList,
-              actions.insertOrderedList
+              actions.insertOrderedList,
+              actions.undo,
+              actions.redo
             ]}
             iconMap={{
               [actions.setBold]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>B</Text>,
@@ -157,8 +175,12 @@ const CreateNoteScreen = ({ route, navigation }) => {
               [actions.setUnderline]: ({ tintColor }) => <Text style={[styles.toolbarIconText, styles.toolbarIconUnderline, { color: tintColor }]}>U</Text>,
               [actions.heading1]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>H1</Text>,
               [actions.heading2]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>H2</Text>,
+                [actions.setParagraph]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>P</Text>,
+                [actions.removeFormat]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>Tx</Text>,
               [actions.insertBulletsList]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>•</Text>,
-              [actions.insertOrderedList]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>1.</Text>
+                [actions.insertOrderedList]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>1.</Text>,
+                [actions.undo]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>↶</Text>,
+                [actions.redo]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>↷</Text>
             }}
           />
 
@@ -166,15 +188,19 @@ const CreateNoteScreen = ({ route, navigation }) => {
             key={existingNote?.id || 'new-note'}
             ref={richTextRef}
             initialContentHTML={content || '<p></p>'}
+            initialFocus={false}
             placeholder="Start typing your note..."
             editorInitializedCallback={() => {
               richTextRef.current?.setContentHTML?.(pendingContentRef.current || '<p></p>');
+              richTextRef.current?.blurContentEditor?.();
+              Keyboard.dismiss();
             }}
             onChange={(nextContent) => {
               pendingContentRef.current = nextContent || '';
               setContent(nextContent || '');
             }}
-            useContainer={false}
+            style={styles.richEditor}
+            useContainer
             initialHeight={320}
             disabled={loading}
             editorStyle={{
@@ -280,6 +306,9 @@ const styles = StyleSheet.create({
   },
   editorShell: {
     marginTop: 4
+  },
+  richEditor: {
+    minHeight: 320
   },
   toolbar: {
     borderBottomWidth: 0,

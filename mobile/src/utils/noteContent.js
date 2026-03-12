@@ -18,6 +18,49 @@ const applyInlineFormatting = (value) => {
 
 export const looksLikeHtml = (value) => /<\/?[a-z][\s\S]*>/i.test(String(value || ''));
 
+const decodeHtmlEntities = (value) => {
+  return String(value || '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const normalizeComparisonText = (value) => {
+  return decodeHtmlEntities(String(value || ''))
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[^a-z0-9]+/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+};
+
+const stripLeadingTitleHeading = (html, title) => {
+  const normalizedTitle = normalizeComparisonText(title);
+
+  if (!html || !normalizedTitle) {
+    return html;
+  }
+
+  const leadingHeadingMatch = String(html).match(/^\s*<h1>([\s\S]*?)<\/h1>\s*/i);
+
+  if (!leadingHeadingMatch) {
+    return html;
+  }
+
+  const headingText = normalizeComparisonText(leadingHeadingMatch[1]);
+
+  if (headingText !== normalizedTitle) {
+    return html;
+  }
+
+  return String(html).replace(/^\s*<h1>[\s\S]*?<\/h1>\s*/i, '').trim();
+};
+
 export const convertMarkdownishToHtml = (value) => {
   const lines = String(value || '').replace(/\r\n/g, '\n').split('\n');
   const html = [];
@@ -94,7 +137,7 @@ export const convertMarkdownishToHtml = (value) => {
   return html.join('');
 };
 
-export const normalizeNoteContentToHtml = (value) => {
+export const normalizeNoteContentToHtml = (value, options = {}) => {
   const raw = String(value || '').trim();
 
   if (!raw) {
@@ -102,10 +145,10 @@ export const normalizeNoteContentToHtml = (value) => {
   }
 
   if (looksLikeHtml(raw)) {
-    return raw;
+    return stripLeadingTitleHeading(raw, options.title);
   }
 
-  return convertMarkdownishToHtml(raw);
+  return stripLeadingTitleHeading(convertMarkdownishToHtml(raw), options.title);
 };
 
 export const stripNoteContentToPlainText = (value) => {

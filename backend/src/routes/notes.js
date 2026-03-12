@@ -41,7 +41,7 @@ const buildNoteFromCallContent = (call, fallbackTitle = null) => {
     .trim()
     .slice(0, 255);
 
-  const sections = [`<h1>${title}</h1>`];
+  const sections = [];
 
   if (summary?.summary_text) {
     sections.push(`<h2>Summary</h2><p>${summary.summary_text.trim()}</p>`);
