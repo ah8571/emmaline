@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -14,14 +14,48 @@ import { useAppTheme } from '../theme/appTheme.js';
  * TranscriptScreen
  * View all call transcripts organized chronologically
  */
-const TranscriptScreen = ({ navigation }) => {
+const HEADER_SCROLL_DELTA = 14;
+
+const TranscriptScreen = ({ navigation, onAppHeaderVisibilityChange }) => {
   const { colors } = useAppTheme();
   const [transcripts, setTranscripts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const lastScrollYRef = useRef(0);
+  const appHeaderHiddenRef = useRef(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     loadTranscripts();
   }, []);
+
+  useEffect(() => {
+    return () => {
+      onAppHeaderVisibilityChange?.(false);
+    };
+  }, [onAppHeaderVisibilityChange]);
+
+  const setAppHeaderHidden = (hidden) => {
+    if (appHeaderHiddenRef.current === hidden) {
+      return;
+    }
+
+    appHeaderHiddenRef.current = hidden;
+    onAppHeaderVisibilityChange?.(hidden);
+  };
+
+  const handleListScroll = (event) => {
+    const nextOffsetY = Math.max(0, event.nativeEvent.contentOffset.y || 0);
+    const deltaY = nextOffsetY - lastScrollYRef.current;
+
+    if (nextOffsetY <= 10) {
+      setAppHeaderHidden(false);
+    } else if (deltaY > HEADER_SCROLL_DELTA && nextOffsetY > 40) {
+      setAppHeaderHidden(true);
+    } else if (deltaY < -HEADER_SCROLL_DELTA) {
+      setAppHeaderHidden(false);
+    }
+
+    lastScrollYRef.current = nextOffsetY;
+  };
 
   const loadTranscripts = async () => {
     setLoading(true);
@@ -123,6 +157,8 @@ const TranscriptScreen = ({ navigation }) => {
           renderItem={renderTranscript}
           renderSectionHeader={renderSectionHeader}
           contentContainerStyle={styles.listContent}
+          onScroll={handleListScroll}
+          scrollEventThrottle={16}
         />
       )}
     </View>

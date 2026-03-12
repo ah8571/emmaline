@@ -5,7 +5,6 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import LoginScreen from '../screens/LoginScreen';
-import TimelineScreen from '../screens/TimelineScreen';
 import TranscriptScreen from '../screens/TranscriptScreen';
 import NotesScreen from '../screens/NotesScreen';
 import CreateNoteScreen from '../screens/CreateNoteScreen';
@@ -17,7 +16,7 @@ import { logoutUser } from '../services/api.js';
 
 const Stack = createStackNavigator();
 
-const TranscriptStack = () => {
+const TranscriptStack = ({ onAppHeaderVisibilityChange }) => {
   const { colors } = useAppTheme();
 
   return (
@@ -31,9 +30,10 @@ const TranscriptStack = () => {
     >
       <Stack.Screen 
         name="TranscriptList" 
-        component={TranscriptScreen}
         options={{ headerShown: false }}
-      />
+      >
+        {(screenProps) => <TranscriptScreen {...screenProps} onAppHeaderVisibilityChange={onAppHeaderVisibilityChange} />}
+      </Stack.Screen>
       <Stack.Screen 
         name="CallDetail" 
         component={CallDetailScreen}
@@ -43,7 +43,7 @@ const TranscriptStack = () => {
   );
 };
 
-const NotesStack = () => {
+const NotesStack = ({ onAppHeaderVisibilityChange }) => {
   const { colors } = useAppTheme();
 
   return (
@@ -57,32 +57,59 @@ const NotesStack = () => {
     >
       <Stack.Screen 
         name="NotesList" 
-        component={NotesScreen}
         options={{ headerShown: false }}
-      />
+      >
+        {(screenProps) => <NotesScreen {...screenProps} onAppHeaderVisibilityChange={onAppHeaderVisibilityChange} />}
+      </Stack.Screen>
       <Stack.Screen
         name="CreateNote"
-        component={CreateNoteScreen}
         options={{ headerShown: false }}
-      />
+      >
+        {(screenProps) => <CreateNoteScreen {...screenProps} onAppHeaderVisibilityChange={onAppHeaderVisibilityChange} />}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 };
 
 const AppHome = ({ onLogout }) => {
-  const [activeScreen, setActiveScreen] = useState('transcripts');
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [uiState, setUiState] = useState({
+    activeScreen: 'transcripts',
+    menuOpen: false,
+    appHeaderHidden: false
+  });
   const { colors, isDarkMode, toggleTheme } = useAppTheme();
   const insets = useSafeAreaInsets();
   const headerHeight = 64 + Math.max(insets.top, 10);
+  const { activeScreen, menuOpen, appHeaderHidden } = uiState;
+
+  const handleAppHeaderVisibilityChange = (hidden) => {
+    setUiState((currentState) => {
+      if (currentState.appHeaderHidden === hidden && (!hidden || !currentState.menuOpen)) {
+        return currentState;
+      }
+
+      return {
+        ...currentState,
+        appHeaderHidden: hidden,
+        menuOpen: hidden ? false : currentState.menuOpen
+      };
+    });
+  };
 
   const openScreen = (screen) => {
-    setActiveScreen(screen);
-    setMenuOpen(false);
+    setUiState((currentState) => ({
+      ...currentState,
+      activeScreen: screen,
+      menuOpen: false,
+      appHeaderHidden: false
+    }));
   };
 
   const handleLogoutPress = () => {
-    setMenuOpen(false);
+    setUiState((currentState) => ({
+      ...currentState,
+      menuOpen: false
+    }));
     Alert.alert(
       'Log out',
       'Log out of Emmaline on this device?',
@@ -108,15 +135,21 @@ const AppHome = ({ onLogout }) => {
           {
             backgroundColor: colors.surface,
             borderBottomColor: colors.border,
-            minHeight: headerHeight,
-            paddingTop: Math.max(insets.top, 10) + 8,
-            paddingBottom: 12
+            height: appHeaderHidden ? 0 : headerHeight,
+            opacity: appHeaderHidden ? 0 : 1,
+            paddingTop: appHeaderHidden ? 0 : Math.max(insets.top, 10) + 8,
+            paddingBottom: appHeaderHidden ? 0 : 12,
+            borderBottomWidth: appHeaderHidden ? 0 : 1
           }
         ]}
       >
         <TouchableOpacity
           style={styles.menuButton}
-          onPress={() => setMenuOpen((open) => !open)}
+          onPress={() => setUiState((currentState) => ({
+            ...currentState,
+            menuOpen: !currentState.menuOpen,
+            appHeaderHidden: false
+          }))}
           activeOpacity={0.8}
         >
           <View style={styles.menuIconBars}>
@@ -148,7 +181,7 @@ const AppHome = ({ onLogout }) => {
         <View style={styles.overlay}>
           <TouchableOpacity
             style={styles.overlayBackdrop}
-            onPress={() => setMenuOpen(false)}
+            onPress={() => setUiState((currentState) => ({ ...currentState, menuOpen: false }))}
             activeOpacity={1}
           />
           <View style={[styles.sideMenu, { backgroundColor: colors.surface, borderRightColor: colors.border, top: headerHeight }]}>
@@ -185,7 +218,11 @@ const AppHome = ({ onLogout }) => {
       ) : null}
 
       <View style={[styles.content, { backgroundColor: colors.background }]}>
-        {activeScreen === 'transcripts' ? <TranscriptStack /> : activeScreen === 'notes' ? <NotesStack /> : <SettingsScreen onLogout={onLogout} />}
+        {activeScreen === 'transcripts'
+          ? <TranscriptStack onAppHeaderVisibilityChange={handleAppHeaderVisibilityChange} />
+          : activeScreen === 'notes'
+            ? <NotesStack onAppHeaderVisibilityChange={handleAppHeaderVisibilityChange} />
+            : <SettingsScreen onLogout={onLogout} />}
       </View>
     </View>
   );
@@ -293,6 +330,7 @@ const styles = StyleSheet.create({
   header: {
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
+    overflow: 'hidden',
     justifyContent: 'flex-end',
     alignItems: 'center',
     flexDirection: 'row',

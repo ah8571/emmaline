@@ -3,10 +3,12 @@ import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } f
 import { getCalls } from '../services/api.js';
 import {
   getCallLanguagePreference,
+  getNoteTextScalePreference,
   getCallResponseDelayPreference,
   getSpeechRatePreference,
   saveCallResponseDelayPreference,
   saveCallLanguagePreference,
+  saveNoteTextScalePreference,
   saveSpeechRatePreference
 } from '../utils/secureStorage.js';
 import { useAppTheme } from '../theme/appTheme.js';
@@ -60,6 +62,29 @@ const RESPONSE_DELAY_OPTIONS = [
   }
 ];
 
+const NOTE_TEXT_SIZE_OPTIONS = [
+  {
+    value: 0.95,
+    title: 'Compact',
+    description: 'Fit a bit more text into each note card and note screen.'
+  },
+  {
+    value: 1,
+    title: 'Standard',
+    description: 'Default note text size.'
+  },
+  {
+    value: 1.15,
+    title: 'Larger',
+    description: 'Increase note readability without making the layout feel oversized.'
+  },
+  {
+    value: 1.3,
+    title: 'Largest',
+    description: 'Use the largest note text for easier reading.'
+  }
+];
+
 const areRatesEqual = (left, right) => Math.abs(Number(left) - Number(right)) < 0.001;
 const areDelayValuesEqual = (left, right) => Number(left) === Number(right);
 const estimateCreditsFromUsd = (value) => {
@@ -77,6 +102,7 @@ const SettingsScreen = ({ onLogout }) => {
   const [callLanguage, setCallLanguage] = useState('en');
   const [speechRate, setSpeechRate] = useState(1);
   const [callResponseDelayMs, setCallResponseDelayMs] = useState(1600);
+  const [noteTextScale, setNoteTextScale] = useState(1);
   const [usageSummary, setUsageSummary] = useState({
     loading: true,
     estimatedCredits: 0,
@@ -85,15 +111,17 @@ const SettingsScreen = ({ onLogout }) => {
 
   useEffect(() => {
     const loadPreferences = async () => {
-      const [savedLanguage, savedSpeechRate, savedResponseDelayMs] = await Promise.all([
+      const [savedLanguage, savedSpeechRate, savedResponseDelayMs, savedNoteTextScale] = await Promise.all([
         getCallLanguagePreference(),
         getSpeechRatePreference(),
-        getCallResponseDelayPreference()
+        getCallResponseDelayPreference(),
+        getNoteTextScalePreference()
       ]);
 
       setCallLanguage(savedLanguage || 'en');
       setSpeechRate(savedSpeechRate || 1);
       setCallResponseDelayMs(savedResponseDelayMs || 1600);
+      setNoteTextScale(savedNoteTextScale || 1);
     };
 
     loadPreferences();
@@ -169,6 +197,15 @@ const SettingsScreen = ({ onLogout }) => {
 
     if (!saved) {
       Alert.alert('Settings error', 'Unable to save your response timing preference.');
+    }
+  };
+
+  const handleSelectNoteTextScale = async (value) => {
+    setNoteTextScale(value);
+    const saved = await saveNoteTextScalePreference(value);
+
+    if (!saved) {
+      Alert.alert('Settings error', 'Unable to save your note text size preference.');
     }
   };
 
@@ -291,6 +328,37 @@ const SettingsScreen = ({ onLogout }) => {
                 selected && [styles.optionCardSelected, { borderColor: colors.accent, backgroundColor: colors.surfaceAlt }]
               ]}
               onPress={() => handleSelectSpeechRate(option.value)}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.radio, { borderColor: colors.mutedText }, selected && [styles.radioSelected, { borderColor: colors.accent }]]}>
+                {selected ? <View style={[styles.radioInner, { backgroundColor: colors.accent }]} /> : null}
+              </View>
+              <View style={styles.optionContent}>
+                <Text style={[styles.optionTitle, { color: colors.text }]}>{option.title}</Text>
+                <Text style={[styles.optionDescription, { color: colors.mutedText }]}>{option.description}</Text>
+              </View>
+              <Text style={[styles.rateBadge, { color: colors.mutedText }]}>{option.value.toFixed(2)}x</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Note text size</Text>
+        <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>Make note previews and note content easier to read if you want larger text.</Text>
+
+        {NOTE_TEXT_SIZE_OPTIONS.map((option) => {
+          const selected = areRatesEqual(noteTextScale, option.value);
+
+          return (
+            <TouchableOpacity
+              key={option.value}
+              style={[
+                styles.optionCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                selected && [styles.optionCardSelected, { borderColor: colors.accent, backgroundColor: colors.surfaceAlt }]
+              ]}
+              onPress={() => handleSelectNoteTextScale(option.value)}
               activeOpacity={0.85}
             >
               <View style={[styles.radio, { borderColor: colors.mutedText }, selected && [styles.radioSelected, { borderColor: colors.accent }]]}>

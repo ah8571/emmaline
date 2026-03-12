@@ -12,7 +12,8 @@ const DEFAULT_PREFERENCES = {
   callLanguage: 'en',
   speechRate: 1,
   callResponseDelayMs: 1600,
-  themeMode: 'light'
+  themeMode: 'light',
+  noteTextScale: 1
 };
 
 /**
@@ -186,6 +187,22 @@ export const saveThemeModePreference = async (themeMode) => {
   return savePreferences({ themeMode: themeMode === 'dark' ? 'dark' : 'light' });
 };
 
+export const getNoteTextScalePreference = async () => {
+  const preferences = await getPreferences();
+  const noteTextScale = Number(preferences.noteTextScale);
+
+  if (!Number.isFinite(noteTextScale)) {
+    return DEFAULT_PREFERENCES.noteTextScale;
+  }
+
+  return Math.min(1.3, Math.max(0.95, noteTextScale));
+};
+
+export const saveNoteTextScalePreference = async (noteTextScale) => {
+  const normalized = Math.min(1.3, Math.max(0.95, Number(noteTextScale) || DEFAULT_PREFERENCES.noteTextScale));
+  return savePreferences({ noteTextScale: normalized });
+};
+
 /**
  * Logout - clear all auth data
  */
@@ -218,5 +235,7 @@ export default {
   saveCallResponseDelayPreference,
   getThemeModePreference,
   saveThemeModePreference,
+  getNoteTextScalePreference,
+  saveNoteTextScalePreference,
   logout
 };

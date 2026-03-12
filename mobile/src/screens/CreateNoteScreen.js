@@ -10,20 +10,26 @@ import {
   Keyboard,
   Platform
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
 import { createNote, getNote, getTopics, updateNote } from '../services/api.js';
 import { useAppTheme } from '../theme/appTheme.js';
 import { normalizeNoteContentToHtml, stripNoteContentToPlainText } from '../utils/noteContent.js';
+import { getNoteTextScalePreference, saveNoteTextScalePreference } from '../utils/secureStorage.js';
 
 const AUTO_SAVE_DELAY_MS = 900;
 const UNTITLED_NOTE_TITLE = 'Untitled note';
+const NOTE_TEXT_SCALE_OPTIONS = [0.95, 1, 1.15, 1.3];
+const HEADER_SCROLL_DELTA = 14;
+const TOOLBAR_DOCK_HEIGHT = 58;
 
 /**
  * CreateNoteScreen
  * Create or edit a note
  */
-const CreateNoteScreen = ({ route, navigation }) => {
+const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange }) => {
   const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const existingNote = route?.params?.note || null;
   const [noteId, setNoteId] = useState(existingNote?.id || null);
   const [title, setTitle] = useState(existingNote?.title || '');
@@ -32,6 +38,9 @@ const CreateNoteScreen = ({ route, navigation }) => {
   const [topics, setTopics] = useState([]);
   const [saveState, setSaveState] = useState(existingNote?.id ? 'Saved' : 'Idle');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [editorFocused, setEditorFocused] = useState(false);
+  const [noteTextScale, setNoteTextScale] = useState(1);
   const isEditing = useMemo(() => Boolean(noteId || existingNote?.id), [existingNote?.id, noteId]);
   const richTextRef = useRef(null);
   const pendingContentRef = useRef(content);
@@ -47,6 +56,8 @@ const CreateNoteScreen = ({ route, navigation }) => {
   const autoSaveTimeoutRef = useRef(null);
   const lastSavedSnapshotRef = useRef('');
   const isMountedRef = useRef(true);
+  const lastScrollYRef = useRef(0);
+  const appHeaderHiddenRef = useRef(false);
 
   const updateSaveState = (nextValue) => {
     if (isMountedRef.current) {
@@ -249,14 +260,25 @@ const CreateNoteScreen = ({ route, navigation }) => {
   }, []);
 
   useEffect(() => {
+    const loadNoteTextScale = async () => {
+      const savedScale = await getNoteTextScalePreference();
+      setNoteTextScale(savedScale || 1);
+    };
+
+    loadNoteTextScale();
+  }, []);
+
+  useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
-    const showSubscription = Keyboard.addListener(showEvent, () => {
+    const showSubscription = Keyboard.addListener(showEvent, (event) => {
       setKeyboardVisible(true);
+      setKeyboardHeight(event?.endCoordinates?.height || Keyboard.metrics?.()?.height || 0);
     });
     const hideSubscription = Keyboard.addListener(hideEvent, () => {
       setKeyboardVisible(false);
+      setKeyboardHeight(0);
     });
 
     return () => {
@@ -299,39 +321,93 @@ const CreateNoteScreen = ({ route, navigation }) => {
 
   useEffect(() => {
     return () => {
+      onAppHeaderVisibilityChange?.(false);
       isMountedRef.current = false;
       clearAutoSaveTimeout();
       flushAutoSave(true).catch(() => {
         // Best-effort save when leaving the note screen.
       });
     };
-  }, []);
+  }, [onAppHeaderVisibilityChange]);
+
+  const setAppHeaderHidden = (hidden) => {
+    if (appHeaderHiddenRef.current === hidden) {
+      return;
+    }
+
+    appHeaderHiddenRef.current = hidden;
+    onAppHeaderVisibilityChange?.(hidden);
+  };
+
+  const handleEditorScroll = (event) => {
+    const nextOffsetY = Math.max(0, event.nativeEvent.contentOffset.y || 0);
+    const deltaY = nextOffsetY - lastScrollYRef.current;
+
+    if (nextOffsetY <= 10) {
+      setAppHeaderHidden(false);
+    } else if (deltaY > HEADER_SCROLL_DELTA && nextOffsetY > 40) {
+      setAppHeaderHidden(true);
+    } else if (deltaY < -HEADER_SCROLL_DELTA) {
+      setAppHeaderHidden(false);
+    }
+
+    lastScrollYRef.current = nextOffsetY;
+  };
+
+  const handleIncreaseTextSize = async () => {
+    const currentIndex = NOTE_TEXT_SCALE_OPTIONS.findIndex((value) => Math.abs(value - noteTextScale) < 0.001);
+    const nextIndex = currentIndex >= 0 ? Math.min(currentIndex + 1, NOTE_TEXT_SCALE_OPTIONS.length - 1) : 1;
+    const nextScale = NOTE_TEXT_SCALE_OPTIONS[nextIndex];
+
+    if (Math.abs(nextScale - noteTextScale) < 0.001) {
+      return;
+    }
+
+    setNoteTextScale(nextScale);
+    await saveNoteTextScalePreference(nextScale);
+  };
+
+  const handleDecreaseTextSize = async () => {
+    const currentIndex = NOTE_TEXT_SCALE_OPTIONS.findIndex((value) => Math.abs(value - noteTextScale) < 0.001);
+    const nextIndex = currentIndex >= 0 ? Math.max(currentIndex - 1, 0) : NOTE_TEXT_SCALE_OPTIONS.indexOf(1);
+    const nextScale = NOTE_TEXT_SCALE_OPTIONS[nextIndex];
+
+    if (Math.abs(nextScale - noteTextScale) < 0.001) {
+      return;
+    }
+
+    setNoteTextScale(nextScale);
+    await saveNoteTextScalePreference(nextScale);
+  };
+
+  const editorFontSize = 16 * noteTextScale;
+  const editorLineHeight = Math.round(editorFontSize * 1.7);
+  const heading1Size = Math.round(32 * noteTextScale);
+  const heading2Size = Math.round(24 * noteTextScale);
+  const heading3Size = Math.round(20 * noteTextScale);
+  const safeBottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
+  const effectiveKeyboardHeight = keyboardVisible ? (keyboardHeight || Keyboard.metrics?.()?.height || 0) : 0;
+  const toolbarBottomOffset = editorFocused && effectiveKeyboardHeight > 0 ? effectiveKeyboardHeight : safeBottomInset;
+  const contentBottomPadding = TOOLBAR_DOCK_HEIGHT + toolbarBottomOffset + 20;
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={[styles.backButton, { color: colors.mutedText }]}>Back</Text>
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>{isEditing ? 'Edit Note' : 'New Note'}</Text>
-        <Text style={[styles.saveStateText, { color: saveState === 'Save failed' ? colors.mutedText : colors.mutedText }]}>
-          {saveState === 'Idle' ? '' : saveState}
-        </Text>
-      </View>
-
       <ScrollView
         style={styles.content}
         contentContainerStyle={[
           styles.contentContainer,
-          keyboardVisible ? styles.contentContainerWithKeyboard : null
+          keyboardVisible ? styles.contentContainerWithKeyboard : null,
+          { paddingBottom: contentBottomPadding }
         ]}
         keyboardShouldPersistTaps="handled"
+        onScroll={handleEditorScroll}
+        scrollEventThrottle={16}
       >
         <TextInput
-          style={[styles.titleInput, { color: colors.text, borderBottomColor: colors.border }]}
+          style={[styles.titleInput, { color: colors.text, borderBottomColor: colors.border, fontSize: 22 * noteTextScale }]}
           placeholder="Note Title"
           placeholderTextColor={colors.mutedText}
           value={title}
@@ -339,7 +415,7 @@ const CreateNoteScreen = ({ route, navigation }) => {
           editable
         />
 
-        <View style={styles.editorShell}>
+        <View style={[styles.editorShell, { borderTopColor: colors.border }] }>
           <RichEditor
             key={existingNote?.id || 'new-note'}
             ref={richTextRef}
@@ -350,6 +426,17 @@ const CreateNoteScreen = ({ route, navigation }) => {
               richTextRef.current?.setContentHTML?.(pendingContentRef.current || '<p></p>');
               richTextRef.current?.blurContentEditor?.();
               Keyboard.dismiss();
+            }}
+            onFocus={() => {
+              setEditorFocused(true);
+              const metricsHeight = Keyboard.metrics?.()?.height || 0;
+              if (metricsHeight > 0) {
+                setKeyboardVisible(true);
+                setKeyboardHeight(metricsHeight);
+              }
+            }}
+            onBlur={() => {
+              setEditorFocused(false);
             }}
             onChange={(nextContent) => {
               pendingContentRef.current = nextContent || '';
@@ -362,9 +449,9 @@ const CreateNoteScreen = ({ route, navigation }) => {
             editorStyle={{
               backgroundColor: colors.background,
               color: colors.text,
-              contentCSSText: `font-size: 16px; line-height: 1.7; color: ${colors.text}; padding: 0; background-color: ${colors.background};`,
+              contentCSSText: `font-size: ${editorFontSize}px; line-height: ${editorLineHeight}px; color: ${colors.text}; padding: 0; background-color: ${colors.background};`,
               placeholderColor: colors.mutedText,
-              cssText: `body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: ${colors.background}; color: ${colors.text}; margin: 0; padding: 0; } p { margin: 0 0 12px 0; } ul, ol { padding-left: 22px; margin: 0 0 12px 0; } h1, h2, h3 { margin: 0 0 12px 0; }`
+              cssText: `body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: ${colors.background}; color: ${colors.text}; margin: 0; padding: 0; } p { margin: 0 0 12px 0; } ul, ol { padding-left: 22px; margin: 0 0 12px 0; } h1 { margin: 0 0 12px 0; font-size: ${heading1Size}px; line-height: ${Math.round(heading1Size * 1.2)}px; } h2 { margin: 0 0 12px 0; font-size: ${heading2Size}px; line-height: ${Math.round(heading2Size * 1.25)}px; } h3 { margin: 0 0 12px 0; font-size: ${heading3Size}px; line-height: ${Math.round(heading3Size * 1.3)}px; }`
             }}
           />
         </View>
@@ -401,8 +488,35 @@ const CreateNoteScreen = ({ route, navigation }) => {
         ) : null}
       </ScrollView>
 
-      {keyboardVisible ? (
-        <View style={[styles.toolbarDock, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+      <View
+        style={[
+          styles.toolbarDock,
+          {
+            backgroundColor: colors.surface,
+            borderTopColor: colors.border,
+            bottom: toolbarBottomOffset,
+            paddingBottom: Math.max(safeBottomInset - 2, 8)
+          }
+        ]}
+      >
+        <View style={styles.toolbarControls}>
+          <TouchableOpacity
+            style={[styles.toolbarScaleButton, { borderColor: colors.border, opacity: noteTextScale <= NOTE_TEXT_SCALE_OPTIONS[0] ? 0.45 : 1 }]}
+            onPress={handleDecreaseTextSize}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.toolbarScaleButtonText, { color: colors.text }]}>-</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toolbarScaleButton, { borderColor: colors.border, opacity: noteTextScale >= NOTE_TEXT_SCALE_OPTIONS[NOTE_TEXT_SCALE_OPTIONS.length - 1] ? 0.45 : 1 }]}
+            onPress={handleIncreaseTextSize}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.toolbarScaleButtonText, { color: colors.text }]}>+</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.toolbarSeparator} />
+        <View style={styles.toolbarRichArea}>
           <RichToolbar
             editor={richTextRef}
             style={[styles.toolbar, { backgroundColor: colors.surface }]}
@@ -437,7 +551,7 @@ const CreateNoteScreen = ({ route, navigation }) => {
             }}
           />
         </View>
-      ) : null}
+      </View>
     </KeyboardAvoidingView>
   );
 };
@@ -447,68 +561,38 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa'
   },
-  header: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef'
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#212529'
-  },
-  backButton: {
-    color: '#6c757d',
-    fontSize: 14
-  },
-  saveStateText: {
-    minWidth: 72,
-    textAlign: 'right',
-    fontSize: 13,
-    color: '#6c757d'
-  },
   disabledButton: {
     opacity: 0.5
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16
+    paddingHorizontal: 14,
+    paddingTop: 10
   },
   contentContainer: {
-    paddingBottom: 32
+    paddingBottom: 28
   },
   contentContainerWithKeyboard: {
-    paddingBottom: 92
+    paddingBottom: 128
   },
   titleInput: {
     fontSize: 20,
     fontWeight: '600',
     color: '#212529',
-    marginBottom: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 0
-  },
-  contentInput: {
-    fontSize: 14,
-    color: '#212529',
-    minHeight: 300,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    padding: 12,
-    paddingTop: 12
+    marginBottom: 14,
+    paddingTop: 4,
+    paddingBottom: 12,
+    borderBottomWidth: 1
   },
   editorShell: {
-    marginTop: 4
+    paddingTop: 4,
+    borderTopWidth: StyleSheet.hairlineWidth
   },
   richEditor: {
     minHeight: 320
+  },
+  toolbarRichArea: {
+    flex: 1
   },
   toolbar: {
     borderBottomWidth: 0,
@@ -516,10 +600,47 @@ const styles = StyleSheet.create({
     minHeight: 46
   },
   toolbarDock: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
     borderTopWidth: 1,
     paddingHorizontal: 12,
     paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 18 : 10
+    minHeight: TOOLBAR_DOCK_HEIGHT,
+    elevation: 10,
+    shadowColor: '#000000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: {
+      width: 0,
+      height: -2
+    }
+  },
+  toolbarControls: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  toolbarScaleButton: {
+    minWidth: 32,
+    height: 32,
+    borderWidth: 1,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  toolbarScaleButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#212529',
+    includeFontPadding: false
+  },
+  toolbarSeparator: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: '#dee2e6',
+    marginHorizontal: 10
   },
   toolbarIconText: {
     fontSize: 15,

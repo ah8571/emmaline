@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -11,18 +11,24 @@ import {
 import { getNotes, getTopics } from '../services/api.js';
 import NoteCard from '../components/NoteCard';
 import { useAppTheme } from '../theme/appTheme.js';
+import { getNoteTextScalePreference } from '../utils/secureStorage.js';
 
 /**
  * NotesScreen
  * View notes organized by topic with ability to create new notes
  */
-const NotesScreen = ({ navigation }) => {
+const HEADER_SCROLL_DELTA = 14;
+
+const NotesScreen = ({ navigation, onAppHeaderVisibilityChange }) => {
   const { colors } = useAppTheme();
   const [notes, setNotes] = useState([]);
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [noteTextScale, setNoteTextScale] = useState(1);
+  const lastScrollYRef = useRef(0);
+  const appHeaderHiddenRef = useRef(false);
 
   const loadNotes = useCallback(async (topicOverride = selectedTopic, options = {}) => {
     if (!options.silent) {
@@ -71,9 +77,51 @@ const NotesScreen = ({ navigation }) => {
   }, [loadTopics]);
 
   useEffect(() => {
+    const loadNoteTextScale = async () => {
+      const savedScale = await getNoteTextScalePreference();
+      setNoteTextScale(savedScale || 1);
+    };
+
+    loadNoteTextScale();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      onAppHeaderVisibilityChange?.(false);
+    };
+  }, [onAppHeaderVisibilityChange]);
+
+  const setAppHeaderHidden = (hidden) => {
+    if (appHeaderHiddenRef.current === hidden) {
+      return;
+    }
+
+    appHeaderHiddenRef.current = hidden;
+    onAppHeaderVisibilityChange?.(hidden);
+  };
+
+  const handleListScroll = (event) => {
+    const nextOffsetY = Math.max(0, event.nativeEvent.contentOffset.y || 0);
+    const deltaY = nextOffsetY - lastScrollYRef.current;
+
+    if (nextOffsetY <= 10) {
+      setAppHeaderHidden(false);
+    } else if (deltaY > HEADER_SCROLL_DELTA && nextOffsetY > 40) {
+      setAppHeaderHidden(true);
+    } else if (deltaY < -HEADER_SCROLL_DELTA) {
+      setAppHeaderHidden(false);
+    }
+
+    lastScrollYRef.current = nextOffsetY;
+  };
+
+  useEffect(() => {
     const unsubscribeFocus = navigation.addListener('focus', () => {
       loadNotes(selectedTopic, { silent: true });
       loadTopics();
+      getNoteTextScalePreference().then((savedScale) => {
+        setNoteTextScale(savedScale || 1);
+      });
     });
 
     const pollId = setInterval(() => {
@@ -114,7 +162,7 @@ const NotesScreen = ({ navigation }) => {
     navigation.navigate('CreateNote', { note });
   };
 
-  const renderNote = ({ item }) => <NoteCard note={item} onPress={() => handleEditNote(item)} />;
+  const renderNote = ({ item }) => <NoteCard note={item} noteTextScale={noteTextScale} onPress={() => handleEditNote(item)} />;
 
   const renderSectionHeader = ({ section: { title } }) => (
     !title ? null : (
@@ -209,6 +257,8 @@ const NotesScreen = ({ navigation }) => {
           renderItem={renderNote}
           renderSectionHeader={renderSectionHeader}
           contentContainerStyle={styles.notesList}
+          onScroll={handleListScroll}
+          scrollEventThrottle={16}
         />
       )}
     </View>
@@ -314,7 +364,8 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   notesList: {
-    padding: 12
+    paddingHorizontal: 10,
+    paddingVertical: 10
   }
 });
 
