@@ -925,7 +925,16 @@ export const handleMediaStreamWebSocket = (ws, req) => {
 
         case 'start':
           callSid = message.start?.callSid;
-          userId = message.start?.customParameters?.userId || parseUserIdFromIdentity(message.start?.customParameters?.identity);
+          userId = parseUserIdFromIdentity(message.start?.customParameters?.identity);
+
+          if (!userId) {
+            console.warn(`Rejecting media stream ${callSid || 'unknown'} with invalid identity`, {
+              identity: message.start?.customParameters?.identity || null
+            });
+            ws.close(1008, 'Invalid voice identity');
+            break;
+          }
+
           mediaConnection = mediaStreamManager.createConnection(callSid, userId);
           handleStart(message, mediaConnection, ws);
           break;

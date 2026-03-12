@@ -140,7 +140,7 @@ export const generateVoiceAccessToken = ({ identity }) => {
   };
 };
 
-export const generateClientConnectTwiML = ({ userId, identity, language, speechRate, responseDelayMs }) => {
+export const generateClientConnectTwiML = ({ identity, language, speechRate, responseDelayMs }) => {
   const VoiceResponse = twilio.twiml.VoiceResponse;
   const response = new VoiceResponse();
   const mediaStreamUrl = getMediaStreamUrl();
@@ -148,7 +148,6 @@ export const generateClientConnectTwiML = ({ userId, identity, language, speechR
   const connect = response.connect();
   const stream = connect.stream({ url: mediaStreamUrl });
   appendStreamParameter(stream, 'source', 'in-app-voip');
-  appendStreamParameter(stream, 'userId', userId);
   appendStreamParameter(stream, 'identity', identity);
   appendStreamParameter(stream, 'language', language);
   appendStreamParameter(stream, 'speechRate', speechRate);

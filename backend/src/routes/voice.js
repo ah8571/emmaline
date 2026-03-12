@@ -16,6 +16,11 @@ import { getUserPhoneNumber } from '../services/databaseService.js';
 
 const router = express.Router();
 
+const parseUserIdFromIdentity = (identity) => {
+  const value = String(identity || '').trim();
+  return value.startsWith('user_') ? value.slice(5) : null;
+};
+
 const verifyTwilioRequest = (req, res, next) => {
   const skipValidation = String(process.env.TWILIO_SKIP_REQUEST_VALIDATION || '').toLowerCase() === 'true';
 
@@ -87,13 +92,19 @@ router.post('/token', authMiddleware, async (req, res) => {
 router.post('/connect', verifyTwilioRequest, async (req, res) => {
   try {
     const identity = req.body.identity || req.body.Caller || null;
-    const userId = req.body.userId || null;
+    const userId = parseUserIdFromIdentity(identity);
     const language = req.body.language || 'en';
     const speechRate = req.body.speechRate || '1';
     const responseDelayMs = req.body.responseDelayMs || '1600';
 
+    if (!userId) {
+      console.warn('Rejected voice connect request with invalid identity', {
+        identity
+      });
+      return res.status(403).json({ error: 'Invalid voice identity' });
+    }
+
     const twiml = generateClientConnectTwiML({
-      userId,
       identity,
       language,
       speechRate,
