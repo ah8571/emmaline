@@ -149,17 +149,6 @@ const CreateNoteScreen = ({ route, navigation }) => {
         topicId: savedTopicId
       });
 
-      navigation.setParams?.({
-        note: {
-          ...(existingNote || {}),
-          ...(savedNote || {}),
-          id: savedNoteId,
-          title: savedTitle,
-          content: savedContent,
-          topicId: savedTopicId
-        }
-      });
-
       updateSaveState('Saved');
       return true;
     } catch (error) {
@@ -439,8 +428,8 @@ const CreateNoteScreen = ({ route, navigation }) => {
               [actions.setUnderline]: ({ tintColor }) => <Text style={[styles.toolbarIconText, styles.toolbarIconUnderline, { color: tintColor }]}>U</Text>,
               [actions.heading1]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>H1</Text>,
               [actions.heading2]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>H2</Text>,
-              [actions.setParagraph]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>P</Text>,
-              [actions.removeFormat]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>Tx</Text>,
+              [actions.setParagraph]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>Tx</Text>,
+              [actions.removeFormat]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>Clr</Text>,
               [actions.insertBulletsList]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>•</Text>,
               [actions.insertOrderedList]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>1.</Text>,
               [actions.undo]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>↶</Text>,
