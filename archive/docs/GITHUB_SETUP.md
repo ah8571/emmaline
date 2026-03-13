@@ -23,7 +23,7 @@ git branch -M main
 Once the empty repository exists on GitHub, run:
 
 ```powershell
-cd "c:\Users\redacted-user\OneDrive\Desktop\Code projects\emmaline"
+cd "C:\path\to\emmaline"
 git push -u origin main
 ```
 

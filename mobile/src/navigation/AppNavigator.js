@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -93,7 +93,7 @@ const AppHome = ({ onLogout }) => {
   const headerPaddingTop = Math.max(topInset, topInset + 8 - clampedHeaderOffset * 0.5);
   const headerPaddingBottom = Math.max(0, 12 - clampedHeaderOffset * 0.6);
 
-  const handleAppHeaderScroll = (offsetY = 0) => {
+  const handleAppHeaderScroll = useCallback((offsetY = 0) => {
     setUiState((currentState) => {
       const normalizedOffset = Number.isFinite(Number(offsetY)) ? Math.max(0, Number(offsetY)) : 0;
 
@@ -107,7 +107,7 @@ const AppHome = ({ onLogout }) => {
         menuOpen: normalizedOffset > 0 ? false : currentState.menuOpen
       };
     });
-  };
+  }, []);
 
   const openScreen = (screen) => {
     setUiState((currentState) => ({
