@@ -65,7 +65,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
           <TextInput
             style={styles.input}
             placeholder="Email"
-            placeholderTextColor="#adb5bd"
+            placeholderTextColor="#8f98a3"
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -76,7 +76,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
           <TextInput
             style={styles.input}
             placeholder="Password"
-            placeholderTextColor="#adb5bd"
+            placeholderTextColor="#8f98a3"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -91,7 +91,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#050607" />
             ) : (
               <Text style={styles.buttonText}>
                 {isLogin ? 'Sign In' : 'Create Account'}
@@ -130,7 +130,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa'
+    backgroundColor: '#050607'
   },
   content: {
     flex: 1,
@@ -145,37 +145,37 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#212529',
+    color: '#f5f7fa',
     marginBottom: 8
   },
   subtitle: {
     fontSize: 14,
-    color: '#6c757d'
+    color: '#b0b7c0'
   },
   form: {
     marginVertical: 32
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: '#050607',
     borderWidth: 1,
-    borderColor: '#dee2e6',
-    borderRadius: 8,
+    borderColor: '#f5f7fa',
+    borderRadius: 10,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     marginBottom: 12,
     fontSize: 14,
-    color: '#212529'
+    color: '#f5f7fa'
   },
   errorText: {
-    color: '#dc3545',
+    color: '#ff9aa8',
     fontSize: 12,
     marginBottom: 12,
     fontWeight: '500'
   },
   button: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    paddingVertical: 12,
+    backgroundColor: '#f5f7fa',
+    borderRadius: 10,
+    paddingVertical: 14,
     alignItems: 'center',
     marginBottom: 16,
     marginTop: 8
@@ -184,12 +184,12 @@ const styles = StyleSheet.create({
     opacity: 0.6
   },
   buttonText: {
-    color: '#fff',
+    color: '#050607',
     fontSize: 16,
     fontWeight: '600'
   },
   toggleText: {
-    color: '#007AFF',
+    color: '#f5f7fa',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 12
@@ -200,12 +200,12 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#212529',
+    color: '#f5f7fa',
     marginBottom: 4
   },
   footerSubtext: {
     fontSize: 12,
-    color: '#6c757d'
+    color: '#b0b7c0'
   }
 });
 
