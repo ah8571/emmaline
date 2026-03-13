@@ -15,7 +15,7 @@ import { useAppTheme } from '../theme/appTheme.js';
  * TranscriptScreen
  * View all call transcripts organized chronologically
  */
-const BOTTOM_SAFE_ZONE = 26;
+const BOTTOM_SAFE_ZONE = 44;
 
 const TranscriptScreen = ({ navigation, onAppHeaderScroll }) => {
   const { colors } = useAppTheme();

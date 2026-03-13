@@ -18,7 +18,7 @@ import { getNoteTextScalePreference } from '../utils/secureStorage.js';
  * NotesScreen
  * View notes organized by topic with ability to create new notes
  */
-const BOTTOM_SAFE_ZONE = 26;
+const BOTTOM_SAFE_ZONE = 44;
 
 const NotesScreen = ({ navigation, onAppHeaderScroll }) => {
   const { colors } = useAppTheme();

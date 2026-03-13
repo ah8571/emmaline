@@ -21,7 +21,7 @@ const AUTO_SAVE_DELAY_MS = 900;
 const UNTITLED_NOTE_TITLE = 'Untitled note';
 const NOTE_TEXT_SCALE_OPTIONS = [0.95, 1, 1.15, 1.3];
 const TOOLBAR_DOCK_HEIGHT = 58;
-const BOTTOM_SAFE_ZONE = 26;
+const BOTTOM_SAFE_ZONE = 44;
 
 /**
  * CreateNoteScreen
@@ -271,7 +271,7 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
     const nextEditorStyle = {
       backgroundColor: colors.background,
       color: colors.text,
-      contentCSSText: `font-size: ${editorFontSize}px; line-height: ${editorLineHeight}px; color: ${colors.text}; padding: 0; background-color: ${colors.background};`,
+      contentCSSText: `font-size: ${editorFontSize}px; line-height: ${editorLineHeight}px; color: ${colors.text}; padding: 0 0 ${editorContentBottomPadding}px 0; background-color: ${colors.background};`,
       placeholderColor: colors.mutedText,
       cssText: `body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: ${colors.background}; color: ${colors.text}; margin: 0; padding: 0; } p { margin: 0 0 12px 0; } ul, ol { padding-left: 22px; margin: 0 0 12px 0; } h1 { margin: 0 0 12px 0; font-size: ${heading1Size}px; line-height: ${Math.round(heading1Size * 1.2)}px; } h2 { margin: 0 0 12px 0; font-size: ${heading2Size}px; line-height: ${Math.round(heading2Size * 1.25)}px; } h3 { margin: 0 0 12px 0; font-size: ${heading3Size}px; line-height: ${Math.round(heading3Size * 1.3)}px; }`
     };
@@ -293,9 +293,10 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
       if (editableSurface) {
         editableSurface.style.backgroundColor = ${JSON.stringify(colors.background)};
         editableSurface.style.color = ${JSON.stringify(colors.text)};
+        editableSurface.style.paddingBottom = ${JSON.stringify(`${editorContentBottomPadding}px`)};
       }
     `);
-  }, [colors.background, colors.mutedText, colors.text, editorFontSize, editorLineHeight, heading1Size, heading2Size, heading3Size]);
+  }, [colors.background, colors.mutedText, colors.text, editorContentBottomPadding, editorFontSize, editorLineHeight, heading1Size, heading2Size, heading3Size]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -420,6 +421,7 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
   const toolbarBottomOffset = editorFocused && effectiveKeyboardHeight > 0 ? effectiveKeyboardHeight : safeBottomInset;
   const toolbarVisible = keyboardVisible && editorFocused;
   const toolbarVisualHeight = TOOLBAR_DOCK_HEIGHT + Math.max(safeBottomInset - 2, 8);
+  const editorContentBottomPadding = toolbarVisible ? toolbarVisualHeight + 72 : safeBottomInset + 28;
   const contentBottomPadding = toolbarVisible
     ? toolbarVisualHeight + toolbarBottomOffset + 28
     : safeBottomInset + 20;
@@ -495,7 +497,7 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
             editorStyle={{
               backgroundColor: colors.background,
               color: colors.text,
-              contentCSSText: `font-size: ${editorFontSize}px; line-height: ${editorLineHeight}px; color: ${colors.text}; padding: 0; background-color: ${colors.background};`,
+              contentCSSText: `font-size: ${editorFontSize}px; line-height: ${editorLineHeight}px; color: ${colors.text}; padding: 0 0 ${editorContentBottomPadding}px 0; background-color: ${colors.background};`,
               placeholderColor: colors.mutedText,
               cssText: `body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: ${colors.background}; color: ${colors.text}; margin: 0; padding: 0; } p { margin: 0 0 12px 0; } ul, ol { padding-left: 22px; margin: 0 0 12px 0; } h1 { margin: 0 0 12px 0; font-size: ${heading1Size}px; line-height: ${Math.round(heading1Size * 1.2)}px; } h2 { margin: 0 0 12px 0; font-size: ${heading2Size}px; line-height: ${Math.round(heading2Size * 1.25)}px; } h3 { margin: 0 0 12px 0; font-size: ${heading3Size}px; line-height: ${Math.round(heading3Size * 1.3)}px; }`
             }}
@@ -643,8 +645,8 @@ const styles = StyleSheet.create({
     color: '#212529',
     marginBottom: 14,
     paddingTop: 4,
-    paddingBottom: 12,
-    borderBottomWidth: 1
+    paddingBottom: 8,
+    borderBottomWidth: 0
   },
   editorShell: {
     paddingTop: 4
