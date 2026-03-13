@@ -15,6 +15,7 @@ import twilioRoutes from './routes/twilio.js';
 import callRoutes from './routes/calls.js';
 import noteRoutes from './routes/notes.js';
 import authRoutes from './routes/auth.js';
+import billingRoutes from './routes/billing.js';
 import newsletterRoutes from './routes/newsletter.js';
 import voiceRoutes from './routes/voice.js';
 
@@ -95,6 +96,7 @@ app.use('/api/twilio', twilioRoutes);
 app.use('/api/calls', callRoutes);
 app.use('/api/notes', noteRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/billing', billingRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/voice', voiceRoutes);
 
@@ -102,6 +104,7 @@ app.use('/twilio', twilioRoutes);
 app.use('/calls', callRoutes);
 app.use('/notes', noteRoutes);
 app.use('/auth', authRoutes);
+app.use('/billing', billingRoutes);
 app.use('/newsletter', newsletterRoutes);
 app.use('/voice', voiceRoutes);
 
@@ -125,6 +128,7 @@ app.get('/', (req, res) => {
       calls: '/api/calls',
       notes: '/api/notes',
       auth: '/api/auth',
+      billing: '/api/billing',
       voice: '/api/voice',
       websocket: `${websocketProtocol}://${forwardedHost}/ws/media-stream`,
       websocketEcho: `${websocketProtocol}://${forwardedHost}/ws/echo`

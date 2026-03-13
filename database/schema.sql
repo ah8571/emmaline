@@ -21,6 +21,24 @@ CREATE TABLE users (
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS marketing_opt_in BOOLEAN DEFAULT FALSE;
 
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS free_trial_seconds_granted INTEGER NOT NULL DEFAULT 300;
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS prepaid_seconds_balance INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS billing_state VARCHAR(30) NOT NULL DEFAULT 'trial';
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS auto_recharge_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS auto_recharge_threshold_seconds INTEGER NOT NULL DEFAULT 60;
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS auto_recharge_amount_seconds INTEGER NOT NULL DEFAULT 300;
+
 -- Dedicated phone numbers (one active assignment per user)
 CREATE TABLE IF NOT EXISTS user_phone_numbers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

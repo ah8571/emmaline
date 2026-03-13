@@ -10,6 +10,7 @@ import NotesScreen from '../screens/NotesScreen';
 import CreateNoteScreen from '../screens/CreateNoteScreen';
 import CallDetailScreen from '../screens/CallDetailScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import UpgradeScreen from '../screens/UpgradeScreen';
 import { isAuthenticated as hasAuthToken, getUser } from '../utils/secureStorage.js';
 import { useAppTheme } from '../theme/appTheme.js';
 import { designTokens } from '../theme/designSystem.js';
@@ -266,6 +267,13 @@ const AppHome = ({ onLogout }) => {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.menuItem}
+              onPress={() => openScreen('upgrade')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.menuItemText, { color: colors.text }]}>Upgrade</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
               onPress={() => openScreen('settings')}
               activeOpacity={0.8}
             >
@@ -296,7 +304,9 @@ const AppHome = ({ onLogout }) => {
           ? <TranscriptStack key={`transcripts-${transcriptStackVersion}`} onAppHeaderScroll={handleAppHeaderScroll} />
           : activeScreen === 'notes'
             ? <NotesStack key={`notes-${notesStackVersion}`} onAppHeaderScroll={handleAppHeaderScroll} notesResetToken={notesResetToken} />
-            : <SettingsScreen onLogout={onLogout} />}
+            : activeScreen === 'upgrade'
+              ? <UpgradeScreen />
+              : <SettingsScreen onLogout={onLogout} onOpenUpgrade={() => openScreen('upgrade')} />}
       </Animated.View>
     </View>
   );

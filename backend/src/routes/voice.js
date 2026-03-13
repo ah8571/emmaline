@@ -13,6 +13,7 @@ import {
   releaseDedicatedNumberForUser
 } from '../services/twilioService.js';
 import { getUserPhoneNumber } from '../services/databaseService.js';
+import { assertUserCanStartVoiceSession } from '../services/billingService.js';
 
 const router = express.Router();
 
@@ -65,6 +66,7 @@ const verifyTwilioRequest = (req, res, next) => {
 router.post('/token', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.userId;
+    const billingStatus = await assertUserCanStartVoiceSession(userId);
     const identity = `user_${userId}`;
     const result = generateVoiceAccessToken({ identity });
 
@@ -72,10 +74,19 @@ router.post('/token', authMiddleware, async (req, res) => {
       success: true,
       token: result.token,
       identity: result.identity,
-      ttl: result.ttl
+      ttl: result.ttl,
+      billing: billingStatus
     });
   } catch (error) {
     console.error('Error generating voice token:', error.message);
+
+    if (error.code === 'VOICE_PAYWALL_REQUIRED') {
+      return res.status(error.statusCode || 402).json({
+        error: error.message,
+        code: error.code,
+        billing: error.billingStatus
+      });
+    }
 
     if (String(error.message || '').includes('Missing Twilio Voice token configuration')) {
       return res.status(500).json({ error: error.message });
@@ -104,6 +115,8 @@ router.post('/connect', verifyTwilioRequest, async (req, res) => {
       return res.status(403).json({ error: 'Invalid voice identity' });
     }
 
+    await assertUserCanStartVoiceSession(userId);
+
     const twiml = generateClientConnectTwiML({
       identity,
       language,
@@ -115,6 +128,15 @@ router.post('/connect', verifyTwilioRequest, async (req, res) => {
     return res.send(twiml);
   } catch (error) {
     console.error('Error generating client connect TwiML:', error.message);
+
+    if (error.code === 'VOICE_PAYWALL_REQUIRED') {
+      return res.status(error.statusCode || 402).json({
+        error: error.message,
+        code: error.code,
+        billing: error.billingStatus
+      });
+    }
+
     return res.status(500).json({ error: 'Failed to connect voice session' });
   }
 });

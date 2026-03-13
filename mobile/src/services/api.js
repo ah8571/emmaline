@@ -216,7 +216,30 @@ export const getVoiceToken = async () => {
       success: true,
       token: response.data.token,
       identity: response.data.identity,
-      ttl: response.data.ttl
+      ttl: response.data.ttl,
+      billing: response.data.billing || null
+    };
+  } catch (error) {
+    const responseData = error.response?.data || {};
+
+    return {
+      success: false,
+      error: responseData.error || error.message,
+      code: responseData.code || null,
+      billing: responseData.billing || null,
+      statusCode: error.response?.status || null
+    };
+  }
+};
+
+export const getBillingStatus = async () => {
+  try {
+    await addTokenToHeaders();
+    const response = await apiClient.get('/billing/status');
+
+    return {
+      success: true,
+      billing: response.data.billing
     };
   } catch (error) {
     return {

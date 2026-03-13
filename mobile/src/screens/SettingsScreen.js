@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { getCalls } from '../services/api.js';
+import { getBillingStatus, getCalls } from '../services/api.js';
 import {
   getCallLanguagePreference,
   getNoteTextScalePreference,
@@ -97,7 +97,7 @@ const estimateCreditsFromUsd = (value) => {
   return Math.max(1, Math.ceil(usd * 100));
 };
 
-const SettingsScreen = ({ onLogout }) => {
+const SettingsScreen = ({ onLogout, onOpenUpgrade }) => {
   const { colors, isDarkMode, toggleTheme } = useAppTheme();
   const [callLanguage, setCallLanguage] = useState('en');
   const [speechRate, setSpeechRate] = useState(1);
@@ -107,6 +107,11 @@ const SettingsScreen = ({ onLogout }) => {
     loading: true,
     estimatedCredits: 0,
     callCount: 0
+  });
+  const [billingSummary, setBillingSummary] = useState({
+    loading: true,
+    availableVoiceMinutes: 0,
+    remainingFreeTrialSeconds: 0
   });
 
   useEffect(() => {
@@ -125,6 +130,29 @@ const SettingsScreen = ({ onLogout }) => {
     };
 
     loadPreferences();
+  }, []);
+
+  useEffect(() => {
+    const loadBillingSummary = async () => {
+      const response = await getBillingStatus();
+
+      if (response.success && response.billing) {
+        setBillingSummary({
+          loading: false,
+          availableVoiceMinutes: Number(response.billing.availableVoiceMinutes || 0),
+          remainingFreeTrialSeconds: Number(response.billing.remainingFreeTrialSeconds || 0)
+        });
+        return;
+      }
+
+      setBillingSummary({
+        loading: false,
+        availableVoiceMinutes: 0,
+        remainingFreeTrialSeconds: 0
+      });
+    };
+
+    loadBillingSummary();
   }, []);
 
   useEffect(() => {
@@ -271,6 +299,17 @@ const SettingsScreen = ({ onLogout }) => {
             ? 'Loading your total usage.'
             : `Across ${usageSummary.callCount} call${usageSummary.callCount === 1 ? '' : 's'} so far.`}
         </Text>
+
+        <View style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.infoCardCopy}>
+            <Text style={[styles.infoCardTitle, { color: colors.text }]}>Voice access</Text>
+            <Text style={[styles.infoCardDescription, { color: colors.mutedText }]}>5 free minutes, then $10/month for continued access.</Text>
+            <Text style={[styles.billingFootnote, { color: colors.mutedText }]}>Available now: {billingSummary.loading ? '...' : billingSummary.availableVoiceMinutes.toFixed(2)} min</Text>
+          </View>
+          <TouchableOpacity onPress={onOpenUpgrade} activeOpacity={0.8}>
+            <Text style={[styles.upgradeLink, { color: colors.accent }]}>Upgrade</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -417,6 +456,14 @@ const SettingsScreen = ({ onLogout }) => {
         <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>End your current session on this device.</Text>
 
         <TouchableOpacity
+          style={[styles.upgradeCardButton, { backgroundColor: colors.text }]}
+          onPress={onOpenUpgrade}
+          activeOpacity={0.85}
+        >
+          <Text style={[styles.upgradeCardButtonText, { color: colors.surface }]}>Upgrade to Pro</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={[styles.logoutButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={handleLogout}
           activeOpacity={0.85}
@@ -514,6 +561,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18
   },
+  billingFootnote: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 6
+  },
+  upgradeLink: {
+    fontSize: 15,
+    fontWeight: '700'
+  },
   optionCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -574,6 +630,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16
+  },
+  upgradeCardButton: {
+    minHeight: 54,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16
+  },
+  upgradeCardButtonText: {
+    fontSize: 16,
+    fontWeight: '700'
   },
   logoutButtonText: {
     fontSize: 16,

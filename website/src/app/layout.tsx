@@ -2,7 +2,7 @@ import '../globals.css'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Emmaline - Your AI Phone Call Buddy',
+  title: 'Your AI phone assistant - Emmaline',
   description: 'An intelligent companion for phone conversations. Get smarter with every call.',
   icons: {
     icon: '/black outline favicon.png',
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     shortcut: '/black outline favicon.png'
   },
   openGraph: {
-    title: 'Emmaline - Your AI Phone Call Buddy',
+    title: 'Your AI phone assistant - Emmaline',
     description: 'An intelligent companion for phone conversations. Get smarter with every call.',
     type: 'website',
   },

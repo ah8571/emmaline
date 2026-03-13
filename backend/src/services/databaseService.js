@@ -514,6 +514,59 @@ export const getUserPricingTier = async (userId) => {
   return data?.privacy_tier || 'tier1';
 };
 
+export const getUserBillingProfile = async (userId) => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, billing_state, free_trial_seconds_granted, prepaid_seconds_balance, auto_recharge_enabled, auto_recharge_threshold_seconds, auto_recharge_amount_seconds')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching user billing profile:', error);
+    throw error;
+  }
+
+  return data || null;
+};
+
+export const getUserConsumedCallSeconds = async (userId) => {
+  const { data, error } = await supabase
+    .from('calls')
+    .select('call_duration_seconds')
+    .eq('user_id', userId)
+    .not('call_duration_seconds', 'is', null);
+
+  if (error) {
+    console.error('Error fetching consumed call seconds:', error);
+    throw error;
+  }
+
+  return (data || []).reduce((total, call) => total + Number(call.call_duration_seconds || 0), 0);
+};
+
+export const addUserPrepaidSeconds = async (userId, secondsToAdd) => {
+  const currentProfile = await getUserBillingProfile(userId);
+  const nextBalance = Math.max(0, Number(currentProfile?.prepaid_seconds_balance || 0) + Number(secondsToAdd || 0));
+
+  const { data, error } = await supabase
+    .from('users')
+    .update({
+      prepaid_seconds_balance: nextBalance,
+      billing_state: nextBalance > 0 ? 'active' : currentProfile?.billing_state || 'trial',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', userId)
+    .select('id, billing_state, free_trial_seconds_granted, prepaid_seconds_balance, auto_recharge_enabled, auto_recharge_threshold_seconds, auto_recharge_amount_seconds')
+    .single();
+
+  if (error) {
+    console.error('Error updating user prepaid seconds:', error);
+    throw error;
+  }
+
+  return data;
+};
+
 export const getUserPhoneNumber = async (userId) => {
   const { data, error } = await supabase
     .from('user_phone_numbers')
@@ -613,6 +666,9 @@ export default {
   deleteNote,
   linkNotesToCall,
   getUserPricingTier,
+  getUserBillingProfile,
+  getUserConsumedCallSeconds,
+  addUserPrepaidSeconds,
   getUserPhoneNumber,
   getUserIdByAssignedPhoneNumber,
   saveUserPhoneNumber,
