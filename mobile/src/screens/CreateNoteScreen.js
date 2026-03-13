@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
 import { createNote, getNote, getTopics, updateNote } from '../services/api.js';
 import { useAppTheme } from '../theme/appTheme.js';
+import { designTokens } from '../theme/designSystem.js';
 import { normalizeNoteContentToHtml, stripNoteContentToPlainText } from '../utils/noteContent.js';
 import { getNoteTextScalePreference, saveNoteTextScalePreference } from '../utils/secureStorage.js';
 
@@ -268,6 +269,17 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
   }, []);
 
   useEffect(() => {
+    const escapedBackground = JSON.stringify(colors.background);
+    const escapedText = JSON.stringify(colors.text);
+    const escapedBottomPadding = JSON.stringify(`${editorContentBottomPadding}px`);
+    const escapedBodyFontSize = JSON.stringify(`${editorFontSize}px`);
+    const escapedBodyLineHeight = JSON.stringify(`${editorLineHeight}px`);
+    const escapedHeading1FontSize = JSON.stringify(`${heading1Size}px`);
+    const escapedHeading1LineHeight = JSON.stringify(`${Math.round(heading1Size * 1.2)}px`);
+    const escapedHeading2FontSize = JSON.stringify(`${heading2Size}px`);
+    const escapedHeading2LineHeight = JSON.stringify(`${Math.round(heading2Size * 1.25)}px`);
+    const escapedHeading3FontSize = JSON.stringify(`${heading3Size}px`);
+    const escapedHeading3LineHeight = JSON.stringify(`${Math.round(heading3Size * 1.3)}px`);
     const nextEditorStyle = {
       backgroundColor: colors.background,
       color: colors.text,
@@ -278,23 +290,48 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
 
     richTextRef.current?.setContentStyle?.(nextEditorStyle);
     richTextRef.current?.commandDOM?.(`
-      document.documentElement.style.backgroundColor = ${JSON.stringify(colors.background)};
-      document.body.style.backgroundColor = ${JSON.stringify(colors.background)};
+      document.documentElement.style.backgroundColor = ${escapedBackground};
+      document.body.style.backgroundColor = ${escapedBackground};
+      document.body.style.color = ${escapedText};
+      document.body.style.fontSize = ${escapedBodyFontSize};
+      document.body.style.lineHeight = ${escapedBodyLineHeight};
       var contentShell = $('.content');
       if (contentShell) {
-        contentShell.style.backgroundColor = ${JSON.stringify(colors.background)};
+        contentShell.style.backgroundColor = ${escapedBackground};
       }
       var editorRoot = $('#editor');
       if (editorRoot) {
-        editorRoot.style.backgroundColor = ${JSON.stringify(colors.background)};
-        editorRoot.style.color = ${JSON.stringify(colors.text)};
+        editorRoot.style.backgroundColor = ${escapedBackground};
+        editorRoot.style.color = ${escapedText};
       }
       var editableSurface = document.querySelector('.pell-content');
       if (editableSurface) {
-        editableSurface.style.backgroundColor = ${JSON.stringify(colors.background)};
-        editableSurface.style.color = ${JSON.stringify(colors.text)};
-        editableSurface.style.paddingBottom = ${JSON.stringify(`${editorContentBottomPadding}px`)};
+        editableSurface.style.backgroundColor = ${escapedBackground};
+        editableSurface.style.color = ${escapedText};
+        editableSurface.style.fontSize = ${escapedBodyFontSize};
+        editableSurface.style.lineHeight = ${escapedBodyLineHeight};
+        editableSurface.style.paddingBottom = ${escapedBottomPadding};
       }
+      Array.from(document.querySelectorAll('p, li')).forEach(function(node) {
+        node.style.fontSize = ${escapedBodyFontSize};
+        node.style.lineHeight = ${escapedBodyLineHeight};
+        node.style.color = ${escapedText};
+      });
+      Array.from(document.querySelectorAll('h1')).forEach(function(node) {
+        node.style.fontSize = ${escapedHeading1FontSize};
+        node.style.lineHeight = ${escapedHeading1LineHeight};
+        node.style.color = ${escapedText};
+      });
+      Array.from(document.querySelectorAll('h2')).forEach(function(node) {
+        node.style.fontSize = ${escapedHeading2FontSize};
+        node.style.lineHeight = ${escapedHeading2LineHeight};
+        node.style.color = ${escapedText};
+      });
+      Array.from(document.querySelectorAll('h3')).forEach(function(node) {
+        node.style.fontSize = ${escapedHeading3FontSize};
+        node.style.lineHeight = ${escapedHeading3LineHeight};
+        node.style.color = ${escapedText};
+      });
     `);
   }, [colors.background, colors.mutedText, colors.text, editorContentBottomPadding, editorFontSize, editorLineHeight, heading1Size, heading2Size, heading3Size]);
 
@@ -416,15 +453,17 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
   const heading1Size = Math.round(32 * noteTextScale);
   const heading2Size = Math.round(24 * noteTextScale);
   const heading3Size = Math.round(20 * noteTextScale);
+  const titleFontSize = Math.round(36 * noteTextScale);
+  const titleLineHeight = Math.round(titleFontSize * 1.15);
   const safeBottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? BOTTOM_SAFE_ZONE : 12);
   const effectiveKeyboardHeight = keyboardVisible ? (keyboardHeight || Keyboard.metrics?.()?.height || 0) : 0;
   const toolbarBottomOffset = editorFocused && effectiveKeyboardHeight > 0 ? effectiveKeyboardHeight : safeBottomInset;
   const toolbarVisible = keyboardVisible && editorFocused;
   const toolbarVisualHeight = TOOLBAR_DOCK_HEIGHT + Math.max(safeBottomInset - 2, 8);
-  const editorContentBottomPadding = toolbarVisible ? toolbarVisualHeight + 72 : safeBottomInset + 28;
+  const editorContentBottomPadding = toolbarVisible ? toolbarVisualHeight + 96 : safeBottomInset + 44;
   const contentBottomPadding = toolbarVisible
     ? toolbarVisualHeight + toolbarBottomOffset + 28
-    : safeBottomInset + 20;
+    : safeBottomInset + 36;
 
   return (
     <KeyboardAvoidingView
@@ -448,11 +487,19 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
           activeOpacity={0.8}
         >
           <Text style={[styles.backArrow, { color: colors.text }]}>←</Text>
-          <Text style={[styles.backLabel, { color: colors.mutedText }]}>Notes</Text>
+          <Text style={[styles.backLabel, { color: colors.mutedText }]}>Back</Text>
         </TouchableOpacity>
 
         <TextInput
-          style={[styles.titleInput, { color: colors.text, borderBottomColor: colors.border, fontSize: 22 * noteTextScale }]}
+          style={[
+            styles.titleInput,
+            {
+              color: colors.text,
+              borderBottomColor: colors.border,
+              fontSize: titleFontSize,
+              lineHeight: titleLineHeight
+            }
+          ]}
           placeholder="Note Title"
           placeholderTextColor={colors.mutedText}
           value={title}
@@ -462,7 +509,7 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
 
         <View style={[styles.editorShell, { borderTopColor: colors.border }] }>
           <RichEditor
-            key={existingNote?.id || noteId || 'new-note'}
+            key={`${existingNote?.id || noteId || 'new-note'}-${noteTextScale}`}
             ref={richTextRef}
             initialContentHTML={content || '<p></p>'}
             initialFocus={false}
@@ -626,7 +673,7 @@ const styles = StyleSheet.create({
   backRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: designTokens.spacing.sm,
     paddingVertical: 2
   },
   backArrow: {
@@ -636,12 +683,12 @@ const styles = StyleSheet.create({
     color: '#212529'
   },
   backLabel: {
-    fontSize: 13,
+    fontSize: designTokens.typography.label,
     color: '#6c757d'
   },
   titleInput: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#212529',
     marginBottom: 14,
     paddingTop: 4,
@@ -689,7 +736,7 @@ const styles = StyleSheet.create({
     minWidth: 32,
     height: 32,
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: designTokens.radius.pill,
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -719,23 +766,23 @@ const styles = StyleSheet.create({
     marginTop: 16
   },
   topicSelectorLabel: {
-    fontSize: 13,
+    fontSize: designTokens.typography.label,
     fontWeight: '600',
     color: '#495057',
-    marginBottom: 8
+    marginBottom: designTokens.spacing.sm
   },
   topicTag: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 18,
+    borderRadius: designTokens.radius.lg,
     backgroundColor: '#e9ecef',
-    marginRight: 8
+    marginRight: designTokens.spacing.sm
   },
   topicTagActive: {
     backgroundColor: '#007AFF'
   },
   topicTagText: {
-    fontSize: 13,
+    fontSize: designTokens.typography.label,
     color: '#495057'
   },
   topicTagTextActive: {

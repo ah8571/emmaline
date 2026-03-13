@@ -277,8 +277,8 @@ CREATE POLICY "Users can view their own note revisions" ON note_revisions FOR SE
 CREATE POLICY "Users can view their own audit logs" ON audit_logs FOR SELECT
   USING (auth.uid() = user_id);
 
--- Newsletter subscribers (marketing waitlist)
-CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+-- Waitlist subscribers
+CREATE TABLE IF NOT EXISTS waitlist_subscribers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(255) UNIQUE NOT NULL,
   source VARCHAR(100) DEFAULT 'landing-page',
@@ -292,13 +292,13 @@ CREATE TABLE IF NOT EXISTS newsletter_subscribers (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE newsletter_subscribers ADD COLUMN IF NOT EXISTS marketing_opt_in BOOLEAN DEFAULT FALSE;
-ALTER TABLE newsletter_subscribers ADD COLUMN IF NOT EXISTS consent_source VARCHAR(100);
-ALTER TABLE newsletter_subscribers ADD COLUMN IF NOT EXISTS consent_timestamp TIMESTAMP WITH TIME ZONE;
-ALTER TABLE newsletter_subscribers ADD COLUMN IF NOT EXISTS policy_version VARCHAR(50);
-ALTER TABLE newsletter_subscribers ADD COLUMN IF NOT EXISTS consent_user_agent TEXT;
+ALTER TABLE waitlist_subscribers ADD COLUMN IF NOT EXISTS marketing_opt_in BOOLEAN DEFAULT FALSE;
+ALTER TABLE waitlist_subscribers ADD COLUMN IF NOT EXISTS consent_source VARCHAR(100);
+ALTER TABLE waitlist_subscribers ADD COLUMN IF NOT EXISTS consent_timestamp TIMESTAMP WITH TIME ZONE;
+ALTER TABLE waitlist_subscribers ADD COLUMN IF NOT EXISTS policy_version VARCHAR(50);
+ALTER TABLE waitlist_subscribers ADD COLUMN IF NOT EXISTS consent_user_agent TEXT;
 
-CREATE INDEX IF NOT EXISTS idx_newsletter_email ON newsletter_subscribers (email);
-CREATE INDEX IF NOT EXISTS idx_newsletter_active ON newsletter_subscribers (is_active);
+CREATE INDEX IF NOT EXISTS idx_waitlist_email ON waitlist_subscribers (email);
+CREATE INDEX IF NOT EXISTS idx_waitlist_active ON waitlist_subscribers (is_active);
 
-ALTER TABLE newsletter_subscribers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE waitlist_subscribers ENABLE ROW LEVEL SECURITY;

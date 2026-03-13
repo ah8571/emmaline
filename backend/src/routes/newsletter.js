@@ -32,7 +32,7 @@ router.post('/', async (req, res) => {
     const {
       email,
       source,
-      marketingConsent = true,
+      marketingConsent = false,
       consentSource,
       policyVersion,
       consentTimestamp,
@@ -69,17 +69,17 @@ router.post('/', async (req, res) => {
       }
     }
 
-    console.log(`Newsletter signup: ${subscriber.email} (source: ${source || 'unknown'})`);
+    console.log(`Waitlist signup: ${subscriber.email} (source: ${source || 'unknown'})`);
 
     return res.status(201).json({
-      message: 'Successfully subscribed to newsletter',
+      message: 'Successfully joined the waitlist',
       email: subscriber.email,
       created: subscriber.created,
       persisted: subscriber.persisted,
       welcomeEmail
     });
   } catch (error) {
-    console.error('Newsletter signup error:', error);
+    console.error('Waitlist signup error:', error);
     return res.status(500).json({ error: 'Failed to subscribe' });
   }
 });

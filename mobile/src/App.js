@@ -25,6 +25,8 @@ import {
 } from './utils/secureStorage.js';
 import { AppThemeProvider, darkColors, lightColors } from './theme/appTheme.js';
 
+const APP_BOTTOM_RAIL_HEIGHT = 18;
+
 const AppContent = () => {
   const insets = useSafeAreaInsets();
   const [isCalling, setIsCalling] = useState(false);
@@ -37,6 +39,7 @@ const AppContent = () => {
   const [showLaunchSplash, setShowLaunchSplash] = useState(true);
 
   const colors = isDarkMode ? darkColors : lightColors;
+  const appBottomRailHeight = Math.max(insets.bottom, 12) + APP_BOTTOM_RAIL_HEIGHT;
 
   useEffect(() => {
     const loadThemeMode = async () => {
@@ -261,6 +264,17 @@ const AppContent = () => {
           <AppNavigator onAuthStateChange={setIsAuthenticated} />
         </View>
 
+        <View
+          style={[
+            styles.bottomRail,
+            {
+              height: appBottomRailHeight,
+              backgroundColor: colors.surface,
+              borderTopColor: colors.border
+            }
+          ]}
+        />
+
         {isAuthenticated ? (
           <FloatingCallButton
             onPress={handleInitiateCall}
@@ -285,7 +299,7 @@ const AppContent = () => {
             onSelectAudioRoute={handleSelectAudioRoute}
             isMuted={isMuted}
             onToggleMute={handleToggleMute}
-            bottomInset={insets.bottom}
+            bottomInset={appBottomRailHeight}
           />
         ) : null}
       </View>
@@ -328,5 +342,8 @@ const styles = StyleSheet.create({
   },
   navigatorContainer: {
     flex: 1
+  },
+  bottomRail: {
+    borderTopWidth: 1
   }
 });

@@ -30,6 +30,7 @@ const FloatingCallButton = ({
   const statusBottom = floatingBottom + 116;
   const audioCardBottom = floatingBottom + 80;
   const circleIconColor = isDarkMode ? '#ffffff' : '#111111';
+  const controlBackgroundColor = isDarkMode ? '#000000' : '#ffffff';
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -110,6 +111,10 @@ const FloatingCallButton = ({
         <TouchableOpacity
           style={[
             styles.button,
+            {
+              backgroundColor: controlBackgroundColor,
+              borderColor: colors.border
+            },
             isActiveCall && styles.buttonActive
           ]}
           onPress={handlePress}
@@ -139,9 +144,16 @@ const styles = StyleSheet.create({
   button: {
     width: 72,
     height: 72,
+    borderRadius: 999,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'transparent'
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 8
   },
   buttonActive: {
     transform: [{ scale: 1 }]

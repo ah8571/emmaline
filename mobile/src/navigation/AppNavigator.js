@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +12,7 @@ import CallDetailScreen from '../screens/CallDetailScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import { isAuthenticated as hasAuthToken, getUser } from '../utils/secureStorage.js';
 import { useAppTheme } from '../theme/appTheme.js';
+import { designTokens } from '../theme/designSystem.js';
 import { logoutUser } from '../services/api.js';
 
 const Stack = createStackNavigator();
@@ -76,45 +77,86 @@ const AppHome = ({ onLogout }) => {
   const [uiState, setUiState] = useState({
     activeScreen: 'transcripts',
     menuOpen: false,
-    appHeaderScrollOffset: 0,
     transcriptStackVersion: 0,
     notesStackVersion: 0,
-    notesResetToken: 0
+    notesResetToken: 0,
+    headerScrollOffset: new Animated.Value(0)
   });
   const { colors, isDarkMode, toggleTheme } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const lastScrollYRef = useRef(0);
+  const headerHiddenOffsetRef = useRef(0);
   const topInset = Math.max(insets.top, 10);
   const headerMaxHeight = 64 + topInset;
-  const headerMinHeight = 44 + topInset;
-  const headerCollapseRange = Math.max(0, headerMaxHeight - headerMinHeight);
-  const { activeScreen, menuOpen, appHeaderScrollOffset, transcriptStackVersion, notesStackVersion, notesResetToken } = uiState;
-  const clampedHeaderOffset = Math.min(Math.max(appHeaderScrollOffset, 0), headerCollapseRange);
-  const headerHeight = headerMaxHeight - clampedHeaderOffset;
-  const headerPaddingTop = Math.max(topInset, topInset + 8 - clampedHeaderOffset * 0.5);
-  const headerPaddingBottom = Math.max(0, 12 - clampedHeaderOffset * 0.6);
+  const headerCollapseRange = headerMaxHeight;
+  const { activeScreen, menuOpen, transcriptStackVersion, notesStackVersion, notesResetToken } = uiState;
+  const headerScrollOffset = uiState.headerScrollOffset && typeof uiState.headerScrollOffset.interpolate === 'function'
+    ? uiState.headerScrollOffset
+    : new Animated.Value(0);
+  const headerTranslateY = headerScrollOffset.interpolate({
+    inputRange: [0, headerCollapseRange],
+    outputRange: [0, -headerCollapseRange],
+    extrapolate: 'clamp'
+  });
+  const contentTopInset = headerScrollOffset.interpolate({
+    inputRange: [0, headerCollapseRange],
+    outputRange: [headerMaxHeight, 0],
+    extrapolate: 'clamp'
+  });
+
+  const resetHeaderPosition = useCallback((animated = false) => {
+    lastScrollYRef.current = 0;
+    headerHiddenOffsetRef.current = 0;
+
+    if (animated) {
+      Animated.timing(headerScrollOffset, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: false
+      }).start();
+      return;
+    }
+
+    headerScrollOffset.stopAnimation();
+    headerScrollOffset.setValue(0);
+  }, [headerScrollOffset]);
 
   const handleAppHeaderScroll = useCallback((offsetY = 0) => {
-    setUiState((currentState) => {
-      const normalizedOffset = Number.isFinite(Number(offsetY)) ? Math.max(0, Number(offsetY)) : 0;
+    const normalizedOffset = Number.isFinite(Number(offsetY)) ? Math.max(0, Number(offsetY)) : 0;
+    const previousScrollY = lastScrollYRef.current;
+    const deltaY = normalizedOffset - previousScrollY;
+    const nextHiddenOffset = normalizedOffset <= 0
+      ? 0
+      : Math.max(0, Math.min(headerCollapseRange, headerHiddenOffsetRef.current + deltaY));
 
-      if (currentState.appHeaderScrollOffset === normalizedOffset && !currentState.menuOpen) {
+    lastScrollYRef.current = normalizedOffset;
+    headerHiddenOffsetRef.current = nextHiddenOffset;
+    headerScrollOffset.setValue(nextHiddenOffset);
+
+    if (normalizedOffset <= 0) {
+      return;
+    }
+
+    setUiState((currentState) => {
+      if (!currentState.menuOpen) {
         return currentState;
       }
 
       return {
         ...currentState,
-        appHeaderScrollOffset: normalizedOffset,
-        menuOpen: normalizedOffset > 0 ? false : currentState.menuOpen
+        headerScrollOffset: currentState.headerScrollOffset || headerScrollOffset,
+        menuOpen: false
       };
     });
-  }, []);
+  }, [headerCollapseRange, headerScrollOffset]);
 
   const openScreen = (screen) => {
+    resetHeaderPosition();
     setUiState((currentState) => ({
       ...currentState,
+      headerScrollOffset: currentState.headerScrollOffset || headerScrollOffset,
       activeScreen: screen,
       menuOpen: false,
-      appHeaderScrollOffset: 0,
       transcriptStackVersion: screen === 'transcripts' ? currentState.transcriptStackVersion + 1 : currentState.transcriptStackVersion,
       notesStackVersion: screen === 'notes' ? currentState.notesStackVersion + 1 : currentState.notesStackVersion,
       notesResetToken: screen === 'notes' ? currentState.notesResetToken + 1 : currentState.notesResetToken
@@ -122,8 +164,10 @@ const AppHome = ({ onLogout }) => {
   };
 
   const handleLogoutPress = () => {
+    resetHeaderPosition();
     setUiState((currentState) => ({
       ...currentState,
+      headerScrollOffset: currentState.headerScrollOffset || headerScrollOffset,
       menuOpen: false
     }));
     Alert.alert(
@@ -145,27 +189,30 @@ const AppHome = ({ onLogout }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View
+      <Animated.View
         style={[
           styles.header,
           {
             backgroundColor: colors.surface,
             borderBottomColor: colors.border,
-            height: headerHeight,
-            opacity: 1,
-            paddingTop: headerPaddingTop,
-            paddingBottom: headerPaddingBottom,
-            borderBottomWidth: 1
+            height: headerMaxHeight,
+            paddingTop: topInset + designTokens.spacing.sm,
+            paddingBottom: designTokens.chrome.shellBottomPadding,
+            borderBottomWidth: 1,
+            transform: [{ translateY: headerTranslateY }]
           }
         ]}
       >
         <TouchableOpacity
           style={styles.menuButton}
-          onPress={() => setUiState((currentState) => ({
-            ...currentState,
-            menuOpen: !currentState.menuOpen,
-            appHeaderScrollOffset: 0
-          }))}
+          onPress={() => {
+            resetHeaderPosition(true);
+            setUiState((currentState) => ({
+              ...currentState,
+              headerScrollOffset: currentState.headerScrollOffset || headerScrollOffset,
+              menuOpen: !currentState.menuOpen
+            }));
+          }}
           activeOpacity={0.8}
         >
           <View style={styles.menuIconBars}>
@@ -191,16 +238,23 @@ const AppHome = ({ onLogout }) => {
             {isDarkMode ? '☼' : '☾'}
           </Text>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
 
       {menuOpen ? (
         <View style={styles.overlay}>
           <TouchableOpacity
             style={styles.overlayBackdrop}
-            onPress={() => setUiState((currentState) => ({ ...currentState, menuOpen: false }))}
+            onPress={() => {
+              resetHeaderPosition(true);
+              setUiState((currentState) => ({
+                ...currentState,
+                headerScrollOffset: currentState.headerScrollOffset || headerScrollOffset,
+                menuOpen: false
+              }));
+            }}
             activeOpacity={1}
           />
-          <View style={[styles.sideMenu, { backgroundColor: colors.surface, borderRightColor: colors.border, top: headerHeight }]}>
+          <View style={[styles.sideMenu, { backgroundColor: colors.surface, borderRightColor: colors.border, top: headerMaxHeight }]}>
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => openScreen('transcripts')}
@@ -233,13 +287,21 @@ const AppHome = ({ onLogout }) => {
         </View>
       ) : null}
 
-      <View style={[styles.content, { backgroundColor: colors.background }]}>
+      <Animated.View
+        style={[
+          styles.content,
+          {
+            backgroundColor: colors.background,
+            paddingTop: contentTopInset
+          }
+        ]}
+      >
         {activeScreen === 'transcripts'
           ? <TranscriptStack key={`transcripts-${transcriptStackVersion}`} onAppHeaderScroll={handleAppHeaderScroll} />
           : activeScreen === 'notes'
             ? <NotesStack key={`notes-${notesStackVersion}`} onAppHeaderScroll={handleAppHeaderScroll} notesResetToken={notesResetToken} />
             : <SettingsScreen onLogout={onLogout} />}
-      </View>
+      </Animated.View>
     </View>
   );
 };
@@ -344,36 +406,40 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff'
   },
   header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 30,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
-    overflow: 'hidden',
     justifyContent: 'flex-end',
     alignItems: 'center',
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    paddingHorizontal: designTokens.chrome.shellHorizontalPadding,
     backgroundColor: '#ffffff',
     justifyContent: 'space-between'
   },
   menuButton: {
-    width: 44,
-    height: 44,
+    width: designTokens.chrome.menuButtonSize,
+    height: designTokens.chrome.menuButtonSize,
     alignItems: 'flex-start',
     justifyContent: 'center',
     marginTop: 0
   },
   themeToggle: {
-    minWidth: 32,
-    height: 32,
+    minWidth: designTokens.chrome.themeToggleSize,
+    height: designTokens.chrome.themeToggleSize,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 0
   },
   themeToggleText: {
-    fontSize: 28,
+    fontSize: designTokens.typography.shellIcon,
     fontWeight: '700',
     includeFontPadding: false,
     textAlignVertical: 'center',
-    lineHeight: 28
+    lineHeight: designTokens.typography.shellIcon
   },
   themeToggleTextMoon: {
     fontSize: 27,
@@ -386,12 +452,12 @@ const styles = StyleSheet.create({
     transform: [{ translateY: -1 }]
   },
   menuIconBars: {
-    width: 28,
-    gap: 4
+    width: designTokens.chrome.menuIconWidth,
+    gap: designTokens.chrome.menuIconGap
   },
   menuIconBar: {
-    height: 3.5,
-    borderRadius: 999,
+    height: designTokens.chrome.menuBarHeight,
+    borderRadius: designTokens.radius.pill,
     backgroundColor: '#212529'
   },
   overlay: {
@@ -407,7 +473,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     bottom: 0,
-    width: 220,
+    width: designTokens.chrome.sideMenuWidth,
     paddingTop: 18,
     backgroundColor: '#ffffff',
     borderRightWidth: 1,
@@ -415,10 +481,10 @@ const styles = StyleSheet.create({
   },
   menuItem: {
     paddingHorizontal: 18,
-    paddingVertical: 16
+    paddingVertical: designTokens.spacing.lg
   },
   menuItemLast: {
-    marginTop: 4,
+    marginTop: designTokens.spacing.xs,
     borderTopWidth: 1
   },
   menuItemText: {

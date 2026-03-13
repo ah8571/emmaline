@@ -2,6 +2,7 @@ import { Resend } from 'resend';
 import { getSupabaseClient } from './databaseService.js';
 
 let resendClient = null;
+const WAITLIST_TABLE = 'waitlist_subscribers';
 
 const getResendClient = () => {
   if (resendClient) {
@@ -54,7 +55,7 @@ export const addNewsletterSubscriber = async ({
   }
 
   const { data: existing, error: existingError } = await supabase
-    .from('newsletter_subscribers')
+    .from(WAITLIST_TABLE)
     .select('id, email, is_active')
     .eq('email', normalizedEmail)
     .maybeSingle();
@@ -65,7 +66,7 @@ export const addNewsletterSubscriber = async ({
 
   if (existing) {
     const { data: reactivated, error: updateError } = await supabase
-      .from('newsletter_subscribers')
+      .from(WAITLIST_TABLE)
       .update({
         is_active: true,
         source,
@@ -92,7 +93,7 @@ export const addNewsletterSubscriber = async ({
   }
 
   const { data: created, error: createError } = await supabase
-    .from('newsletter_subscribers')
+    .from(WAITLIST_TABLE)
     .insert({
       email: normalizedEmail,
       source,
@@ -125,7 +126,7 @@ export const listActiveSubscribers = async () => {
   }
 
   const { data, error } = await supabase
-    .from('newsletter_subscribers')
+    .from(WAITLIST_TABLE)
     .select('email')
     .eq('is_active', true)
     .order('created_at', { ascending: true });
@@ -153,11 +154,11 @@ export const getNewsletterStats = async () => {
 
   const [{ count: totalCount, error: totalError }, { count: weeklyCount, error: weeklyError }] = await Promise.all([
     supabase
-      .from('newsletter_subscribers')
+      .from(WAITLIST_TABLE)
       .select('*', { count: 'exact', head: true })
       .eq('is_active', true),
     supabase
-      .from('newsletter_subscribers')
+      .from(WAITLIST_TABLE)
       .select('*', { count: 'exact', head: true })
       .eq('is_active', true)
       .gte('created_at', oneWeekAgo.toISOString())

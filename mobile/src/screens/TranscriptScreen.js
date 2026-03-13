@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getCalls } from '../services/api.js';
 import { useAppTheme } from '../theme/appTheme.js';
+import { designTokens } from '../theme/designSystem.js';
 
 /**
  * TranscriptScreen
@@ -116,14 +117,16 @@ const TranscriptScreen = ({ navigation, onAppHeaderScroll }) => {
     </View>
   );
 
+  const renderListHeader = () => (
+    <View style={[styles.headerBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <Text style={[styles.pageTitle, { color: colors.text }]}>Transcripts</Text>
+    </View>
+  );
+
   const bottomContentInset = Math.max(insets.bottom, BOTTOM_SAFE_ZONE);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }] }>
-      <View style={[styles.headerBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <Text style={[styles.pageTitle, { color: colors.text }]}>Transcripts</Text>
-      </View>
-
       {loading ? (
         <ActivityIndicator size="large" color={colors.accent} style={styles.loader} />
       ) : transcripts.length === 0 ? (
@@ -139,6 +142,7 @@ const TranscriptScreen = ({ navigation, onAppHeaderScroll }) => {
           keyExtractor={(item, index) => item.id || index.toString()}
           renderItem={renderTranscript}
           renderSectionHeader={renderSectionHeader}
+          ListHeaderComponent={renderListHeader}
           contentContainerStyle={[styles.listContent, { paddingBottom: bottomContentInset + 24 }]}
           onScroll={handleListScroll}
           scrollEventThrottle={16}
@@ -155,14 +159,14 @@ const styles = StyleSheet.create({
   },
   headerBar: {
     backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingHorizontal: designTokens.chrome.listHeaderHorizontalPadding,
+    paddingTop: designTokens.chrome.listHeaderVerticalPadding,
+    paddingBottom: designTokens.chrome.listHeaderVerticalPadding,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef'
   },
   pageTitle: {
-    fontSize: 28,
+    fontSize: designTokens.typography.pageTitle,
     fontWeight: '700',
     color: '#212529'
   },
@@ -170,25 +174,26 @@ const styles = StyleSheet.create({
     marginTop: 50
   },
   listContent: {
-    paddingHorizontal: 12,
-    paddingTop: 12
+    paddingTop: 0,
+    paddingBottom: 0
   },
   sectionHeader: {
-    paddingHorizontal: 4,
-    paddingVertical: 8,
+    paddingHorizontal: designTokens.spacing.md,
+    paddingVertical: designTokens.spacing.sm,
     backgroundColor: '#f8f9fa'
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: designTokens.typography.sectionLabel,
     fontWeight: '600',
     color: '#6c757d',
     textTransform: 'uppercase'
   },
   transcriptCard: {
     backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    borderRadius: designTokens.radius.sm,
+    padding: designTokens.spacing.md,
+    marginHorizontal: designTokens.spacing.md,
+    marginBottom: designTokens.spacing.sm,
     borderWidth: 1,
     borderColor: '#dee2e6'
   },
@@ -208,7 +213,7 @@ const styles = StyleSheet.create({
     color: '#6c757d'
   },
   preview: {
-    fontSize: 13,
+    fontSize: designTokens.typography.bodySmall,
     color: '#495057',
     lineHeight: 18
   },
@@ -216,16 +221,16 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32
+    paddingHorizontal: designTokens.spacing.xxxl
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: designTokens.typography.title,
     fontWeight: '600',
     color: '#212529',
-    marginBottom: 8
+    marginBottom: designTokens.spacing.sm
   },
   emptySubtext: {
-    fontSize: 14,
+    fontSize: designTokens.typography.body,
     color: '#6c757d',
     textAlign: 'center'
   }

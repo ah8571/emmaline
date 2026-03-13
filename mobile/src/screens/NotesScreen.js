@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getNotes, getTopics } from '../services/api.js';
 import NoteCard from '../components/NoteCard';
 import { useAppTheme } from '../theme/appTheme.js';
+import { designTokens } from '../theme/designSystem.js';
 import { getNoteTextScalePreference } from '../utils/secureStorage.js';
 
 /**
@@ -153,10 +154,8 @@ const NotesScreen = ({ navigation, onAppHeaderScroll }) => {
     )
   );
 
-  const bottomContentInset = Math.max(insets.bottom, BOTTOM_SAFE_ZONE);
-
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }] }>
+  const renderListHeader = () => (
+    <>
       <View style={[styles.headerBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <Text style={[styles.pageTitle, { color: colors.text }]}>Notes</Text>
         <TouchableOpacity
@@ -167,8 +166,7 @@ const NotesScreen = ({ navigation, onAppHeaderScroll }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Topic Filter Scroll View */}
-      {topics.length > 0 && (
+      {topics.length > 0 ? (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -216,8 +214,14 @@ const NotesScreen = ({ navigation, onAppHeaderScroll }) => {
             </TouchableOpacity>
           ))}
         </ScrollView>
-      )}
+      ) : null}
+    </>
+  );
 
+  const bottomContentInset = Math.max(insets.bottom, BOTTOM_SAFE_ZONE);
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }] }>
       {loading ? (
         <ActivityIndicator size="large" color={colors.accent} style={styles.loader} />
       ) : errorMessage ? (
@@ -239,6 +243,7 @@ const NotesScreen = ({ navigation, onAppHeaderScroll }) => {
           keyExtractor={(item, index) => item.id || index.toString()}
           renderItem={renderNote}
           renderSectionHeader={renderSectionHeader}
+          ListHeaderComponent={renderListHeader}
           contentContainerStyle={[styles.notesList, { paddingBottom: bottomContentInset + 24 }]}
           onScroll={handleListScroll}
           scrollEventThrottle={16}
@@ -255,9 +260,9 @@ const styles = StyleSheet.create({
   },
   headerBar: {
     backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingHorizontal: designTokens.chrome.listHeaderHorizontalPadding,
+    paddingTop: designTokens.chrome.listHeaderVerticalPadding,
+    paddingBottom: designTokens.chrome.listHeaderVerticalPadding,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
     flexDirection: 'row',
@@ -265,7 +270,7 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   pageTitle: {
-    fontSize: 28,
+    fontSize: designTokens.typography.pageTitle,
     fontWeight: '700',
     color: '#212529'
   },
@@ -287,15 +292,15 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e9ecef'
   },
   topicContent: {
-    paddingHorizontal: 12,
+    paddingHorizontal: designTokens.spacing.md,
     paddingVertical: 10
   },
   topicTag: {
     paddingHorizontal: 14,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: designTokens.radius.pill,
     backgroundColor: '#e9ecef',
-    marginRight: 8,
+    marginRight: designTokens.spacing.sm,
     borderWidth: 1,
     borderColor: '#dee2e6'
   },
@@ -304,7 +309,7 @@ const styles = StyleSheet.create({
     borderColor: '#007AFF'
   },
   topicTagText: {
-    fontSize: 13,
+    fontSize: designTokens.typography.label,
     fontWeight: '500',
     color: '#495057'
   },
@@ -315,12 +320,12 @@ const styles = StyleSheet.create({
     marginTop: 50
   },
   sectionHeader: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: designTokens.spacing.md,
+    paddingVertical: designTokens.spacing.sm,
     backgroundColor: '#f8f9fa'
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: designTokens.typography.sectionLabel,
     fontWeight: '600',
     color: '#6c757d',
     textTransform: 'uppercase'
@@ -329,7 +334,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32
+    paddingHorizontal: designTokens.spacing.xxxl
   },
   emptyIcon: {
     fontSize: 48,
