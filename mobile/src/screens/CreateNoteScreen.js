@@ -388,7 +388,8 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange }) =>
   const safeBottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
   const effectiveKeyboardHeight = keyboardVisible ? (keyboardHeight || Keyboard.metrics?.()?.height || 0) : 0;
   const toolbarBottomOffset = editorFocused && effectiveKeyboardHeight > 0 ? effectiveKeyboardHeight : safeBottomInset;
-  const contentBottomPadding = TOOLBAR_DOCK_HEIGHT + toolbarBottomOffset + 20;
+  const toolbarVisible = keyboardVisible && editorFocused;
+  const contentBottomPadding = toolbarVisible ? TOOLBAR_DOCK_HEIGHT + toolbarBottomOffset + 20 : 20;
 
   return (
     <KeyboardAvoidingView
@@ -417,15 +418,18 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange }) =>
 
         <View style={[styles.editorShell, { borderTopColor: colors.border }] }>
           <RichEditor
-            key={existingNote?.id || 'new-note'}
+            key={`${existingNote?.id || noteId || 'new-note'}-${noteTextScale}`}
             ref={richTextRef}
             initialContentHTML={content || '<p></p>'}
             initialFocus={false}
             placeholder="Start typing your note..."
             editorInitializedCallback={() => {
               richTextRef.current?.setContentHTML?.(pendingContentRef.current || '<p></p>');
-              richTextRef.current?.blurContentEditor?.();
-              Keyboard.dismiss();
+
+              if (!editorFocused) {
+                richTextRef.current?.blurContentEditor?.();
+                Keyboard.dismiss();
+              }
             }}
             onFocus={() => {
               setEditorFocused(true);
@@ -488,70 +492,70 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange }) =>
         ) : null}
       </ScrollView>
 
-      <View
-        style={[
-          styles.toolbarDock,
-          {
-            backgroundColor: colors.surface,
-            borderTopColor: colors.border,
-            bottom: toolbarBottomOffset,
-            paddingBottom: Math.max(safeBottomInset - 2, 8)
-          }
-        ]}
-      >
-        <View style={styles.toolbarControls}>
-          <TouchableOpacity
-            style={[styles.toolbarScaleButton, { borderColor: colors.border, opacity: noteTextScale <= NOTE_TEXT_SCALE_OPTIONS[0] ? 0.45 : 1 }]}
-            onPress={handleDecreaseTextSize}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.toolbarScaleButtonText, { color: colors.text }]}>-</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toolbarScaleButton, { borderColor: colors.border, opacity: noteTextScale >= NOTE_TEXT_SCALE_OPTIONS[NOTE_TEXT_SCALE_OPTIONS.length - 1] ? 0.45 : 1 }]}
-            onPress={handleIncreaseTextSize}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.toolbarScaleButtonText, { color: colors.text }]}>+</Text>
-          </TouchableOpacity>
+      {toolbarVisible ? (
+        <View
+          style={[
+            styles.toolbarDock,
+            {
+              backgroundColor: colors.surface,
+              borderTopColor: colors.border,
+              bottom: toolbarBottomOffset,
+              paddingBottom: Math.max(safeBottomInset - 2, 8)
+            }
+          ]}
+        >
+          <View style={styles.toolbarControls}>
+            <TouchableOpacity
+              style={[styles.toolbarScaleButton, { borderColor: colors.border, opacity: noteTextScale <= NOTE_TEXT_SCALE_OPTIONS[0] ? 0.45 : 1 }]}
+              onPress={handleDecreaseTextSize}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.toolbarScaleButtonText, { color: colors.text }]}>-</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toolbarScaleButton, { borderColor: colors.border, opacity: noteTextScale >= NOTE_TEXT_SCALE_OPTIONS[NOTE_TEXT_SCALE_OPTIONS.length - 1] ? 0.45 : 1 }]}
+              onPress={handleIncreaseTextSize}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.toolbarScaleButtonText, { color: colors.text }]}>+</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.toolbarSeparator} />
+          <View style={styles.toolbarRichArea}>
+            <RichToolbar
+              editor={richTextRef}
+              style={[styles.toolbar, { backgroundColor: colors.surface }]}
+              selectedIconTint={colors.accent}
+              iconTint={colors.text}
+              disabledIconTint={colors.mutedText}
+              actions={[
+                actions.setBold,
+                actions.setItalic,
+                actions.setUnderline,
+                actions.heading1,
+                actions.heading2,
+                actions.setParagraph,
+                actions.insertBulletsList,
+                actions.insertOrderedList,
+                actions.undo,
+                actions.redo
+              ]}
+              iconMap={{
+                [actions.setBold]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>B</Text>,
+                [actions.setItalic]: ({ tintColor }) => <Text style={[styles.toolbarIconText, styles.toolbarIconItalic, { color: tintColor }]}>I</Text>,
+                [actions.setUnderline]: ({ tintColor }) => <Text style={[styles.toolbarIconText, styles.toolbarIconUnderline, { color: tintColor }]}>U</Text>,
+                [actions.heading1]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>H1</Text>,
+                [actions.heading2]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>H2</Text>,
+                [actions.setParagraph]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>Tx</Text>,
+                [actions.insertBulletsList]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>•</Text>,
+                [actions.insertOrderedList]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>1.</Text>,
+                [actions.undo]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>↶</Text>,
+                [actions.redo]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>↷</Text>
+              }}
+            />
+          </View>
         </View>
-        <View style={styles.toolbarSeparator} />
-        <View style={styles.toolbarRichArea}>
-          <RichToolbar
-            editor={richTextRef}
-            style={[styles.toolbar, { backgroundColor: colors.surface }]}
-            selectedIconTint={colors.accent}
-            iconTint={colors.text}
-            disabledIconTint={colors.mutedText}
-            actions={[
-              actions.setBold,
-              actions.setItalic,
-              actions.setUnderline,
-              actions.heading1,
-              actions.heading2,
-              actions.setParagraph,
-              actions.removeFormat,
-              actions.insertBulletsList,
-              actions.insertOrderedList,
-              actions.undo,
-              actions.redo
-            ]}
-            iconMap={{
-              [actions.setBold]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>B</Text>,
-              [actions.setItalic]: ({ tintColor }) => <Text style={[styles.toolbarIconText, styles.toolbarIconItalic, { color: tintColor }]}>I</Text>,
-              [actions.setUnderline]: ({ tintColor }) => <Text style={[styles.toolbarIconText, styles.toolbarIconUnderline, { color: tintColor }]}>U</Text>,
-              [actions.heading1]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>H1</Text>,
-              [actions.heading2]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>H2</Text>,
-              [actions.setParagraph]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>Tx</Text>,
-              [actions.removeFormat]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>Clr</Text>,
-              [actions.insertBulletsList]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>•</Text>,
-              [actions.insertOrderedList]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>1.</Text>,
-              [actions.undo]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>↶</Text>,
-              [actions.redo]: ({ tintColor }) => <Text style={[styles.toolbarIconText, { color: tintColor }]}>↷</Text>
-            }}
-          />
-        </View>
-      </View>
+      ) : null}
     </KeyboardAvoidingView>
   );
 };

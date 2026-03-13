@@ -75,12 +75,14 @@ const AppHome = ({ onLogout }) => {
   const [uiState, setUiState] = useState({
     activeScreen: 'transcripts',
     menuOpen: false,
-    appHeaderHidden: false
+    appHeaderHidden: false,
+    transcriptStackVersion: 0,
+    notesStackVersion: 0
   });
   const { colors, isDarkMode, toggleTheme } = useAppTheme();
   const insets = useSafeAreaInsets();
   const headerHeight = 64 + Math.max(insets.top, 10);
-  const { activeScreen, menuOpen, appHeaderHidden } = uiState;
+  const { activeScreen, menuOpen, appHeaderHidden, transcriptStackVersion, notesStackVersion } = uiState;
 
   const handleAppHeaderVisibilityChange = (hidden) => {
     setUiState((currentState) => {
@@ -101,7 +103,9 @@ const AppHome = ({ onLogout }) => {
       ...currentState,
       activeScreen: screen,
       menuOpen: false,
-      appHeaderHidden: false
+      appHeaderHidden: false,
+      transcriptStackVersion: screen === 'transcripts' ? currentState.transcriptStackVersion + 1 : currentState.transcriptStackVersion,
+      notesStackVersion: screen === 'notes' ? currentState.notesStackVersion + 1 : currentState.notesStackVersion
     }));
   };
 
@@ -219,9 +223,9 @@ const AppHome = ({ onLogout }) => {
 
       <View style={[styles.content, { backgroundColor: colors.background }]}>
         {activeScreen === 'transcripts'
-          ? <TranscriptStack onAppHeaderVisibilityChange={handleAppHeaderVisibilityChange} />
+          ? <TranscriptStack key={`transcripts-${transcriptStackVersion}`} onAppHeaderVisibilityChange={handleAppHeaderVisibilityChange} />
           : activeScreen === 'notes'
-            ? <NotesStack onAppHeaderVisibilityChange={handleAppHeaderVisibilityChange} />
+            ? <NotesStack key={`notes-${notesStackVersion}`} onAppHeaderVisibilityChange={handleAppHeaderVisibilityChange} />
             : <SettingsScreen onLogout={onLogout} />}
       </View>
     </View>
