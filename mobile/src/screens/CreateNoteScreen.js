@@ -457,7 +457,9 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
   const titleLineHeight = Math.round(titleFontSize * 1.15);
   const safeBottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? BOTTOM_SAFE_ZONE : 12);
   const effectiveKeyboardHeight = keyboardVisible ? (keyboardHeight || Keyboard.metrics?.()?.height || 0) : 0;
-  const toolbarBottomOffset = editorFocused && effectiveKeyboardHeight > 0 ? effectiveKeyboardHeight : safeBottomInset;
+  const toolbarBottomOffset = editorFocused && effectiveKeyboardHeight > 0
+    ? Math.max(effectiveKeyboardHeight - safeBottomInset, 0)
+    : safeBottomInset;
   const toolbarVisible = keyboardVisible && editorFocused;
   const toolbarVisualHeight = TOOLBAR_DOCK_HEIGHT + Math.max(safeBottomInset - 2, 8);
   const editorContentBottomPadding = toolbarVisible ? toolbarVisualHeight + 96 : safeBottomInset + 44;
@@ -509,7 +511,7 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
 
         <View style={[styles.editorShell, { borderTopColor: colors.border }] }>
           <RichEditor
-            key={`${existingNote?.id || noteId || 'new-note'}-${noteTextScale}`}
+            key={existingNote?.id || noteId || 'new-note'}
             ref={richTextRef}
             initialContentHTML={content || '<p></p>'}
             initialFocus={false}

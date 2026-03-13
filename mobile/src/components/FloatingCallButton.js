@@ -112,8 +112,7 @@ const FloatingCallButton = ({
           style={[
             styles.button,
             {
-              backgroundColor: controlBackgroundColor,
-              borderColor: colors.border
+              backgroundColor: controlBackgroundColor
             },
             isActiveCall && styles.buttonActive
           ]}
@@ -145,7 +144,6 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 999,
-    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#ffffff',
