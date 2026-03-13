@@ -98,11 +98,6 @@ const AppHome = ({ onLogout }) => {
     outputRange: [0, -headerCollapseRange],
     extrapolate: 'clamp'
   });
-  const contentTopInset = headerScrollOffset.interpolate({
-    inputRange: [0, headerCollapseRange],
-    outputRange: [headerMaxHeight, 0],
-    extrapolate: 'clamp'
-  });
 
   const resetHeaderPosition = useCallback((animated = false) => {
     lastScrollYRef.current = 0;
@@ -292,7 +287,8 @@ const AppHome = ({ onLogout }) => {
           styles.content,
           {
             backgroundColor: colors.background,
-            paddingTop: contentTopInset
+            paddingTop: headerMaxHeight,
+            transform: [{ translateY: headerTranslateY }]
           }
         ]}
       >

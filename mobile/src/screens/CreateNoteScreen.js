@@ -271,6 +271,7 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
   useEffect(() => {
     const escapedBackground = JSON.stringify(colors.background);
     const escapedText = JSON.stringify(colors.text);
+    const escapedMutedText = JSON.stringify(colors.mutedText);
     const escapedBottomPadding = JSON.stringify(`${editorContentBottomPadding}px`);
     const escapedBodyFontSize = JSON.stringify(`${editorFontSize}px`);
     const escapedBodyLineHeight = JSON.stringify(`${editorLineHeight}px`);
@@ -287,6 +288,45 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
       placeholderColor: colors.mutedText,
       cssText: `body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: ${colors.background}; color: ${colors.text}; margin: 0; padding: 0; } p { margin: 0 0 12px 0; } ul, ol { padding-left: 22px; margin: 0 0 12px 0; } h1 { margin: 0 0 12px 0; font-size: ${heading1Size}px; line-height: ${Math.round(heading1Size * 1.2)}px; } h2 { margin: 0 0 12px 0; font-size: ${heading2Size}px; line-height: ${Math.round(heading2Size * 1.25)}px; } h3 { margin: 0 0 12px 0; font-size: ${heading3Size}px; line-height: ${Math.round(heading3Size * 1.3)}px; }`
     };
+
+    const typographyStyleSheet = [
+      'html, body {',
+      `background-color: ${colors.background};`,
+      `color: ${colors.text};`,
+      `font-size: ${editorFontSize}px;`,
+      `line-height: ${editorLineHeight}px;`,
+      '}',
+      '.pell-content, #editor {',
+      `background-color: ${colors.background};`,
+      `color: ${colors.text};`,
+      `font-size: ${editorFontSize}px;`,
+      `line-height: ${editorLineHeight}px;`,
+      `padding-bottom: ${editorContentBottomPadding}px;`,
+      '}',
+      'p, li {',
+      `font-size: ${editorFontSize}px;`,
+      `line-height: ${editorLineHeight}px;`,
+      `color: ${colors.text};`,
+      '}',
+      'h1 {',
+      `font-size: ${heading1Size}px;`,
+      `line-height: ${Math.round(heading1Size * 1.2)}px;`,
+      `color: ${colors.text};`,
+      '}',
+      'h2 {',
+      `font-size: ${heading2Size}px;`,
+      `line-height: ${Math.round(heading2Size * 1.25)}px;`,
+      `color: ${colors.text};`,
+      '}',
+      'h3 {',
+      `font-size: ${heading3Size}px;`,
+      `line-height: ${Math.round(heading3Size * 1.3)}px;`,
+      `color: ${colors.text};`,
+      '}',
+      '::placeholder {',
+      `color: ${colors.mutedText};`,
+      '}'
+    ].join(' ');
 
     richTextRef.current?.setContentStyle?.(nextEditorStyle);
     richTextRef.current?.commandDOM?.(`
@@ -312,26 +352,24 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
         editableSurface.style.lineHeight = ${escapedBodyLineHeight};
         editableSurface.style.paddingBottom = ${escapedBottomPadding};
       }
-      Array.from(document.querySelectorAll('p, li')).forEach(function(node) {
-        node.style.fontSize = ${escapedBodyFontSize};
-        node.style.lineHeight = ${escapedBodyLineHeight};
-        node.style.color = ${escapedText};
+      var existingTypographyStyle = document.getElementById('emmaline-note-scale-style');
+      if (!existingTypographyStyle) {
+        existingTypographyStyle = document.createElement('style');
+        existingTypographyStyle.id = 'emmaline-note-scale-style';
+        document.head.appendChild(existingTypographyStyle);
+      }
+      existingTypographyStyle.textContent = ${JSON.stringify(typographyStyleSheet)};
+
+      Array.from(document.querySelectorAll('p, li, h1, h2, h3')).forEach(function(node) {
+        node.style.removeProperty('font-size');
+        node.style.removeProperty('line-height');
+        node.style.removeProperty('color');
       });
-      Array.from(document.querySelectorAll('h1')).forEach(function(node) {
-        node.style.fontSize = ${escapedHeading1FontSize};
-        node.style.lineHeight = ${escapedHeading1LineHeight};
-        node.style.color = ${escapedText};
-      });
-      Array.from(document.querySelectorAll('h2')).forEach(function(node) {
-        node.style.fontSize = ${escapedHeading2FontSize};
-        node.style.lineHeight = ${escapedHeading2LineHeight};
-        node.style.color = ${escapedText};
-      });
-      Array.from(document.querySelectorAll('h3')).forEach(function(node) {
-        node.style.fontSize = ${escapedHeading3FontSize};
-        node.style.lineHeight = ${escapedHeading3LineHeight};
-        node.style.color = ${escapedText};
-      });
+
+      var placeholderNode = document.querySelector('.pell-content[contenteditable="true"]');
+      if (placeholderNode) {
+        placeholderNode.style.setProperty('--placeholder-color', ${escapedMutedText});
+      }
     `);
   }, [colors.background, colors.mutedText, colors.text, editorContentBottomPadding, editorFontSize, editorLineHeight, heading1Size, heading2Size, heading3Size]);
 

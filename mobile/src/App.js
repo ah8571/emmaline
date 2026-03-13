@@ -341,7 +341,8 @@ const styles = StyleSheet.create({
     color: '#ffffff'
   },
   navigatorContainer: {
-    flex: 1
+    flex: 1,
+    overflow: 'hidden'
   },
   bottomRail: {
     borderTopWidth: 1
