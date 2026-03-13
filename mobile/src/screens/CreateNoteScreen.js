@@ -22,12 +22,13 @@ const UNTITLED_NOTE_TITLE = 'Untitled note';
 const NOTE_TEXT_SCALE_OPTIONS = [0.95, 1, 1.15, 1.3];
 const HEADER_SCROLL_DELTA = 14;
 const TOOLBAR_DOCK_HEIGHT = 58;
+const BOTTOM_SAFE_ZONE = 26;
 
 /**
  * CreateNoteScreen
  * Create or edit a note
  */
-const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange }) => {
+const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange, notesResetToken = 0 }) => {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const existingNote = route?.params?.note || null;
@@ -58,6 +59,7 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange }) =>
   const isMountedRef = useRef(true);
   const lastScrollYRef = useRef(0);
   const appHeaderHiddenRef = useRef(false);
+  const lastNotesResetTokenRef = useRef(notesResetToken);
 
   const updateSaveState = (nextValue) => {
     if (isMountedRef.current) {
@@ -269,6 +271,18 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange }) =>
   }, []);
 
   useEffect(() => {
+    const nextEditorStyle = {
+      backgroundColor: colors.background,
+      color: colors.text,
+      contentCSSText: `font-size: ${editorFontSize}px; line-height: ${editorLineHeight}px; color: ${colors.text}; padding: 0; background-color: ${colors.background};`,
+      placeholderColor: colors.mutedText,
+      cssText: `body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: ${colors.background}; color: ${colors.text}; margin: 0; padding: 0; } p { margin: 0 0 12px 0; } ul, ol { padding-left: 22px; margin: 0 0 12px 0; } h1 { margin: 0 0 12px 0; font-size: ${heading1Size}px; line-height: ${Math.round(heading1Size * 1.2)}px; } h2 { margin: 0 0 12px 0; font-size: ${heading2Size}px; line-height: ${Math.round(heading2Size * 1.25)}px; } h3 { margin: 0 0 12px 0; font-size: ${heading3Size}px; line-height: ${Math.round(heading3Size * 1.3)}px; }`
+    };
+
+    richTextRef.current?.setContentStyle?.(nextEditorStyle);
+  }, [colors.background, colors.mutedText, colors.text, editorFontSize, editorLineHeight, heading1Size, heading2Size, heading3Size]);
+
+  useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
@@ -330,6 +344,20 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange }) =>
     };
   }, [onAppHeaderVisibilityChange]);
 
+  useEffect(() => {
+    if (lastNotesResetTokenRef.current === notesResetToken) {
+      return;
+    }
+
+    lastNotesResetTokenRef.current = notesResetToken;
+
+    if (navigation.canGoBack()) {
+      navigation.popToTop?.();
+    } else {
+      navigation.navigate('NotesList');
+    }
+  }, [navigation, notesResetToken]);
+
   const setAppHeaderHidden = (hidden) => {
     if (appHeaderHiddenRef.current === hidden) {
       return;
@@ -365,6 +393,9 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange }) =>
 
     setNoteTextScale(nextScale);
     await saveNoteTextScalePreference(nextScale);
+    requestAnimationFrame(() => {
+      richTextRef.current?.focusContentEditor?.();
+    });
   };
 
   const handleDecreaseTextSize = async () => {
@@ -378,6 +409,9 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange }) =>
 
     setNoteTextScale(nextScale);
     await saveNoteTextScalePreference(nextScale);
+    requestAnimationFrame(() => {
+      richTextRef.current?.focusContentEditor?.();
+    });
   };
 
   const editorFontSize = 16 * noteTextScale;
@@ -385,11 +419,14 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange }) =>
   const heading1Size = Math.round(32 * noteTextScale);
   const heading2Size = Math.round(24 * noteTextScale);
   const heading3Size = Math.round(20 * noteTextScale);
-  const safeBottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
+  const safeBottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? BOTTOM_SAFE_ZONE : 12);
   const effectiveKeyboardHeight = keyboardVisible ? (keyboardHeight || Keyboard.metrics?.()?.height || 0) : 0;
   const toolbarBottomOffset = editorFocused && effectiveKeyboardHeight > 0 ? effectiveKeyboardHeight : safeBottomInset;
   const toolbarVisible = keyboardVisible && editorFocused;
-  const contentBottomPadding = toolbarVisible ? TOOLBAR_DOCK_HEIGHT + toolbarBottomOffset + 20 : 20;
+  const toolbarVisualHeight = TOOLBAR_DOCK_HEIGHT + Math.max(safeBottomInset - 2, 8);
+  const contentBottomPadding = toolbarVisible
+    ? toolbarVisualHeight + toolbarBottomOffset + 28
+    : safeBottomInset + 20;
 
   return (
     <KeyboardAvoidingView
@@ -407,6 +444,15 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange }) =>
         onScroll={handleEditorScroll}
         scrollEventThrottle={16}
       >
+        <TouchableOpacity
+          style={styles.backRow}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.backArrow, { color: colors.text }]}>←</Text>
+          <Text style={[styles.backLabel, { color: colors.mutedText }]}>Notes</Text>
+        </TouchableOpacity>
+
         <TextInput
           style={[styles.titleInput, { color: colors.text, borderBottomColor: colors.border, fontSize: 22 * noteTextScale }]}
           placeholder="Note Title"
@@ -418,7 +464,7 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange }) =>
 
         <View style={[styles.editorShell, { borderTopColor: colors.border }] }>
           <RichEditor
-            key={`${existingNote?.id || noteId || 'new-note'}-${noteTextScale}`}
+            key={existingNote?.id || noteId || 'new-note'}
             ref={richTextRef}
             initialContentHTML={content || '<p></p>'}
             initialFocus={false}
@@ -574,10 +620,26 @@ const styles = StyleSheet.create({
     paddingTop: 10
   },
   contentContainer: {
-    paddingBottom: 28
+    paddingBottom: BOTTOM_SAFE_ZONE + 8
   },
   contentContainerWithKeyboard: {
-    paddingBottom: 128
+    paddingBottom: TOOLBAR_DOCK_HEIGHT + BOTTOM_SAFE_ZONE + 44
+  },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingVertical: 2
+  },
+  backArrow: {
+    fontSize: 20,
+    lineHeight: 20,
+    marginRight: 8,
+    color: '#212529'
+  },
+  backLabel: {
+    fontSize: 13,
+    color: '#6c757d'
   },
   titleInput: {
     fontSize: 20,
@@ -589,8 +651,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1
   },
   editorShell: {
-    paddingTop: 4,
-    borderTopWidth: StyleSheet.hairlineWidth
+    paddingTop: 4
   },
   richEditor: {
     minHeight: 320

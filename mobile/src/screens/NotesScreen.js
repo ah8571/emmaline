@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   SectionList
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getNotes, getTopics } from '../services/api.js';
 import NoteCard from '../components/NoteCard';
 import { useAppTheme } from '../theme/appTheme.js';
@@ -18,9 +19,11 @@ import { getNoteTextScalePreference } from '../utils/secureStorage.js';
  * View notes organized by topic with ability to create new notes
  */
 const HEADER_SCROLL_DELTA = 14;
+const BOTTOM_SAFE_ZONE = 26;
 
 const NotesScreen = ({ navigation, onAppHeaderVisibilityChange }) => {
   const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const [notes, setNotes] = useState([]);
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -172,6 +175,8 @@ const NotesScreen = ({ navigation, onAppHeaderVisibilityChange }) => {
     )
   );
 
+  const bottomContentInset = Math.max(insets.bottom, BOTTOM_SAFE_ZONE);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }] }>
       <View style={[styles.headerBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -256,7 +261,7 @@ const NotesScreen = ({ navigation, onAppHeaderVisibilityChange }) => {
           keyExtractor={(item, index) => item.id || index.toString()}
           renderItem={renderNote}
           renderSectionHeader={renderSectionHeader}
-          contentContainerStyle={styles.notesList}
+          contentContainerStyle={[styles.notesList, { paddingBottom: bottomContentInset + 24 }]}
           onScroll={handleListScroll}
           scrollEventThrottle={16}
         />
@@ -365,7 +370,7 @@ const styles = StyleSheet.create({
   },
   notesList: {
     paddingHorizontal: 10,
-    paddingVertical: 10
+    paddingTop: 10
   }
 });
 

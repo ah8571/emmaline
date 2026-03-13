@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   SectionList
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getCalls } from '../services/api.js';
 import { useAppTheme } from '../theme/appTheme.js';
 
@@ -15,9 +16,11 @@ import { useAppTheme } from '../theme/appTheme.js';
  * View all call transcripts organized chronologically
  */
 const HEADER_SCROLL_DELTA = 14;
+const BOTTOM_SAFE_ZONE = 26;
 
 const TranscriptScreen = ({ navigation, onAppHeaderVisibilityChange }) => {
   const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const [transcripts, setTranscripts] = useState([]);
   const [loading, setLoading] = useState(false);
   const lastScrollYRef = useRef(0);
@@ -135,6 +138,8 @@ const TranscriptScreen = ({ navigation, onAppHeaderVisibilityChange }) => {
     </View>
   );
 
+  const bottomContentInset = Math.max(insets.bottom, BOTTOM_SAFE_ZONE);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }] }>
       <View style={[styles.headerBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -156,7 +161,7 @@ const TranscriptScreen = ({ navigation, onAppHeaderVisibilityChange }) => {
           keyExtractor={(item, index) => item.id || index.toString()}
           renderItem={renderTranscript}
           renderSectionHeader={renderSectionHeader}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: bottomContentInset + 24 }]}
           onScroll={handleListScroll}
           scrollEventThrottle={16}
         />
@@ -187,7 +192,8 @@ const styles = StyleSheet.create({
     marginTop: 50
   },
   listContent: {
-    padding: 12
+    paddingHorizontal: 12,
+    paddingTop: 12
   },
   sectionHeader: {
     paddingHorizontal: 4,

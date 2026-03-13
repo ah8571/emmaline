@@ -43,7 +43,7 @@ const TranscriptStack = ({ onAppHeaderVisibilityChange }) => {
   );
 };
 
-const NotesStack = ({ onAppHeaderVisibilityChange }) => {
+const NotesStack = ({ onAppHeaderVisibilityChange, notesResetToken }) => {
   const { colors } = useAppTheme();
 
   return (
@@ -59,13 +59,13 @@ const NotesStack = ({ onAppHeaderVisibilityChange }) => {
         name="NotesList" 
         options={{ headerShown: false }}
       >
-        {(screenProps) => <NotesScreen {...screenProps} onAppHeaderVisibilityChange={onAppHeaderVisibilityChange} />}
+        {(screenProps) => <NotesScreen {...screenProps} onAppHeaderVisibilityChange={onAppHeaderVisibilityChange} notesResetToken={notesResetToken} />}
       </Stack.Screen>
       <Stack.Screen
         name="CreateNote"
         options={{ headerShown: false }}
       >
-        {(screenProps) => <CreateNoteScreen {...screenProps} onAppHeaderVisibilityChange={onAppHeaderVisibilityChange} />}
+        {(screenProps) => <CreateNoteScreen {...screenProps} onAppHeaderVisibilityChange={onAppHeaderVisibilityChange} notesResetToken={notesResetToken} />}
       </Stack.Screen>
     </Stack.Navigator>
   );
@@ -77,12 +77,13 @@ const AppHome = ({ onLogout }) => {
     menuOpen: false,
     appHeaderHidden: false,
     transcriptStackVersion: 0,
-    notesStackVersion: 0
+    notesStackVersion: 0,
+    notesResetToken: 0
   });
   const { colors, isDarkMode, toggleTheme } = useAppTheme();
   const insets = useSafeAreaInsets();
   const headerHeight = 64 + Math.max(insets.top, 10);
-  const { activeScreen, menuOpen, appHeaderHidden, transcriptStackVersion, notesStackVersion } = uiState;
+  const { activeScreen, menuOpen, appHeaderHidden, transcriptStackVersion, notesStackVersion, notesResetToken } = uiState;
 
   const handleAppHeaderVisibilityChange = (hidden) => {
     setUiState((currentState) => {
@@ -105,7 +106,8 @@ const AppHome = ({ onLogout }) => {
       menuOpen: false,
       appHeaderHidden: false,
       transcriptStackVersion: screen === 'transcripts' ? currentState.transcriptStackVersion + 1 : currentState.transcriptStackVersion,
-      notesStackVersion: screen === 'notes' ? currentState.notesStackVersion + 1 : currentState.notesStackVersion
+      notesStackVersion: screen === 'notes' ? currentState.notesStackVersion + 1 : currentState.notesStackVersion,
+      notesResetToken: screen === 'notes' ? currentState.notesResetToken + 1 : currentState.notesResetToken
     }));
   };
 
@@ -225,7 +227,7 @@ const AppHome = ({ onLogout }) => {
         {activeScreen === 'transcripts'
           ? <TranscriptStack key={`transcripts-${transcriptStackVersion}`} onAppHeaderVisibilityChange={handleAppHeaderVisibilityChange} />
           : activeScreen === 'notes'
-            ? <NotesStack key={`notes-${notesStackVersion}`} onAppHeaderVisibilityChange={handleAppHeaderVisibilityChange} />
+            ? <NotesStack key={`notes-${notesStackVersion}`} onAppHeaderVisibilityChange={handleAppHeaderVisibilityChange} notesResetToken={notesResetToken} />
             : <SettingsScreen onLogout={onLogout} />}
       </View>
     </View>
