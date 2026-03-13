@@ -20,7 +20,6 @@ import { getNoteTextScalePreference, saveNoteTextScalePreference } from '../util
 const AUTO_SAVE_DELAY_MS = 900;
 const UNTITLED_NOTE_TITLE = 'Untitled note';
 const NOTE_TEXT_SCALE_OPTIONS = [0.95, 1, 1.15, 1.3];
-const HEADER_SCROLL_DELTA = 14;
 const TOOLBAR_DOCK_HEIGHT = 58;
 const BOTTOM_SAFE_ZONE = 26;
 
@@ -28,7 +27,7 @@ const BOTTOM_SAFE_ZONE = 26;
  * CreateNoteScreen
  * Create or edit a note
  */
-const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange, notesResetToken = 0 }) => {
+const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToken = 0 }) => {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const existingNote = route?.params?.note || null;
@@ -57,8 +56,6 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange, note
   const autoSaveTimeoutRef = useRef(null);
   const lastSavedSnapshotRef = useRef('');
   const isMountedRef = useRef(true);
-  const lastScrollYRef = useRef(0);
-  const appHeaderHiddenRef = useRef(false);
   const lastNotesResetTokenRef = useRef(notesResetToken);
 
   const updateSaveState = (nextValue) => {
@@ -353,14 +350,14 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange, note
 
   useEffect(() => {
     return () => {
-      onAppHeaderVisibilityChange?.(false);
+      onAppHeaderScroll?.(0);
       isMountedRef.current = false;
       clearAutoSaveTimeout();
       flushAutoSave(true).catch(() => {
         // Best-effort save when leaving the note screen.
       });
     };
-  }, [onAppHeaderVisibilityChange]);
+  }, [onAppHeaderScroll]);
 
   useEffect(() => {
     if (lastNotesResetTokenRef.current === notesResetToken) {
@@ -376,28 +373,9 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange, note
     }
   }, [navigation, notesResetToken]);
 
-  const setAppHeaderHidden = (hidden) => {
-    if (appHeaderHiddenRef.current === hidden) {
-      return;
-    }
-
-    appHeaderHiddenRef.current = hidden;
-    onAppHeaderVisibilityChange?.(hidden);
-  };
-
   const handleEditorScroll = (event) => {
     const nextOffsetY = Math.max(0, event.nativeEvent.contentOffset.y || 0);
-    const deltaY = nextOffsetY - lastScrollYRef.current;
-
-    if (nextOffsetY <= 10) {
-      setAppHeaderHidden(false);
-    } else if (deltaY > HEADER_SCROLL_DELTA && nextOffsetY > 40) {
-      setAppHeaderHidden(true);
-    } else if (deltaY < -HEADER_SCROLL_DELTA) {
-      setAppHeaderHidden(false);
-    }
-
-    lastScrollYRef.current = nextOffsetY;
+    onAppHeaderScroll?.(nextOffsetY);
   };
 
   const handleIncreaseTextSize = async () => {

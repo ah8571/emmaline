@@ -13,7 +13,7 @@ const estimateCreditsFromUsd = (value) => {
   return Math.max(1, Math.ceil(usd * 100));
 };
 
-const CallDetailScreen = ({ route }) => {
+const CallDetailScreen = ({ route, onAppHeaderScroll }) => {
   const { colors } = useAppTheme();
   const { callId } = route.params;
   const [call, setCall] = useState(null);
@@ -22,6 +22,12 @@ const CallDetailScreen = ({ route }) => {
   useEffect(() => {
     loadCallDetail();
   }, [callId]);
+
+  useEffect(() => {
+    return () => {
+      onAppHeaderScroll?.(0);
+    };
+  }, [onAppHeaderScroll]);
 
   const loadCallDetail = async () => {
     setLoading(true);
@@ -59,7 +65,12 @@ const CallDetailScreen = ({ route }) => {
   const estimatedCredits = estimateCreditsFromUsd(call.totalBillableCostUsd);
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.contentContainer}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.contentContainer}
+      onScroll={(event) => onAppHeaderScroll?.(Math.max(0, event.nativeEvent.contentOffset.y || 0))}
+      scrollEventThrottle={16}
+    >
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Summary</Text>
         <Text style={[styles.summaryText, { color: colors.mutedText }]}>{call.summary}</Text>

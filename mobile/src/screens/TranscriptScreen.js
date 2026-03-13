@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -15,16 +15,13 @@ import { useAppTheme } from '../theme/appTheme.js';
  * TranscriptScreen
  * View all call transcripts organized chronologically
  */
-const HEADER_SCROLL_DELTA = 14;
 const BOTTOM_SAFE_ZONE = 26;
 
-const TranscriptScreen = ({ navigation, onAppHeaderVisibilityChange }) => {
+const TranscriptScreen = ({ navigation, onAppHeaderScroll }) => {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [transcripts, setTranscripts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const lastScrollYRef = useRef(0);
-  const appHeaderHiddenRef = useRef(false);
 
   useEffect(() => {
     loadTranscripts();
@@ -32,32 +29,13 @@ const TranscriptScreen = ({ navigation, onAppHeaderVisibilityChange }) => {
 
   useEffect(() => {
     return () => {
-      onAppHeaderVisibilityChange?.(false);
+      onAppHeaderScroll?.(0);
     };
-  }, [onAppHeaderVisibilityChange]);
-
-  const setAppHeaderHidden = (hidden) => {
-    if (appHeaderHiddenRef.current === hidden) {
-      return;
-    }
-
-    appHeaderHiddenRef.current = hidden;
-    onAppHeaderVisibilityChange?.(hidden);
-  };
+  }, [onAppHeaderScroll]);
 
   const handleListScroll = (event) => {
     const nextOffsetY = Math.max(0, event.nativeEvent.contentOffset.y || 0);
-    const deltaY = nextOffsetY - lastScrollYRef.current;
-
-    if (nextOffsetY <= 10) {
-      setAppHeaderHidden(false);
-    } else if (deltaY > HEADER_SCROLL_DELTA && nextOffsetY > 40) {
-      setAppHeaderHidden(true);
-    } else if (deltaY < -HEADER_SCROLL_DELTA) {
-      setAppHeaderHidden(false);
-    }
-
-    lastScrollYRef.current = nextOffsetY;
+    onAppHeaderScroll?.(nextOffsetY);
   };
 
   const loadTranscripts = async () => {

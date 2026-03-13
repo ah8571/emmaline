@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   ScrollView,
@@ -18,10 +18,9 @@ import { getNoteTextScalePreference } from '../utils/secureStorage.js';
  * NotesScreen
  * View notes organized by topic with ability to create new notes
  */
-const HEADER_SCROLL_DELTA = 14;
 const BOTTOM_SAFE_ZONE = 26;
 
-const NotesScreen = ({ navigation, onAppHeaderVisibilityChange }) => {
+const NotesScreen = ({ navigation, onAppHeaderScroll }) => {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [notes, setNotes] = useState([]);
@@ -30,8 +29,6 @@ const NotesScreen = ({ navigation, onAppHeaderVisibilityChange }) => {
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [noteTextScale, setNoteTextScale] = useState(1);
-  const lastScrollYRef = useRef(0);
-  const appHeaderHiddenRef = useRef(false);
 
   const loadNotes = useCallback(async (topicOverride = selectedTopic, options = {}) => {
     if (!options.silent) {
@@ -90,32 +87,13 @@ const NotesScreen = ({ navigation, onAppHeaderVisibilityChange }) => {
 
   useEffect(() => {
     return () => {
-      onAppHeaderVisibilityChange?.(false);
+      onAppHeaderScroll?.(0);
     };
-  }, [onAppHeaderVisibilityChange]);
-
-  const setAppHeaderHidden = (hidden) => {
-    if (appHeaderHiddenRef.current === hidden) {
-      return;
-    }
-
-    appHeaderHiddenRef.current = hidden;
-    onAppHeaderVisibilityChange?.(hidden);
-  };
+  }, [onAppHeaderScroll]);
 
   const handleListScroll = (event) => {
     const nextOffsetY = Math.max(0, event.nativeEvent.contentOffset.y || 0);
-    const deltaY = nextOffsetY - lastScrollYRef.current;
-
-    if (nextOffsetY <= 10) {
-      setAppHeaderHidden(false);
-    } else if (deltaY > HEADER_SCROLL_DELTA && nextOffsetY > 40) {
-      setAppHeaderHidden(true);
-    } else if (deltaY < -HEADER_SCROLL_DELTA) {
-      setAppHeaderHidden(false);
-    }
-
-    lastScrollYRef.current = nextOffsetY;
+    onAppHeaderScroll?.(nextOffsetY);
   };
 
   useEffect(() => {

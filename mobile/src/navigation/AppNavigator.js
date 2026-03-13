@@ -16,7 +16,7 @@ import { logoutUser } from '../services/api.js';
 
 const Stack = createStackNavigator();
 
-const TranscriptStack = ({ onAppHeaderVisibilityChange }) => {
+const TranscriptStack = ({ onAppHeaderScroll }) => {
   const { colors } = useAppTheme();
 
   return (
@@ -32,18 +32,19 @@ const TranscriptStack = ({ onAppHeaderVisibilityChange }) => {
         name="TranscriptList" 
         options={{ headerShown: false }}
       >
-        {(screenProps) => <TranscriptScreen {...screenProps} onAppHeaderVisibilityChange={onAppHeaderVisibilityChange} />}
+        {(screenProps) => <TranscriptScreen {...screenProps} onAppHeaderScroll={onAppHeaderScroll} />}
       </Stack.Screen>
       <Stack.Screen 
         name="CallDetail" 
-        component={CallDetailScreen}
-        options={{ title: 'Call Details' }}
-      />
+        options={{ title: 'Call Details', headerStatusBarHeight: 0 }}
+      >
+        {(screenProps) => <CallDetailScreen {...screenProps} onAppHeaderScroll={onAppHeaderScroll} />}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 };
 
-const NotesStack = ({ onAppHeaderVisibilityChange, notesResetToken }) => {
+const NotesStack = ({ onAppHeaderScroll, notesResetToken }) => {
   const { colors } = useAppTheme();
 
   return (
@@ -59,13 +60,13 @@ const NotesStack = ({ onAppHeaderVisibilityChange, notesResetToken }) => {
         name="NotesList" 
         options={{ headerShown: false }}
       >
-        {(screenProps) => <NotesScreen {...screenProps} onAppHeaderVisibilityChange={onAppHeaderVisibilityChange} notesResetToken={notesResetToken} />}
+        {(screenProps) => <NotesScreen {...screenProps} onAppHeaderScroll={onAppHeaderScroll} notesResetToken={notesResetToken} />}
       </Stack.Screen>
       <Stack.Screen
         name="CreateNote"
         options={{ headerShown: false }}
       >
-        {(screenProps) => <CreateNoteScreen {...screenProps} onAppHeaderVisibilityChange={onAppHeaderVisibilityChange} notesResetToken={notesResetToken} />}
+        {(screenProps) => <CreateNoteScreen {...screenProps} onAppHeaderScroll={onAppHeaderScroll} notesResetToken={notesResetToken} />}
       </Stack.Screen>
     </Stack.Navigator>
   );
@@ -75,26 +76,35 @@ const AppHome = ({ onLogout }) => {
   const [uiState, setUiState] = useState({
     activeScreen: 'transcripts',
     menuOpen: false,
-    appHeaderHidden: false,
+    appHeaderScrollOffset: 0,
     transcriptStackVersion: 0,
     notesStackVersion: 0,
     notesResetToken: 0
   });
   const { colors, isDarkMode, toggleTheme } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const headerHeight = 64 + Math.max(insets.top, 10);
-  const { activeScreen, menuOpen, appHeaderHidden, transcriptStackVersion, notesStackVersion, notesResetToken } = uiState;
+  const topInset = Math.max(insets.top, 10);
+  const headerMaxHeight = 64 + topInset;
+  const headerMinHeight = 44 + topInset;
+  const headerCollapseRange = Math.max(0, headerMaxHeight - headerMinHeight);
+  const { activeScreen, menuOpen, appHeaderScrollOffset, transcriptStackVersion, notesStackVersion, notesResetToken } = uiState;
+  const clampedHeaderOffset = Math.min(Math.max(appHeaderScrollOffset, 0), headerCollapseRange);
+  const headerHeight = headerMaxHeight - clampedHeaderOffset;
+  const headerPaddingTop = Math.max(topInset, topInset + 8 - clampedHeaderOffset * 0.5);
+  const headerPaddingBottom = Math.max(0, 12 - clampedHeaderOffset * 0.6);
 
-  const handleAppHeaderVisibilityChange = (hidden) => {
+  const handleAppHeaderScroll = (offsetY = 0) => {
     setUiState((currentState) => {
-      if (currentState.appHeaderHidden === hidden && (!hidden || !currentState.menuOpen)) {
+      const normalizedOffset = Number.isFinite(Number(offsetY)) ? Math.max(0, Number(offsetY)) : 0;
+
+      if (currentState.appHeaderScrollOffset === normalizedOffset && !currentState.menuOpen) {
         return currentState;
       }
 
       return {
         ...currentState,
-        appHeaderHidden: hidden,
-        menuOpen: hidden ? false : currentState.menuOpen
+        appHeaderScrollOffset: normalizedOffset,
+        menuOpen: normalizedOffset > 0 ? false : currentState.menuOpen
       };
     });
   };
@@ -104,7 +114,7 @@ const AppHome = ({ onLogout }) => {
       ...currentState,
       activeScreen: screen,
       menuOpen: false,
-      appHeaderHidden: false,
+      appHeaderScrollOffset: 0,
       transcriptStackVersion: screen === 'transcripts' ? currentState.transcriptStackVersion + 1 : currentState.transcriptStackVersion,
       notesStackVersion: screen === 'notes' ? currentState.notesStackVersion + 1 : currentState.notesStackVersion,
       notesResetToken: screen === 'notes' ? currentState.notesResetToken + 1 : currentState.notesResetToken
@@ -141,11 +151,11 @@ const AppHome = ({ onLogout }) => {
           {
             backgroundColor: colors.surface,
             borderBottomColor: colors.border,
-            height: appHeaderHidden ? 0 : headerHeight,
-            opacity: appHeaderHidden ? 0 : 1,
-            paddingTop: appHeaderHidden ? 0 : Math.max(insets.top, 10) + 8,
-            paddingBottom: appHeaderHidden ? 0 : 12,
-            borderBottomWidth: appHeaderHidden ? 0 : 1
+            height: headerHeight,
+            opacity: 1,
+            paddingTop: headerPaddingTop,
+            paddingBottom: headerPaddingBottom,
+            borderBottomWidth: 1
           }
         ]}
       >
@@ -154,7 +164,7 @@ const AppHome = ({ onLogout }) => {
           onPress={() => setUiState((currentState) => ({
             ...currentState,
             menuOpen: !currentState.menuOpen,
-            appHeaderHidden: false
+            appHeaderScrollOffset: 0
           }))}
           activeOpacity={0.8}
         >
@@ -225,9 +235,9 @@ const AppHome = ({ onLogout }) => {
 
       <View style={[styles.content, { backgroundColor: colors.background }]}>
         {activeScreen === 'transcripts'
-          ? <TranscriptStack key={`transcripts-${transcriptStackVersion}`} onAppHeaderVisibilityChange={handleAppHeaderVisibilityChange} />
+          ? <TranscriptStack key={`transcripts-${transcriptStackVersion}`} onAppHeaderScroll={handleAppHeaderScroll} />
           : activeScreen === 'notes'
-            ? <NotesStack key={`notes-${notesStackVersion}`} onAppHeaderVisibilityChange={handleAppHeaderVisibilityChange} notesResetToken={notesResetToken} />
+            ? <NotesStack key={`notes-${notesStackVersion}`} onAppHeaderScroll={handleAppHeaderScroll} notesResetToken={notesResetToken} />
             : <SettingsScreen onLogout={onLogout} />}
       </View>
     </View>
