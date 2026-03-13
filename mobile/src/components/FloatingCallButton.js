@@ -1,4 +1,5 @@
 import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   View,
   StyleSheet,
@@ -121,7 +122,11 @@ const FloatingCallButton = ({
           onPressOut={handlePressOut}
           activeOpacity={0.8}
         >
-          <Text style={[isActiveCall ? styles.endCallIcon : styles.phoneIcon, { color: circleIconColor }]}>{isActiveCall ? '✕' : '✆'}</Text>
+          {isActiveCall ? (
+            <Ionicons name="close" size={40} color={circleIconColor} style={styles.endCallIcon} />
+          ) : (
+            <Ionicons name="call" size={34} color={circleIconColor} style={styles.phoneIcon} />
+          )}
         </TouchableOpacity>
       </Animated.View>
 
@@ -157,19 +162,10 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1 }]
   },
   phoneIcon: {
-    width: 72,
-    textAlign: 'center',
-    fontSize: 74,
-    lineHeight: 74,
-    includeFontPadding: false,
-    color: '#111111',
-    transform: [{ translateY: -5 }]
+    transform: [{ rotate: '12deg' }]
   },
   endCallIcon: {
-    fontSize: 42,
-    lineHeight: 42,
-    includeFontPadding: false,
-    color: '#111111'
+    transform: [{ translateY: 0 }]
   },
   statusIndicator: {
     position: 'absolute',
