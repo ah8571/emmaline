@@ -280,6 +280,24 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderVisibilityChange, note
     };
 
     richTextRef.current?.setContentStyle?.(nextEditorStyle);
+    richTextRef.current?.commandDOM?.(`
+      document.documentElement.style.backgroundColor = ${JSON.stringify(colors.background)};
+      document.body.style.backgroundColor = ${JSON.stringify(colors.background)};
+      var contentShell = $('.content');
+      if (contentShell) {
+        contentShell.style.backgroundColor = ${JSON.stringify(colors.background)};
+      }
+      var editorRoot = $('#editor');
+      if (editorRoot) {
+        editorRoot.style.backgroundColor = ${JSON.stringify(colors.background)};
+        editorRoot.style.color = ${JSON.stringify(colors.text)};
+      }
+      var editableSurface = document.querySelector('.pell-content');
+      if (editableSurface) {
+        editableSurface.style.backgroundColor = ${JSON.stringify(colors.background)};
+        editableSurface.style.color = ${JSON.stringify(colors.text)};
+      }
+    `);
   }, [colors.background, colors.mutedText, colors.text, editorFontSize, editorLineHeight, heading1Size, heading2Size, heading3Size]);
 
   useEffect(() => {
