@@ -25,115 +25,48 @@ Emmaline is a hands-free, voice-first AI assistant accessible via phone call. Us
 
 ### Development Features
 
-1. **Phone-based AI interface** – Call a phone number to speak with the AI
-2. **Live conversation** – Real-time speech-to-text and AI responses
-3. **Automatic transcription** – Full transcript of each call captured
-4. **Intelligent summarization** – Key points extracted and bulleted
-5. **Note-taking timeline** – View and organize call summaries in a mobile app
-6. **User authentication** – Basic user accounts and data isolation
-7. **Legal pages** – Create and publish Privacy Policy and Terms of Use
-8. **In-app VoIP-only call path** – Build in-app VoIP as the only call path (no PSTN fallback), and later add dedicated phone numbers per user/org as a separate provisioning layer
-9. Exact Credit Accounting
+1. Get connected the traditional app tools like resend, posthog, sentry
+2. figuring out address issue or starting new llc..
+2. put paywall; put together stripe connection
+3. put together texting capability with twilio text registration
+2. duns & bradstreet/ other app ready fixes
+5. tracking (GTM, utm code based on venue, affiliate page)
+6. SEO pages - Comparing AI phone assistants (as an SEO oriented page); eventually on phone assistant connection with Openclaw/ comparing options; what exactly would people be searching related to this?
+2. **Security** User authentication** – Basic user accounts and data isolation; perhaps a verification code to their email or they can add a phone number for security in the future; Encrypted database storage (Supabase default AES-256); HTTPS for all API communication
+3. **Legal pages** – Create and publish Privacy Policy and Terms of Use; **GDPR Compliance (mandatory for any EU users):**
+- [ ] Create and publish Privacy Policy (see GDPR_COMPLIANCE.md; [ ] Add consent screen before first login (users must accept data processing); [ ] Implement user rights endpoints (download data, delete account); [ ] Sign Data Processing Agreements (DPA) with Supabase, Google Cloud, OpenAI; [ ] Set up breach notification procedures (72-hour notification requirement); [ ] Document data retention policies (auto-delete after 90 days for backups): 
+**User Rights to Implement**: **Right to Access** – Users can download all their data (Settings → "Download My Data"); **Right to Deletion** – Users can delete individual calls or entire account, **Right to Portability** – Users can export data in standard format, **Right to Correction** – Users can edit their profile and notes,  **Right to Withdraw Consent** – Users can delete account anytime; **Documentation:**; See [GDPR_COMPLIANCE.md](GDPR_COMPLIANCE.md) for complete implementation guide with code examples and Privacy Policy template
+4. Exact Credit Accounting: OpenAI response usage ↓ Send to internal event queue ↓ Aggregate usage ↓ Dashboard
+OpenAI ↓ Node backend ↓ Kafka / Redis stream ↓ Clickhouse / Postgres ↓ Grafana dashboard; const response = await openai.responses.create(...)
 
-### User Flow
+const tokens = response.usage.total_tokens
 
-```
-User calls phone number
-        ↓
-Twilio Voice (routing)
-        ↓
-Backend (Node.js)
-        ↓
-Speech-to-text conversion
-        ↓
-AI response generation
-        ↓
-Text-to-speech back to user
-        ↓
-Save transcript to database
-```
+logUsage({
+  model: "gpt-5",
+  tokens: tokens,
+  user: userId
+})
 
-### Data Flow
+"usage": {
+  "prompt_tokens": 120,
+  "completion_tokens": 75,
+  "total_tokens": 195
+}
 
-```
-AI Phone Number (Twilio)
-        ↓
-Live conversation
-        ↓
-Transcript generated
-        ↓
-Saved to database (Supabase)
-        ↓
-Shown inside mobile app timeline
-        ↓
-AI extracts key ideas → notes page
-```
-
-### Privacy Model: Tier 1 - Cloud with Standard Security
-
-**What data goes where:**
-- User audio is streamed to Google Cloud Speech-to-Text for transcription
-- Transcripts are sent to OpenAI for summarization
-- Full transcripts and summaries stored in Supabase (encrypted at rest)
-- Only authenticated users can access their own conversation data
-
-**Security measures:**
-- User authentication required (username/password or OAuth)
-- Encrypted database storage (Supabase default AES-256)
-- HTTPS for all API communication
-- Environment variables for sensitive keys (never committed to git)
-
-**User expectations:**
-- Transparent privacy policy explaining data flow
-- Clear disclosure that OpenAI/Google Cloud can technically access conversation data
-- Ability to delete conversations permanently
-- Data retention policies documented (e.g., auto-delete after 90 days if desired)
-
-**Limitations:**
-- External APIs can see conversation content during processing
-- Not suitable for extremely sensitive conversations
-- Standard API rate limiting applies
-
-### Scaling & Monitoring Considerations
-
+call_id
+user_id
+duration
+tokens_used
+cost_estimate
+model
+timestamp
+5. Scaling & Monitoring Considerations
 **Key metrics to monitor as user base grows:**
 - **Backend server CPU/memory** – Monitor for capacity limits (~10-100 concurrent calls per server)
 - **Google Cloud STT concurrent connections** – Track API quota usage (requires paid tier above certain volume)
 - **OpenAI API token usage** – Monitor spend and rate limiting (tokens/minute limits)
 - **Database connection pool limits** – Supabase connections scale with user load (upgrade plan as needed)
-
-**Scaling approach:**
-- Single Twilio phone number cost remains constant (~$1-2/month)
-- Bottleneck shifts from phone infrastructure to backend services
-- Auto-scaling backend (via Docker/Kubernetes) more cost-effective than adding phone numbers
-- Monitor these four metrics to understand when to scale each component
-
-### Compliance & Legal Requirements
-
-**GDPR Compliance (mandatory for any EU users):**
-- [ ] Create and publish Privacy Policy (see GDPR_COMPLIANCE.md)
-- [ ] Add consent screen before first login (users must accept data processing)
-- [ ] Implement user rights endpoints (download data, delete account)
-- [ ] Sign Data Processing Agreements (DPA) with Supabase, Google Cloud, OpenAI
-- [ ] Set up breach notification procedures (72-hour notification requirement)
-- [ ] Document data retention policies (auto-delete after 90 days for backups)
-
-**User Rights to Implement:**
-1. **Right to Access** – Users can download all their data (Settings → "Download My Data")
-2. **Right to Deletion** – Users can delete individual calls or entire account
-3. **Right to Portability** – Users can export data in standard format
-4. **Right to Correction** – Users can edit their profile and notes
-5. **Right to Withdraw Consent** – Users can delete account anytime
-
-**Key Implementation Tasks:**
-- Add consent checkbox screen (appears before LoginScreen on first launch)
-- Create Settings screen with: Download My Data, Delete Account, Privacy Policy link
-- Implement backend API endpoints: GET /api/user/data, DELETE /api/user
-- Add Privacy Policy page in app (link from Settings and consent screen)
-- Document third-party data sharing transparently
-
-**Documentation:**
-- See [GDPR_COMPLIANCE.md](GDPR_COMPLIANCE.md) for complete implementation guide with code examples and Privacy Policy template
+- **Auto-scaling backend** (via Docker/Kubernetes) more cost-effective than adding phone numbers; Monitor these four metrics to understand when to scale each component
 
 ---
 
@@ -142,6 +75,7 @@ AI extracts key ideas → notes page
 ### Development Features
 
 **Core additions:**
+- **Dedicated phone number** (need security implementation of only certain phone numbers it will interact with; also a security code)
 - **Text chat interface** – Message the AI bot in addition to calling
 - Email sorting and summarization via voice
 - Code project initiation on the go
