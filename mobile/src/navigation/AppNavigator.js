@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,11 +18,13 @@ import { logoutUser } from '../services/api.js';
 
 const Stack = createStackNavigator();
 
-const TranscriptStack = ({ onAppHeaderScroll }) => {
+const TranscriptStack = ({ onAppHeaderScroll, stackKey, transcriptResetToken }) => {
   const { colors } = useAppTheme();
 
   return (
     <Stack.Navigator
+      key={stackKey}
+      initialRouteName="TranscriptList"
       screenOptions={{
         headerStyle: { backgroundColor: colors.surface, borderBottomColor: colors.border, shadowColor: 'transparent' },
         headerTintColor: colors.text,
@@ -34,23 +36,25 @@ const TranscriptStack = ({ onAppHeaderScroll }) => {
         name="TranscriptList" 
         options={{ headerShown: false }}
       >
-        {(screenProps) => <TranscriptScreen {...screenProps} onAppHeaderScroll={onAppHeaderScroll} />}
+        {(screenProps) => <TranscriptScreen {...screenProps} onAppHeaderScroll={onAppHeaderScroll} transcriptResetToken={transcriptResetToken} />}
       </Stack.Screen>
       <Stack.Screen 
         name="CallDetail" 
-        options={{ title: 'Call Details', headerStatusBarHeight: 0 }}
+        options={{ headerShown: false }}
       >
-        {(screenProps) => <CallDetailScreen {...screenProps} onAppHeaderScroll={onAppHeaderScroll} />}
+        {(screenProps) => <CallDetailScreen {...screenProps} onAppHeaderScroll={onAppHeaderScroll} transcriptResetToken={transcriptResetToken} />}
       </Stack.Screen>
     </Stack.Navigator>
   );
 };
 
-const NotesStack = ({ onAppHeaderScroll, notesResetToken }) => {
+const NotesStack = ({ onAppHeaderScroll, notesResetToken, stackKey }) => {
   const { colors } = useAppTheme();
 
   return (
     <Stack.Navigator
+      key={stackKey}
+      initialRouteName="NotesList"
       screenOptions={{
         headerStyle: { backgroundColor: colors.surface, borderBottomColor: colors.border, shadowColor: 'transparent' },
         headerTintColor: colors.text,
@@ -80,54 +84,20 @@ const AppHome = ({ onLogout }) => {
     menuOpen: false,
     transcriptStackVersion: 0,
     notesStackVersion: 0,
-    notesResetToken: 0,
-    headerScrollOffset: new Animated.Value(0)
+    transcriptResetToken: 0,
+    notesResetToken: 0
   });
-  const { colors, isDarkMode, toggleTheme } = useAppTheme();
+  const { colors, isDarkMode } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const lastScrollYRef = useRef(0);
-  const headerHiddenOffsetRef = useRef(0);
-  const topInset = Math.max(insets.top, 10);
-  const headerMaxHeight = 64 + topInset;
-  const headerCollapseRange = headerMaxHeight;
-  const { activeScreen, menuOpen, transcriptStackVersion, notesStackVersion, notesResetToken } = uiState;
-  const headerScrollOffset = uiState.headerScrollOffset && typeof uiState.headerScrollOffset.interpolate === 'function'
-    ? uiState.headerScrollOffset
-    : new Animated.Value(0);
-  const headerTranslateY = headerScrollOffset.interpolate({
-    inputRange: [0, headerCollapseRange],
-    outputRange: [0, -headerCollapseRange],
-    extrapolate: 'clamp'
-  });
-
-  const resetHeaderPosition = useCallback((animated = false) => {
-    lastScrollYRef.current = 0;
-    headerHiddenOffsetRef.current = 0;
-
-    if (animated) {
-      Animated.timing(headerScrollOffset, {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: false
-      }).start();
-      return;
-    }
-
-    headerScrollOffset.stopAnimation();
-    headerScrollOffset.setValue(0);
-  }, [headerScrollOffset]);
+  const topInset = Math.max(insets.top, 8);
+  const floatingButtonBottom = 16;
+  const floatingButtonSize = designTokens.chrome.menuButtonSize;
+  const contentTopInset = topInset + 6;
+  const controlBackgroundColor = isDarkMode ? '#000000' : '#ffffff';
+  const { activeScreen, menuOpen, transcriptStackVersion, notesStackVersion, transcriptResetToken, notesResetToken } = uiState;
 
   const handleAppHeaderScroll = useCallback((offsetY = 0) => {
     const normalizedOffset = Number.isFinite(Number(offsetY)) ? Math.max(0, Number(offsetY)) : 0;
-    const previousScrollY = lastScrollYRef.current;
-    const deltaY = normalizedOffset - previousScrollY;
-    const nextHiddenOffset = normalizedOffset <= 0
-      ? 0
-      : Math.max(0, Math.min(headerCollapseRange, headerHiddenOffsetRef.current + deltaY));
-
-    lastScrollYRef.current = normalizedOffset;
-    headerHiddenOffsetRef.current = nextHiddenOffset;
-    headerScrollOffset.setValue(nextHiddenOffset);
 
     if (normalizedOffset <= 0) {
       return;
@@ -140,30 +110,26 @@ const AppHome = ({ onLogout }) => {
 
       return {
         ...currentState,
-        headerScrollOffset: currentState.headerScrollOffset || headerScrollOffset,
         menuOpen: false
       };
     });
-  }, [headerCollapseRange, headerScrollOffset]);
+  }, []);
 
   const openScreen = (screen) => {
-    resetHeaderPosition();
     setUiState((currentState) => ({
       ...currentState,
-      headerScrollOffset: currentState.headerScrollOffset || headerScrollOffset,
       activeScreen: screen,
       menuOpen: false,
       transcriptStackVersion: screen === 'transcripts' ? currentState.transcriptStackVersion + 1 : currentState.transcriptStackVersion,
+      transcriptResetToken: screen === 'transcripts' ? currentState.transcriptResetToken + 1 : currentState.transcriptResetToken,
       notesStackVersion: screen === 'notes' ? currentState.notesStackVersion + 1 : currentState.notesStackVersion,
       notesResetToken: screen === 'notes' ? currentState.notesResetToken + 1 : currentState.notesResetToken
     }));
   };
 
   const handleLogoutPress = () => {
-    resetHeaderPosition();
     setUiState((currentState) => ({
       ...currentState,
-      headerScrollOffset: currentState.headerScrollOffset || headerScrollOffset,
       menuOpen: false
     }));
     Alert.alert(
@@ -185,72 +151,64 @@ const AppHome = ({ onLogout }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Animated.View
+      <View
         style={[
-          styles.header,
+          styles.floatingMenuContainer,
           {
-            backgroundColor: colors.surface,
-            borderBottomColor: colors.border,
-            height: headerMaxHeight,
-            paddingTop: topInset + designTokens.spacing.sm,
-            paddingBottom: designTokens.chrome.shellBottomPadding,
-            borderBottomWidth: 1,
-            transform: [{ translateY: headerTranslateY }]
+            bottom: floatingButtonBottom,
+            left: 0
           }
         ]}
       >
         <TouchableOpacity
-          style={styles.menuButton}
+          style={[
+            styles.menuButton,
+            {
+              backgroundColor: controlBackgroundColor,
+              width: floatingButtonSize,
+              height: floatingButtonSize
+            }
+          ]}
           onPress={() => {
-            resetHeaderPosition(true);
             setUiState((currentState) => ({
               ...currentState,
-              headerScrollOffset: currentState.headerScrollOffset || headerScrollOffset,
               menuOpen: !currentState.menuOpen
             }));
           }}
           activeOpacity={0.8}
         >
           <View style={styles.menuIconBars}>
-            <View style={[styles.menuIconBar, { backgroundColor: colors.text }]} />
-            <View style={[styles.menuIconBar, { backgroundColor: colors.text }]} />
-            <View style={[styles.menuIconBar, { backgroundColor: colors.text }]} />
+            <View style={[styles.menuIconBar, { backgroundColor: isDarkMode ? '#ffffff' : '#111111' }]} />
+            <View style={[styles.menuIconBar, { backgroundColor: isDarkMode ? '#ffffff' : '#111111' }]} />
+            <View style={[styles.menuIconBar, { backgroundColor: isDarkMode ? '#ffffff' : '#111111' }]} />
           </View>
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.themeToggle}
-          onPress={toggleTheme}
-          activeOpacity={0.85}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Text
-            style={[
-              styles.themeToggleText,
-              isDarkMode ? styles.themeToggleTextSun : styles.themeToggleTextMoon,
-              { color: colors.text }
-            ]}
-          >
-            {isDarkMode ? '☼' : '☾'}
-          </Text>
-        </TouchableOpacity>
-      </Animated.View>
+      </View>
 
       {menuOpen ? (
         <View style={styles.overlay}>
           <TouchableOpacity
             style={styles.overlayBackdrop}
             onPress={() => {
-              resetHeaderPosition(true);
               setUiState((currentState) => ({
                 ...currentState,
-                headerScrollOffset: currentState.headerScrollOffset || headerScrollOffset,
                 menuOpen: false
               }));
             }}
             activeOpacity={1}
           />
-          <View style={[styles.sideMenu, { backgroundColor: colors.surface, borderRightColor: colors.border, top: headerMaxHeight }]}>
+          <View
+            style={[
+              styles.sideMenu,
+              {
+                backgroundColor: colors.surface,
+                borderRightColor: colors.border,
+                left: 8,
+                top: topInset + 8,
+                bottom: floatingButtonBottom + floatingButtonSize + 8
+              }
+            ]}
+          >
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => openScreen('transcripts')}
@@ -290,23 +248,23 @@ const AppHome = ({ onLogout }) => {
         </View>
       ) : null}
 
-      <Animated.View
+      <View
         style={[
           styles.content,
           {
             backgroundColor: colors.background,
-            paddingTop: headerMaxHeight
+            paddingTop: contentTopInset
           }
         ]}
       >
         {activeScreen === 'transcripts'
-          ? <TranscriptStack key={`transcripts-${transcriptStackVersion}`} onAppHeaderScroll={handleAppHeaderScroll} />
+          ? <TranscriptStack stackKey={`transcripts-${transcriptStackVersion}`} onAppHeaderScroll={handleAppHeaderScroll} transcriptResetToken={transcriptResetToken} />
           : activeScreen === 'notes'
-            ? <NotesStack key={`notes-${notesStackVersion}`} onAppHeaderScroll={handleAppHeaderScroll} notesResetToken={notesResetToken} />
+            ? <NotesStack stackKey={`notes-${notesStackVersion}`} onAppHeaderScroll={handleAppHeaderScroll} notesResetToken={notesResetToken} />
             : activeScreen === 'upgrade'
               ? <UpgradeScreen />
               : <SettingsScreen onLogout={onLogout} onOpenUpgrade={() => openScreen('upgrade')} />}
-      </Animated.View>
+      </View>
     </View>
   );
 };
@@ -410,51 +368,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff'
   },
-  header: {
+  floatingMenuContainer: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
     zIndex: 30,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    flexDirection: 'row',
-    paddingHorizontal: designTokens.chrome.shellHorizontalPadding,
-    backgroundColor: '#ffffff',
-    justifyContent: 'space-between'
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start'
   },
   menuButton: {
-    width: designTokens.chrome.menuButtonSize,
-    height: designTokens.chrome.menuButtonSize,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    marginTop: 0
-  },
-  themeToggle: {
-    minWidth: designTokens.chrome.themeToggleSize,
-    height: designTokens.chrome.themeToggleSize,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 0
-  },
-  themeToggleText: {
-    fontSize: designTokens.typography.shellIcon,
-    fontWeight: '700',
-    includeFontPadding: false,
-    textAlignVertical: 'center',
-    lineHeight: designTokens.typography.shellIcon
-  },
-  themeToggleTextMoon: {
-    fontSize: 27,
-    lineHeight: 27,
-    transform: [{ translateY: -1 }]
-  },
-  themeToggleTextSun: {
-    fontSize: 29,
-    lineHeight: 29,
-    transform: [{ translateY: -1 }]
+    borderRadius: 999,
+    borderRadius: designTokens.radius.pill,
+    paddingHorizontal: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 8
   },
   menuIconBars: {
     width: designTokens.chrome.menuIconWidth,
@@ -476,13 +406,14 @@ const styles = StyleSheet.create({
   },
   sideMenu: {
     position: 'absolute',
-    left: 0,
-    bottom: 0,
     width: designTokens.chrome.sideMenuWidth,
     paddingTop: 18,
+    paddingBottom: 18,
     backgroundColor: '#ffffff',
     borderRightWidth: 1,
-    borderRightColor: '#e9ecef'
+    borderRightColor: '#e9ecef',
+    borderRadius: designTokens.radius.lg,
+    overflow: 'hidden'
   },
   menuItem: {
     paddingHorizontal: 18,

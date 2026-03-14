@@ -7,11 +7,11 @@ export const lightColors = {
   text: '#111418',
   mutedText: '#68707a',
   border: '#dde2e7',
-  accent: '#0b5fff',
+  accent: '#111418',
   danger: '#d9485f',
-  status: '#0b5fff',
-  chipSelectedBg: '#e4edff',
-  chipSelectedText: '#123a8f',
+  status: '#111418',
+  chipSelectedBg: '#e7eaee',
+  chipSelectedText: '#111418',
   input: '#ffffff',
   backdrop: 'rgba(0,0,0,0.25)'
 };
@@ -23,11 +23,11 @@ export const darkColors = {
   text: '#f5f7fa',
   mutedText: '#a0a8b2',
   border: '#242a31',
-  accent: '#89b4ff',
+  accent: '#f5f7fa',
   danger: '#ff7a90',
-  status: '#1d4ed8',
-  chipSelectedBg: '#1b2f57',
-  chipSelectedText: '#d8e6ff',
+  status: '#f5f7fa',
+  chipSelectedBg: '#20252b',
+  chipSelectedText: '#f5f7fa',
   input: '#101317',
   backdrop: 'rgba(0,0,0,0.45)'
 };

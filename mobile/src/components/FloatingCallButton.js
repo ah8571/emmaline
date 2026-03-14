@@ -8,6 +8,7 @@ import {
   Animated
 } from 'react-native';
 import { useAppTheme } from '../theme/appTheme.js';
+import { designTokens } from '../theme/designSystem.js';
 
 /**
  * FloatingCallButton
@@ -32,6 +33,9 @@ const FloatingCallButton = ({
   const audioCardBottom = floatingBottom + 80;
   const circleIconColor = isDarkMode ? '#ffffff' : '#111111';
   const controlBackgroundColor = isDarkMode ? '#000000' : '#ffffff';
+  const controlSize = designTokens.chrome.menuButtonSize;
+  const callIconSize = Math.round(controlSize * 0.47);
+  const closeIconSize = Math.round(controlSize * 0.56);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -113,7 +117,9 @@ const FloatingCallButton = ({
           style={[
             styles.button,
             {
-              backgroundColor: controlBackgroundColor
+              backgroundColor: controlBackgroundColor,
+              width: controlSize,
+              height: controlSize
             },
             isActiveCall && styles.buttonActive
           ]}
@@ -123,9 +129,9 @@ const FloatingCallButton = ({
           activeOpacity={0.8}
         >
           {isActiveCall ? (
-            <Ionicons name="close" size={40} color={circleIconColor} style={styles.endCallIcon} />
+            <Ionicons name="close" size={closeIconSize} color={circleIconColor} style={styles.endCallIcon} />
           ) : (
-            <Ionicons name="call" size={34} color={circleIconColor} style={styles.phoneIcon} />
+            <Ionicons name="call" size={callIconSize} color={circleIconColor} style={styles.phoneIcon} />
           )}
         </TouchableOpacity>
       </Animated.View>
@@ -146,8 +152,6 @@ const styles = StyleSheet.create({
     zIndex: 999
   },
   button: {
-    width: 72,
-    height: 72,
     borderRadius: 999,
     justifyContent: 'center',
     alignItems: 'center',

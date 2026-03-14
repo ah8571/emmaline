@@ -24,13 +24,13 @@ export const designTokens = {
     shellIcon: 28
   },
   chrome: {
-    shellHorizontalPadding: 16,
-    shellBottomPadding: 12,
-    menuButtonSize: 44,
+    shellHorizontalPadding: 8,
+    shellBottomPadding: 4,
+    menuButtonSize: 48,
     themeToggleSize: 32,
-    menuIconWidth: 28,
-    menuIconGap: 4,
-    menuBarHeight: 3.5,
+    menuIconWidth: 20,
+    menuIconGap: 3,
+    menuBarHeight: 3,
     sideMenuWidth: 220,
     listHeaderHorizontalPadding: 16,
     listHeaderVerticalPadding: 12

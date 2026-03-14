@@ -17,6 +17,24 @@ import { assertUserCanStartVoiceSession } from '../services/billingService.js';
 
 const router = express.Router();
 
+const getDetailedErrorText = (error) => {
+  return [error?.message, error?.details, error?.hint]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+};
+
+const isBillingSchemaInitializationError = (error) => {
+  const detailText = getDetailedErrorText(error);
+
+  if (!detailText) {
+    return false;
+  }
+
+  return /(free_trial_seconds_granted|prepaid_seconds_balance|billing_state|auto_recharge_enabled|auto_recharge_threshold_seconds|auto_recharge_amount_seconds)/i.test(detailText)
+    && /(column|schema|select|users)/i.test(detailText);
+};
+
 const parseUserIdFromIdentity = (identity) => {
   const value = String(identity || '').trim();
   return value.startsWith('user_') ? value.slice(5) : null;
@@ -78,7 +96,8 @@ router.post('/token', authMiddleware, async (req, res) => {
       billing: billingStatus
     });
   } catch (error) {
-    console.error('Error generating voice token:', error.message);
+    const detailText = getDetailedErrorText(error);
+    console.error('Error generating voice token:', detailText || error.message);
 
     if (error.code === 'VOICE_PAYWALL_REQUIRED') {
       return res.status(error.statusCode || 402).json({
@@ -88,11 +107,24 @@ router.post('/token', authMiddleware, async (req, res) => {
       });
     }
 
-    if (String(error.message || '').includes('Missing Twilio Voice token configuration')) {
-      return res.status(500).json({ error: error.message });
+    if (isBillingSchemaInitializationError(error)) {
+      return res.status(500).json({
+        error: 'Billing schema is not initialized on the backend',
+        code: 'VOICE_BILLING_NOT_INITIALIZED'
+      });
     }
 
-    return res.status(500).json({ error: 'Failed to generate voice token' });
+    if (String(error.message || '').includes('Missing Twilio Voice token configuration')) {
+      return res.status(500).json({
+        error: error.message,
+        code: 'VOICE_TWILIO_NOT_CONFIGURED'
+      });
+    }
+
+    return res.status(500).json({
+      error: 'Failed to generate voice token',
+      code: 'VOICE_TOKEN_GENERATION_FAILED'
+    });
   }
 });
 
@@ -127,7 +159,8 @@ router.post('/connect', verifyTwilioRequest, async (req, res) => {
     res.type('text/xml');
     return res.send(twiml);
   } catch (error) {
-    console.error('Error generating client connect TwiML:', error.message);
+    const detailText = getDetailedErrorText(error);
+    console.error('Error generating client connect TwiML:', detailText || error.message);
 
     if (error.code === 'VOICE_PAYWALL_REQUIRED') {
       return res.status(error.statusCode || 402).json({
@@ -137,7 +170,17 @@ router.post('/connect', verifyTwilioRequest, async (req, res) => {
       });
     }
 
-    return res.status(500).json({ error: 'Failed to connect voice session' });
+    if (isBillingSchemaInitializationError(error)) {
+      return res.status(500).json({
+        error: 'Billing schema is not initialized on the backend',
+        code: 'VOICE_BILLING_NOT_INITIALIZED'
+      });
+    }
+
+    return res.status(500).json({
+      error: 'Failed to connect voice session',
+      code: 'VOICE_CONNECT_FAILED'
+    });
   }
 });
 

@@ -12,7 +12,7 @@ const DEFAULT_PREFERENCES = {
   callLanguage: 'en',
   speechRate: 1,
   callResponseDelayMs: 1600,
-  themeMode: 'light',
+  themeMode: 'dark',
   noteTextScale: 1
 };
 
@@ -180,11 +180,11 @@ export const saveCallResponseDelayPreference = async (callResponseDelayMs) => {
 
 export const getThemeModePreference = async () => {
   const preferences = await getPreferences();
-  return preferences.themeMode === 'dark' ? 'dark' : 'light';
+  return preferences.themeMode === 'light' ? 'light' : 'dark';
 };
 
 export const saveThemeModePreference = async (themeMode) => {
-  return savePreferences({ themeMode: themeMode === 'dark' ? 'dark' : 'light' });
+  return savePreferences({ themeMode: themeMode === 'light' ? 'light' : 'dark' });
 };
 
 export const getNoteTextScalePreference = async () => {

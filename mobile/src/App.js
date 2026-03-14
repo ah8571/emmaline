@@ -25,7 +25,7 @@ import {
 } from './utils/secureStorage.js';
 import { AppThemeProvider, darkColors, lightColors } from './theme/appTheme.js';
 
-const APP_BOTTOM_RAIL_HEIGHT = 18;
+const APP_BOTTOM_RAIL_HEIGHT = 5;
 
 const AppContent = () => {
   const insets = useSafeAreaInsets();
@@ -35,7 +35,7 @@ const AppContent = () => {
   const [audioDevices, setAudioDevices] = useState([]);
   const [selectedAudioDevice, setSelectedAudioDevice] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const [showLaunchSplash, setShowLaunchSplash] = useState(true);
 
   const colors = isDarkMode ? darkColors : lightColors;
@@ -157,9 +157,21 @@ const AppContent = () => {
         setIsCalling(false);
         setCallStatus('failed');
 
+        let errorMessage = tokenResponse.error || 'Unable to get a voice token.';
+
+        if (tokenResponse.code === 'VOICE_PAYWALL_REQUIRED' && tokenResponse.billing) {
+          errorMessage = 'You have no credits available. Upgrade to continue';
+        } else if (tokenResponse.code === 'VOICE_BILLING_NOT_INITIALIZED') {
+          errorMessage = 'Voice billing is not initialized on the backend yet. Run the billing entitlements migration and try again.';
+        } else if (tokenResponse.code === 'VOICE_TWILIO_NOT_CONFIGURED') {
+          errorMessage = 'Twilio Voice token settings are missing on the backend.';
+        } else if (tokenResponse.statusCode) {
+          errorMessage = `${errorMessage} (status ${tokenResponse.statusCode})`;
+        }
+
         Alert.alert(
           'In-app call unavailable',
-          tokenResponse.error || 'Unable to get a voice token.'
+          errorMessage
         );
         return;
       }

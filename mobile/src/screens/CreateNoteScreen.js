@@ -15,6 +15,7 @@ import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor'
 import { createNote, getNote, getTopics, updateNote } from '../services/api.js';
 import { useAppTheme } from '../theme/appTheme.js';
 import { designTokens } from '../theme/designSystem.js';
+import FloatingBackButton from '../components/FloatingBackButton';
 import { normalizeNoteContentToHtml, stripNoteContentToPlainText } from '../utils/noteContent.js';
 import { getNoteTextScalePreference, saveNoteTextScalePreference } from '../utils/secureStorage.js';
 
@@ -510,32 +511,25 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
   const contentBottomPadding = toolbarVisible
     ? toolbarVisualHeight + toolbarBottomOffset + 28
     : safeBottomInset + 36;
+  const floatingBackInset = Math.max(insets.top - 12, 0) + 30;
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
+      <FloatingBackButton onPress={() => navigation.goBack()} />
       <ScrollView
         style={styles.content}
         contentContainerStyle={[
           styles.contentContainer,
           keyboardVisible ? styles.contentContainerWithKeyboard : null,
-          { paddingBottom: contentBottomPadding }
+          { paddingTop: floatingBackInset, paddingBottom: contentBottomPadding }
         ]}
         keyboardShouldPersistTaps="handled"
         onScroll={handleEditorScroll}
         scrollEventThrottle={16}
       >
-        <TouchableOpacity
-          style={styles.backRow}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.backArrow, { color: colors.text }]}>←</Text>
-          <Text style={[styles.backLabel, { color: colors.mutedText }]}>Back</Text>
-        </TouchableOpacity>
-
         <TextInput
           style={[
             styles.titleInput,
@@ -641,23 +635,6 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
             }
           ]}
         >
-          <View style={styles.toolbarControls}>
-            <TouchableOpacity
-              style={[styles.toolbarScaleButton, { borderColor: colors.border, opacity: noteTextScale <= NOTE_TEXT_SCALE_OPTIONS[0] ? 0.45 : 1 }]}
-              onPress={handleDecreaseTextSize}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.toolbarScaleButtonText, { color: colors.text }]}>-</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.toolbarScaleButton, { borderColor: colors.border, opacity: noteTextScale >= NOTE_TEXT_SCALE_OPTIONS[NOTE_TEXT_SCALE_OPTIONS.length - 1] ? 0.45 : 1 }]}
-              onPress={handleIncreaseTextSize}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.toolbarScaleButtonText, { color: colors.text }]}>+</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.toolbarSeparator} />
           <View style={styles.toolbarRichArea}>
             <RichToolbar
               editor={richTextRef}
@@ -715,22 +692,6 @@ const styles = StyleSheet.create({
   },
   contentContainerWithKeyboard: {
     paddingBottom: TOOLBAR_DOCK_HEIGHT + BOTTOM_SAFE_ZONE + 44
-  },
-  backRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: designTokens.spacing.sm,
-    paddingVertical: 2
-  },
-  backArrow: {
-    fontSize: 20,
-    lineHeight: 20,
-    marginRight: 8,
-    color: '#212529'
-  },
-  backLabel: {
-    fontSize: designTokens.typography.label,
-    color: '#6c757d'
   },
   titleInput: {
     fontSize: 20,

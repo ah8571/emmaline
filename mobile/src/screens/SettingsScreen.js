@@ -277,8 +277,8 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade }) => {
           <Switch
             value={isDarkMode}
             onValueChange={toggleTheme}
-            trackColor={{ false: colors.border, true: colors.accent }}
-            thumbColor={colors.surface}
+            trackColor={{ false: colors.border, true: colors.text }}
+            thumbColor={isDarkMode ? colors.background : colors.surface}
           />
         </View>
       </View>
@@ -580,8 +580,8 @@ const styles = StyleSheet.create({
     borderColor: '#dee2e6'
   },
   optionCardSelected: {
-    borderColor: '#007AFF',
-    backgroundColor: '#f2f7ff'
+    borderColor: '#111418',
+    backgroundColor: '#f1f3f5'
   },
   radio: {
     width: 22,
@@ -595,13 +595,13 @@ const styles = StyleSheet.create({
     marginRight: 12
   },
   radioSelected: {
-    borderColor: '#007AFF'
+    borderColor: '#111418'
   },
   radioInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#007AFF'
+    backgroundColor: '#111418'
   },
   optionContent: {
     flex: 1
