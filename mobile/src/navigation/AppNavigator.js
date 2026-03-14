@@ -295,8 +295,7 @@ const AppHome = ({ onLogout }) => {
           styles.content,
           {
             backgroundColor: colors.background,
-            paddingTop: headerMaxHeight,
-            transform: [{ translateY: headerTranslateY }]
+            paddingTop: headerMaxHeight
           }
         ]}
       >

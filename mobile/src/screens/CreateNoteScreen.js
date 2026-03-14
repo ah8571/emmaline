@@ -286,7 +286,7 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
       color: colors.text,
       contentCSSText: `font-size: ${editorFontSize}px; line-height: ${editorLineHeight}px; color: ${colors.text}; padding: 0 0 ${editorContentBottomPadding}px 0; background-color: ${colors.background};`,
       placeholderColor: colors.mutedText,
-      cssText: `body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: ${colors.background}; color: ${colors.text}; margin: 0; padding: 0; } p { margin: 0 0 12px 0; } ul, ol { padding-left: 22px; margin: 0 0 12px 0; } h1 { margin: 0 0 12px 0; font-size: ${heading1Size}px; line-height: ${Math.round(heading1Size * 1.2)}px; } h2 { margin: 0 0 12px 0; font-size: ${heading2Size}px; line-height: ${Math.round(heading2Size * 1.25)}px; } h3 { margin: 0 0 12px 0; font-size: ${heading3Size}px; line-height: ${Math.round(heading3Size * 1.3)}px; }`
+      cssText: `body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: ${colors.background}; color: ${colors.text}; margin: 0; padding: 0; } #editor, .pell-content { font-size: ${editorFontSize}px; line-height: ${editorLineHeight}px; color: ${colors.text}; background-color: ${colors.background}; } p, div, li, span { margin: 0 0 12px 0; font-size: ${editorFontSize}px; line-height: ${editorLineHeight}px; color: ${colors.text}; } ul, ol { padding-left: 22px; margin: 0 0 12px 0; } h1 { margin: 0 0 12px 0; font-size: ${heading1Size}px; line-height: ${Math.round(heading1Size * 1.2)}px; } h2 { margin: 0 0 12px 0; font-size: ${heading2Size}px; line-height: ${Math.round(heading2Size * 1.25)}px; } h3 { margin: 0 0 12px 0; font-size: ${heading3Size}px; line-height: ${Math.round(heading3Size * 1.3)}px; }`
     };
 
     const typographyStyleSheet = [
@@ -303,10 +303,15 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
       `line-height: ${editorLineHeight}px;`,
       `padding-bottom: ${editorContentBottomPadding}px;`,
       '}',
-      'p, li {',
+      'p, div, li, span {',
       `font-size: ${editorFontSize}px;`,
       `line-height: ${editorLineHeight}px;`,
       `color: ${colors.text};`,
+      'margin: 0 0 12px 0;',
+      '}',
+      'ul, ol {',
+      'padding-left: 22px;',
+      'margin: 0 0 12px 0;',
       '}',
       'h1 {',
       `font-size: ${heading1Size}px;`,
@@ -360,10 +365,11 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
       }
       existingTypographyStyle.textContent = ${JSON.stringify(typographyStyleSheet)};
 
-      Array.from(document.querySelectorAll('p, li, h1, h2, h3')).forEach(function(node) {
+      Array.from(document.querySelectorAll('p, div, li, span, h1, h2, h3')).forEach(function(node) {
         node.style.removeProperty('font-size');
         node.style.removeProperty('line-height');
         node.style.removeProperty('color');
+        node.style.removeProperty('font');
       });
 
       var placeholderNode = document.querySelector('.pell-content[contenteditable="true"]');
@@ -586,7 +592,7 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
               color: colors.text,
               contentCSSText: `font-size: ${editorFontSize}px; line-height: ${editorLineHeight}px; color: ${colors.text}; padding: 0 0 ${editorContentBottomPadding}px 0; background-color: ${colors.background};`,
               placeholderColor: colors.mutedText,
-              cssText: `body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: ${colors.background}; color: ${colors.text}; margin: 0; padding: 0; } p { margin: 0 0 12px 0; } ul, ol { padding-left: 22px; margin: 0 0 12px 0; } h1 { margin: 0 0 12px 0; font-size: ${heading1Size}px; line-height: ${Math.round(heading1Size * 1.2)}px; } h2 { margin: 0 0 12px 0; font-size: ${heading2Size}px; line-height: ${Math.round(heading2Size * 1.25)}px; } h3 { margin: 0 0 12px 0; font-size: ${heading3Size}px; line-height: ${Math.round(heading3Size * 1.3)}px; }`
+              cssText: `body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: ${colors.background}; color: ${colors.text}; margin: 0; padding: 0; } #editor, .pell-content { font-size: ${editorFontSize}px; line-height: ${editorLineHeight}px; color: ${colors.text}; background-color: ${colors.background}; } p, div, li, span { margin: 0 0 12px 0; font-size: ${editorFontSize}px; line-height: ${editorLineHeight}px; color: ${colors.text}; } ul, ol { padding-left: 22px; margin: 0 0 12px 0; } h1 { margin: 0 0 12px 0; font-size: ${heading1Size}px; line-height: ${Math.round(heading1Size * 1.2)}px; } h2 { margin: 0 0 12px 0; font-size: ${heading2Size}px; line-height: ${Math.round(heading2Size * 1.25)}px; } h3 { margin: 0 0 12px 0; font-size: ${heading3Size}px; line-height: ${Math.round(heading3Size * 1.3)}px; }`
             }}
           />
         </View>
