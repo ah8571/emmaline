@@ -30,6 +30,7 @@ Emmaline is a hands-free, voice-first AI assistant accessible via phone call. Us
 2. put paywall; put together stripe connection
 3. put together texting capability with twilio text registration
 2. duns & bradstreet/ other app ready fixes
+3. faster response like it was before not sure how we modified this but to have better control
 5. tracking (GTM, utm code based on venue, affiliate page)
 6. SEO pages - Comparing AI phone assistants (as an SEO oriented page); eventually on phone assistant connection with Openclaw/ comparing options; what exactly would people be searching related to this?
 2. **Security** User authentication** – Basic user accounts and data isolation; perhaps a verification code to their email or they can add a phone number for security in the future; Encrypted database storage (Supabase default AES-256); HTTPS for all API communication
@@ -72,9 +73,7 @@ timestamp
 
 ## Phase 2: OpenClaw Integration + Enhanced Privacy
 
-### Development Features
-
-**Core additions:**
+- **Language teacher capability** supposedly a 'pair' option for languages to listen for is possible with STT
 - **Dedicated phone number** (need security implementation of only certain phone numbers it will interact with; also a security code)
 - **Text chat interface** – Message the AI bot in addition to calling
 - Email sorting and summarization via voice

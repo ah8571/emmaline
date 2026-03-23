@@ -24,21 +24,24 @@ export default function Home() {
         <div className="max-w-3xl mx-auto text-center space-y-8">
           {/* Logo/Brand */}
           <div className="space-y-2">
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
+            <p className="text-white/60 text-sm md:text-base uppercase tracking-[0.24em]">
               Emmaline
+            </p>
+            <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
+              AI Phone Assistant For Real Conversations
             </h1>
             <p className="text-white/60 text-lg md:text-xl">
-              Your AI Phone Call Buddy
+              A voice-first assistant you can call to ask questions, practice conversations, and talk naturally.
             </p>
           </div>
 
           {/* Hero Description */}
           <div className="space-y-4">
             <p className="text-xl md:text-2xl text-white/90 leading-relaxed max-w-2xl mx-auto">
-              Get instant answers, practice conversations, or just chat with an AI that actually listens.
+              Get instant answers, rehearse important conversations, or call an AI assistant that actually listens.
             </p>
             <p className="text-white/60 md:text-lg">
-              Call any time, get smarter every conversation.
+              Built for voice-first help now, with room to grow into a dedicated phone assistant experience.
             </p>
           </div>
 
