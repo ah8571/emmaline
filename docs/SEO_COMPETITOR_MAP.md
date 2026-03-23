@@ -46,27 +46,6 @@ These products are mostly about sales, support, call automation, and customer se
 
 These are not direct substitutes, but they shape how users and search engines interpret the phrase "phone assistant".
 
-## Likely Differentiators For Emmaline
-
-- dedicated phone number for the assistant
-- voice-first interaction instead of chat-first interaction
-- natural phone-style conversations
-- conversation practice and rehearsal
-- future OpenClaw connectivity for a more personalized assistant setup
-- possible executive-assistant angle without fully moving into B2B call-center automation
-
-## Current Selling Points Used On Site
-
-- AI phone assistant for real conversations
-- voice-first help for everyday tasks, questions, and conversation practice
-- more dedicated assistant identity than a generic voice layer
-- phone-native interaction instead of chat-first interaction
-- future path toward a dedicated number and more personalized assistant setup
-
-These are the current selling points being used in the site copy. They are intentionally practical and consumer-facing rather than promising a full executive-assistant or B2B call-center product today.
-
-## Adjacent Consumer Competitor Categories To Track
-
 ### AI language learning apps
 
 - Duolingo Max
@@ -83,28 +62,6 @@ These are not direct AI phone assistant competitors, but they do compete for use
 - personal AI stack blogs and builders
 - self-hosted assistant workflows
 - AI phone and voice integrations built on private assistant stacks
-
-This is not yet a mature review category for Emmaline, but it is strategically important. People exploring this territory are often looking for a more personalized, durable, and controllable assistant setup rather than a simple chat app. Emmaline can eventually speak to that territory without becoming a pure infrastructure product.
-
-## Recommended Homepage SEO Direction
-
-Near-term homepage framing should stay consumer-facing and voice-first.
-
-Suggested primary phrase set:
-
-- AI phone assistant
-- AI voice assistant
-- voice-first AI assistant
-- talk to an AI by phone
-- AI conversation practice
-
-Suggested secondary phrase set for future pages:
-
-- dedicated AI phone number
-- AI executive assistant by phone
-- AI language conversation partner
-- AI assistant for practicing conversations
-- AI support phone assistant
 
 ## Supporting Content To Build
 
@@ -129,10 +86,60 @@ Suggested secondary phrase set for future pages:
 - AI support phone assistant
 - AI executive phone assistant
 
-## Near-Term Action List
+Suggested secondary phrase set for future pages:
 
-1. Update homepage title, meta description, H1, and hero copy to clearly describe Emmaline as an AI phone assistant.
-2. Add richer homepage sections covering use cases, who it is for, and how it works.
-3. Add technical SEO basics: robots, sitemap, canonical metadata.
-4. Publish comparison pages targeting existing competitor search intent.
-5. Publish use-case pages around executives, conversation practice, and future OpenClaw integration.
+- dedicated AI phone number
+- AI executive assistant by phone
+- AI language conversation partner
+- AI assistant for practicing conversations
+- AI support phone assistant
+
+## Likely Differentiators For Emmaline
+
+- voice-first interaction instead of chat-first interaction
+- voice-first help for everyday tasks, questions, brainstorming and note-taking
+- future path toward a dedicated number and more personalized assistant setup
+- natural phone-style conversations
+- language conversation practice and rehearsal
+- future OpenClaw connectivity for a more personalized assistant setup
+- possible executive-assistant angle without moving into B2B call-center automation
+
+## Differentiator Expansion
+
+### Voice-first interaction instead of chat-first interaction
+
+Emmaline is being positioned around the phone call and spoken conversation as the primary interface. That matters because many competing products are fundamentally chat products with voice layered on top. Emmaline can be differentiated as a product that starts from a more natural spoken workflow.
+
+### Voice-first help for everyday tasks, questions, brainstorming and note-taking
+
+This is one of the clearest product differences available today. The mobile architecture already centers on transcripts, call detail, and notes. That means Emmaline is not just trying to be a conversational toy or a general voice endpoint. It is closer to a voice assistant that can help a user think through ideas in real time and then preserve the useful parts in a notes-oriented workflow.
+
+This is especially useful for:
+
+- quick idea capture while walking or commuting
+- real-time brainstorming without opening a chat app
+- talking through a decision and saving key thoughts afterward
+- using the assistant as a voice companion for note-friendly thinking
+
+### Future path toward a dedicated number and more personalized assistant setup
+
+Many consumer AI voice products still feel like features inside a larger app. Emmaline can be differentiated by becoming something closer to a persistent assistant with its own identity, phone presence, and user-specific setup.
+
+### Natural phone-style conversations
+
+The product should continue to emphasize that it is built around calling and speaking in a way that feels more like a phone conversation than a command interface. This is important both for search positioning and for user understanding.
+
+### Language conversation practice and rehearsal
+
+Emmaline has room to compete indirectly with language-learning apps by offering open-ended speaking practice instead of a rigid curriculum. The differentiator is not structured lessons. The differentiator is realistic, lower-friction conversation practice by voice.
+
+### Future OpenClaw connectivity for a more personalized assistant setup
+
+This is not a present-day mass-market differentiator yet, but it is strategically meaningful. It gives Emmaline a future narrative that is different from large assistant platforms: a more customizable, durable, personally configured assistant setup.
+
+### Possible executive-assistant angle without moving into B2B call-center automation
+
+There is a useful middle ground between consumer companion apps and enterprise voice agents. Emmaline can explore a practical executive-assistant angle for individuals who want help with idea capture, reminders, conversation rehearsal, and voice-first organization, without taking on the operational burden of being a B2B customer-service platform.
+
+
+These are the current selling points being used in the site copy. They are intentionally practical and consumer-facing rather than promising a full executive-assistant or B2B call-center product today.

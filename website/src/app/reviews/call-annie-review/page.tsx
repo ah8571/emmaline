@@ -49,7 +49,7 @@ export default function CallAnnieReviewPage() {
       <section className="space-y-4">
         <h2 className="text-2xl font-semibold md:text-3xl">Where Emmaline can fit into that gap</h2>
         <p className="leading-8 text-white/70">
-          Emmaline can be positioned as a next-step AI phone assistant for people who want the voice-first clarity of a call experience, but also want a product that grows into a more dedicated personal assistant over time. That includes everyday help, conversation rehearsal, note-friendly workflows, and eventually dedicated-number and OpenClaw-adjacent setups.
+          Emmaline can be positioned as a next-step AI phone assistant for people who want the voice-first clarity of a call experience, but also want a product that grows into a more dedicated personal assistant over time. That includes everyday help, conversation rehearsal, brainstorming with note-taking in mind, and eventually dedicated-number and OpenClaw-adjacent setups.
         </p>
       </section>
 

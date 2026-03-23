@@ -32,7 +32,7 @@ export default function BestAiPhoneAssistantPage() {
       <section className="space-y-4">
         <h2 className="text-2xl font-semibold md:text-3xl">What this page is comparing</h2>
         <p className="text-base leading-8 text-white/70 md:text-lg">
-          Many products in this category are really general voice assistants, AI companions, or entertainment experiences. Emmaline is aiming for a more focused lane: an AI phone assistant you can call, use for everyday help, and eventually shape into a more dedicated assistant setup.
+          Many products in this category are really general voice assistants, AI companions, or entertainment experiences. Emmaline is aiming for a more focused lane: an AI phone assistant you can call, use for everyday help, brainstorm with in real time, and eventually shape into a more dedicated assistant setup.
         </p>
       </section>
 
@@ -78,7 +78,7 @@ export default function BestAiPhoneAssistantPage() {
       <section className="space-y-4">
         <h2 className="text-2xl font-semibold md:text-3xl">Why Emmaline can still be differentiated</h2>
         <p className="text-base leading-8 text-white/70 md:text-lg">
-          The opportunity is not to out-generalize the biggest AI products. The opportunity is to feel more dedicated: a voice-first AI assistant with a phone-native experience, a clearer identity, and a path toward dedicated-number and OpenClaw-style setups that make the assistant feel more personal and durable.
+          The opportunity is not to out-generalize the biggest AI products. The opportunity is to feel more dedicated: a voice-first AI assistant with a phone-native experience, a clearer identity, note-taking and transcript-friendly workflows, and a path toward dedicated-number and OpenClaw-style setups that make the assistant feel more personal and durable.
         </p>
       </section>
     </SeoArticleLayout>
