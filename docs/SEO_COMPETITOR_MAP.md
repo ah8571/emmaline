@@ -55,6 +55,37 @@ These are not direct substitutes, but they shape how users and search engines in
 - future OpenClaw connectivity for a more personalized assistant setup
 - possible executive-assistant angle without fully moving into B2B call-center automation
 
+## Current Selling Points Used On Site
+
+- AI phone assistant for real conversations
+- voice-first help for everyday tasks, questions, and conversation practice
+- more dedicated assistant identity than a generic voice layer
+- phone-native interaction instead of chat-first interaction
+- future path toward a dedicated number and more personalized assistant setup
+
+These are the current selling points being used in the site copy. They are intentionally practical and consumer-facing rather than promising a full executive-assistant or B2B call-center product today.
+
+## Adjacent Consumer Competitor Categories To Track
+
+### AI language learning apps
+
+- Duolingo Max
+- Speak
+- ELSA Speak
+- TalkPal
+- Praktika
+
+These are not direct AI phone assistant competitors, but they do compete for users who want speaking practice, conversation rehearsal, pronunciation help, or language confidence. Emmaline can be differentiated by being a more phone-native, open-ended conversational assistant rather than a structured curriculum product.
+
+### OpenClaw and personal AI assistant integration territory
+
+- OpenClaw setups and tutorials
+- personal AI stack blogs and builders
+- self-hosted assistant workflows
+- AI phone and voice integrations built on private assistant stacks
+
+This is not yet a mature review category for Emmaline, but it is strategically important. People exploring this territory are often looking for a more personalized, durable, and controllable assistant setup rather than a simple chat app. Emmaline can eventually speak to that territory without becoming a pure infrastructure product.
+
 ## Recommended Homepage SEO Direction
 
 Near-term homepage framing should stay consumer-facing and voice-first.

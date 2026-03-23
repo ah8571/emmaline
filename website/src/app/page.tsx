@@ -1,7 +1,8 @@
 'use client';
 
+import SiteFooter from '../components/SiteFooter';
+import SiteHeader from '../components/SiteHeader';
 import Waitlist from '../components/Waitlist';
-import SocialLinks from '../components/SocialLinks';
 
 export default function Home() {
   return (
@@ -19,14 +20,15 @@ export default function Home() {
       {/* Gradient Overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-black via-black/80 to-black" />
 
+      <div className="relative z-10 w-full">
+        <SiteHeader ctaHref="#waitlist" ctaLabel="Download" />
+      </div>
+
       {/* Content */}
-      <div className="content w-full px-4 py-20">
+      <div className="content w-full px-4 pb-20 pt-16 md:pt-24">
         <div className="max-w-3xl mx-auto text-center space-y-8">
           {/* Logo/Brand */}
           <div className="space-y-2">
-            <p className="text-white/60 text-sm md:text-base uppercase tracking-[0.24em]">
-              Emmaline
-            </p>
             <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
               AI Phone Assistant For Real Conversations
             </h1>
@@ -62,7 +64,7 @@ export default function Home() {
           </div>
 
           {/* Waitlist Signup */}
-          <div className="space-y-4 my-12">
+          <div id="waitlist" className="space-y-4 my-12 scroll-mt-24">
             <div>
               <h2 className="text-2xl font-bold mb-2">Join the Waitlist</h2>
               <p className="text-white/60">Be the first to know when we launch</p>
@@ -96,25 +98,9 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="relative z-10 w-full border-t border-white/10 mt-20">
-        <div className="max-w-6xl mx-auto px-4 py-12">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-8">
-            {/* Social Links */}
-            <SocialLinks />
-
-            {/* Links */}
-            <div className="flex gap-6 text-white/60 text-sm">
-              <a href="#" className="hover:text-white transition">Privacy</a>
-              <a href="#" className="hover:text-white transition">Terms</a>
-              <a href="mailto:contact@emmaline.app" className="hover:text-white transition">Contact</a>
-            </div>
-
-            {/* Copyright */}
-            <p className="text-white/40 text-sm">© 2026 Emmaline. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <div className="relative z-10 mt-20 w-full">
+        <SiteFooter />
+      </div>
     </main>
   );
 }
