@@ -19,6 +19,15 @@ Broad category terms like "AI phone assistant" are understandable, but they also
 
 These products compete for users who want natural voice conversation, companionship, practice, or a voice-first AI experience.
 
+#### Consumer breakdown
+
+- ChatGPT Voice: strongest broad assistant benchmark, but less focused on a dedicated phone identity.
+- Gemini Live: strong mass-market consumer benchmark tied to a wider assistant ecosystem.
+- Replika: more companion-oriented than practical phone-assistant oriented.
+- Pi: strong conversational benchmark, but not centered on the phone-assistant use case.
+- Character.AI voice: more entertainment and personality-led than practical assistant-led.
+- Call Annie: important category reference because users searching for it are often specifically looking for an AI they can call; this is a strong alternative/comparison content angle for Emmaline.
+
 ### B2B AI phone agents
 
 - Bland.ai
