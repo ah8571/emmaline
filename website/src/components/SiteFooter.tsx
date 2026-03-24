@@ -19,10 +19,6 @@ const blogLinks = [
     href: '/compare/call-annie-vs-emmaline',
     label: 'Call Annie vs Emmaline',
   },
-  {
-    href: '/reviews/call-annie-review',
-    label: 'Call Annie Review',
-  },
 ];
 
 export default function SiteFooter() {

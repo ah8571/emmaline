@@ -52,10 +52,12 @@ export default function ComparisonPage({ params }: ComparisonPageProps) {
   const relatedComparisons = consumerCompetitors
     .filter((entry) => entry.slug !== competitor.slug)
     .slice(0, 3);
+  const isCallAnnie = competitor.slug === 'call-annie';
 
   const toc = [
     { id: 'bottom-line', label: 'Bottom line' },
     { id: 'official-positioning', label: 'Official positioning' },
+    ...(isCallAnnie ? [{ id: 'current-status', label: 'Current status' }] : []),
     { id: 'pricing-and-access', label: 'Pricing and access' },
     { id: 'review-signal', label: 'Review signal' },
     { id: 'reddit-signal', label: 'Reddit signal' },
@@ -94,6 +96,19 @@ export default function ComparisonPage({ params }: ComparisonPageProps) {
         </p>
       </section>
 
+      {isCallAnnie ? (
+        <section id="current-status" className="space-y-4 rounded-3xl border border-white/10 bg-white/[0.03] p-6 md:p-8">
+          <h2 className="text-2xl font-semibold md:text-3xl">Current status</h2>
+          <p className="leading-8 text-white/70">
+            The important thing to keep tight here is what we can actually verify. Call Annie's own site says the AI language-learning app has been discontinued, and the public iOS and Android store links exposed on that homepage did not resolve during this review pass.
+            <InlineSources sources={competitor.reviewSources} />
+          </p>
+          <p className="leading-8 text-white/60">
+            That is enough to say the old app is no longer live in the normal consumer-download sense. It is not enough to say why the product was discontinued, so this comparison should stay focused on the clearer question: if someone liked the original call-an-AI idea, why might Emmaline be a better current alternative?
+          </p>
+        </section>
+      ) : null}
+
       <section id="pricing-and-access" className="space-y-4">
         <h2 className="text-2xl font-semibold md:text-3xl">Pricing and access</h2>
         <p className="leading-8 text-white/70">
@@ -122,7 +137,9 @@ export default function ComparisonPage({ params }: ComparisonPageProps) {
         <h2 className="text-2xl font-semibold md:text-3xl">Where Emmaline is different</h2>
         <p className="leading-8 text-white/70">{competitor.emmalineAngle}</p>
         <p className="leading-8 text-white/60">
-          The part the generic voice products usually skip is the note-friendly workflow. Emmaline can be judged on a tighter loop: call in, think out loud, brainstorm in real time, and keep the useful parts through transcripts, call detail, and notes. That pushes it closer to a practical phone assistant than a broad voice demo or companion chat.
+          {isCallAnnie
+            ? 'The strongest alternative angle is not that Emmaline recreates a discontinued app one-for-one. It is that Emmaline can keep the low-friction call-first mental model while adding a note-friendly workflow: call in, think out loud, brainstorm in real time, and keep the useful parts through transcripts, call detail, and notes.'
+            : 'The part the generic voice products usually skip is the note-friendly workflow. Emmaline can be judged on a tighter loop: call in, think out loud, brainstorm in real time, and keep the useful parts through transcripts, call detail, and notes. That pushes it closer to a practical phone assistant than a broad voice demo or companion chat.'}
         </p>
       </section>
 
@@ -166,11 +183,6 @@ export default function ComparisonPage({ params }: ComparisonPageProps) {
           <Link href="/best-ai-phone-assistant" className="rounded-full border border-white/20 px-4 py-2 text-white transition hover:border-white hover:bg-white hover:text-black">
             View all consumer comparisons
           </Link>
-          {competitor.slug === 'call-annie' ? (
-            <Link href="/reviews/call-annie-review" className="rounded-full border border-white/20 px-4 py-2 text-white transition hover:border-white hover:bg-white hover:text-black">
-              Read the Call Annie review
-            </Link>
-          ) : null}
           <Link href="/" className="rounded-full border border-white/20 px-4 py-2 text-white transition hover:border-white hover:bg-white hover:text-black">
             Visit the homepage
           </Link>

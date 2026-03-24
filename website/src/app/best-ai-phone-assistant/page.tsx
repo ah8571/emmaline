@@ -55,7 +55,6 @@ export default function BestAiPhoneAssistantPage() {
             const comparisonHref = comparisonSlugs.has(competitor.slug)
               ? `/compare/${competitor.slug}-vs-emmaline`
               : undefined;
-            const reviewHref = competitor.slug === 'call-annie' ? '/reviews/call-annie-review' : undefined;
 
             return (
               <article key={competitor.slug} className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 md:p-8">
@@ -88,11 +87,6 @@ export default function BestAiPhoneAssistantPage() {
                     {comparisonHref ? (
                       <Link href={comparisonHref} className="rounded-full border border-white/20 px-4 py-2 text-white transition hover:border-white hover:bg-white hover:text-black">
                         Read {competitor.name} vs Emmaline
-                      </Link>
-                    ) : null}
-                    {reviewHref ? (
-                      <Link href={reviewHref} className="rounded-full border border-white/20 px-4 py-2 text-white transition hover:border-white hover:bg-white hover:text-black">
-                        Read the review
                       </Link>
                     ) : null}
                   </div>
@@ -136,9 +130,9 @@ export default function BestAiPhoneAssistantPage() {
             <p className="text-sm uppercase tracking-[0.16em] text-white/45">Comparison</p>
             <p className="mt-2 text-lg font-semibold text-white">Character.AI Voice vs Emmaline</p>
           </Link>
-          <Link href="/reviews/call-annie-review" className="rounded-2xl border border-white/10 p-4 transition hover:border-white/30 hover:bg-white/[0.04]">
-            <p className="text-sm uppercase tracking-[0.16em] text-white/45">Review</p>
-            <p className="mt-2 text-lg font-semibold text-white">Call Annie review</p>
+          <Link href="/compare/call-annie-vs-emmaline" className="rounded-2xl border border-white/10 p-4 transition hover:border-white/30 hover:bg-white/[0.04]">
+            <p className="text-sm uppercase tracking-[0.16em] text-white/45">Comparison</p>
+            <p className="mt-2 text-lg font-semibold text-white">Call Annie vs Emmaline</p>
           </Link>
         </div>
       </section>
