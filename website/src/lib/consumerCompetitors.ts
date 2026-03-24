@@ -341,19 +341,35 @@ export const consumerCompetitors: ConsumerCompetitor[] = [
       },
     ],
     pricingSnapshot:
-      'I did not see an active consumer pricing flow on the current site. The bigger signal is that the previous Call Annie concept does not appear to be sold as an active broad AI phone assistant anymore.',
+      'I did not see an active consumer pricing flow on the current site. The homepage still exposes App Store and Google Play download links, but the linked App Store and Play pages returned 404 during this review pass, which is consistent with the idea that the old app distribution is no longer live.',
     pricingSources: [
       {
         label: 'Call Annie official site',
         href: 'https://callannie.ai/',
       },
+      {
+        label: 'App Store link',
+        href: 'https://apps.apple.com/app/id6447928709',
+      },
+      {
+        label: 'Google Play link',
+        href: 'https://play.google.com/store/apps/details?id=ai.animato.callannie',
+      },
     ],
     reviewSignal:
-      'The strongest current signal is not a review score. It is the official-site change itself: what many users remember as a call-an-AI reference point now appears as a discontinued language-learning product rather than a live, expanding phone assistant category leader.',
+      'The strongest current signal is not a review score. It is the official-site change itself plus the broken store trail: what many users remember as a call-an-AI reference point now appears as a discontinued language-learning product, and the public iOS and Android store links no longer resolved in this review pass.',
     reviewSources: [
       {
         label: 'Call Annie official site',
         href: 'https://callannie.ai/',
+      },
+      {
+        label: 'App Store link',
+        href: 'https://apps.apple.com/app/id6447928709',
+      },
+      {
+        label: 'Google Play link',
+        href: 'https://play.google.com/store/apps/details?id=ai.animato.callannie',
       },
     ],
     redditSignal:

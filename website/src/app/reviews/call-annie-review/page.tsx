@@ -68,7 +68,7 @@ export default function CallAnnieReviewPage() {
         <div className="rounded-3xl border border-white/10 p-6 md:p-8">
           <h2 className="text-2xl font-semibold">What that means for buyers</h2>
           <p className="mt-4 leading-8 text-white/70">
-            The same official page also says the Call Annie AI language-learning app has been discontinued. So the right read today is not that Call Annie is the best active AI phone assistant. The right read is that it helped define the category, but it no longer looks like the strongest live consumer option in that category.
+            The same official page also says the Call Annie AI language-learning app has been discontinued. On top of that, the homepage still exposes iOS and Android download buttons, but the linked App Store and Google Play pages did not resolve during this review pass. So the right read today is not that Call Annie is the best active AI phone assistant. The right read is that it helped define the category, but it no longer looks like the strongest live consumer option in that category.
             <InlineSources sources={competitor.reviewSources} />
           </p>
         </div>
