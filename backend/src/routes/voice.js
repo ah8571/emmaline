@@ -16,6 +16,8 @@ import { getUserPhoneNumber } from '../services/databaseService.js';
 import { assertUserCanStartVoiceSession } from '../services/billingService.js';
 
 const router = express.Router();
+const RECENT_VOICE_ACCESS_WINDOW_MS = Number(process.env.VOICE_CONNECT_AUTH_WINDOW_MS || 2 * 60 * 1000);
+const recentVoiceAccessChecks = new Map();
 
 const getDetailedErrorText = (error) => {
   return [error?.message, error?.details, error?.hint]
@@ -38,6 +40,29 @@ const isBillingSchemaInitializationError = (error) => {
 const parseUserIdFromIdentity = (identity) => {
   const value = String(identity || '').trim();
   return value.startsWith('user_') ? value.slice(5) : null;
+};
+
+const pruneRecentVoiceAccessChecks = () => {
+  const cutoff = Date.now() - RECENT_VOICE_ACCESS_WINDOW_MS;
+
+  for (const [userId, checkedAt] of recentVoiceAccessChecks.entries()) {
+    if (checkedAt < cutoff) {
+      recentVoiceAccessChecks.delete(userId);
+    }
+  }
+};
+
+const markRecentVoiceAccessCheck = (userId) => {
+  pruneRecentVoiceAccessChecks();
+  recentVoiceAccessChecks.set(String(userId), Date.now());
+};
+
+const hasRecentVoiceAccessCheck = (userId) => {
+  pruneRecentVoiceAccessChecks();
+
+  const checkedAt = recentVoiceAccessChecks.get(String(userId));
+
+  return Boolean(checkedAt && Date.now() - checkedAt <= RECENT_VOICE_ACCESS_WINDOW_MS);
 };
 
 const verifyTwilioRequest = (req, res, next) => {
@@ -85,6 +110,7 @@ router.post('/token', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.userId;
     const billingStatus = await assertUserCanStartVoiceSession(userId);
+    markRecentVoiceAccessCheck(userId);
     const identity = `user_${userId}`;
     const result = generateVoiceAccessToken({ identity });
 
@@ -147,7 +173,10 @@ router.post('/connect', verifyTwilioRequest, async (req, res) => {
       return res.status(403).json({ error: 'Invalid voice identity' });
     }
 
-    await assertUserCanStartVoiceSession(userId);
+    if (!hasRecentVoiceAccessCheck(userId)) {
+      await assertUserCanStartVoiceSession(userId);
+      markRecentVoiceAccessCheck(userId);
+    }
 
     const twiml = generateClientConnectTwiML({
       identity,
