@@ -3,7 +3,7 @@
     "name": "Emmaline",
     "slug": "emmaline",
     "version": "0.1.0",
-    "icon": "./assets/launch-splash-icon.png",
+    "icon": "./assets/app-icon.png",
     "newArchEnabled": false,
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -14,23 +14,28 @@
       "**/*"
     ],
     "ios": {
-      "icon": "./assets/launch-splash-icon.png",
+      "icon": "./assets/app-icon.png",
+      "bundleIdentifier": "com.emmaline.app",
       "supportsTablet": true,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Emmaline needs microphone access so you can talk to your AI assistant during in-app calls.",
+        "UIBackgroundModes": [
+          "audio",
+          "voip"
+        ],
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/launch-splash-icon.png",
+        "foregroundImage": "./assets/app-icon-padded.png",
         "backgroundColor": "#050607"
       },
       "permissions": [
         "RECORD_AUDIO",
         "MODIFY_AUDIO_SETTINGS"
       ],
-      "package": "com.emmaline.app.dev"
+      "package": "com.emmaline.app"
     },
     "plugins": [
       "expo-secure-store",

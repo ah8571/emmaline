@@ -32,6 +32,18 @@
         "APP_VARIANT": "production",
         "EXPO_PUBLIC_API_URL": "https://api.emmaline.app/api"
       }
+    },
+    "production_test": {
+      "distribution": "internal",
+      "android": {
+        "autoIncrement": "versionCode",
+        "buildType": "apk",
+        "applicationArchivePath": "android/app/build/outputs/apk/release/app-release.apk"
+      },
+      "env": {
+        "APP_VARIANT": "production",
+        "EXPO_PUBLIC_API_URL": "https://api.emmaline.app/api"
+      }
     }
   },
   "submit": {

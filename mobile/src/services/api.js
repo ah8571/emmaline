@@ -4,6 +4,7 @@
  */
 
 import axios from 'axios';
+import * as Sentry from '@sentry/react-native';
 import * as SecureStorage from '../utils/secureStorage.js';
 import {
   exchangeCodeForSession as exchangeSupabaseOAuthCode,
@@ -244,6 +245,23 @@ export const loginWithSocialProvider = async ({
   privacyAccepted = false
 }) => {
   try {
+    if (provider === 'apple') {
+      Sentry.captureMessage('Apple social login: starting session completion.', {
+        level: 'info',
+        tags: {
+          area: 'social_auth_api',
+          provider: 'apple'
+        },
+        extra: {
+          mode,
+          hasRedirectUrl: Boolean(redirectUrl),
+          hasIdToken: Boolean(idToken),
+          hasEmail: Boolean(email),
+          hasFullName: Boolean(fullName)
+        }
+      });
+    }
+
     if (redirectUrl) {
       await exchangeSupabaseOAuthCode(redirectUrl);
     } else {
@@ -253,44 +271,118 @@ export const loginWithSocialProvider = async ({
       });
     }
 
+    if (provider === 'apple') {
+      Sentry.captureMessage('Apple social login: Supabase session created.', {
+        level: 'info',
+        tags: {
+          area: 'social_auth_api',
+          provider: 'apple'
+        },
+        extra: {
+          mode
+        }
+      });
+    }
+
     await addTokenToHeaders();
     let user;
 
-    if (mode === 'create') {
-      logApiRequest('post', '/auth/profile/sync', { provider, email, mode });
-      const response = await apiClient.post('/auth/profile/sync', {
-        marketingOptIn,
-        termsAccepted,
-        privacyAccepted,
-        email,
-        fullName
-      });
+    try {
+      if (provider === 'apple') {
+        Sentry.captureMessage('Apple social login: fetching backend profile.', {
+          level: 'info',
+          tags: {
+            area: 'social_auth_api',
+            provider: 'apple'
+          },
+          extra: {
+            mode
+          }
+        });
+      }
 
-      user = response.data.user;
-      await SecureStorage.saveUser(user);
-    } else {
-      try {
-        user = await fetchCurrentUserProfile();
+      user = await fetchCurrentUserProfile();
 
-        if (user && user.hasAcceptedLegalConsent === false) {
+      if (provider === 'apple') {
+        Sentry.captureMessage('Apple social login: backend profile loaded.', {
+          level: 'info',
+          tags: {
+            area: 'social_auth_api',
+            provider: 'apple'
+          },
+          extra: {
+            mode,
+            hasAcceptedLegalConsent: user?.hasAcceptedLegalConsent ?? null
+          }
+        });
+      }
+
+      if (user && user.hasAcceptedLegalConsent === false) {
+        if (!termsAccepted || !privacyAccepted) {
+          if (provider === 'apple') {
+            Sentry.captureMessage('Apple social login: profile completion required after backend profile load.', {
+              level: 'info',
+              tags: {
+                area: 'social_auth_api',
+                provider: 'apple'
+              },
+              extra: {
+                mode
+              }
+            });
+          }
+
           return {
             success: false,
             requiresProfileCompletion: true,
             profileSetup: await getPendingProfileSetup({ provider, email, fullName })
           };
         }
-      } catch (error) {
-        if (!isMissingProfileError(error)) {
-          throw error;
-        }
 
+        user = await syncUserProfile({
+          marketingOptIn,
+          termsAccepted,
+          privacyAccepted,
+          email,
+          fullName
+        });
+      }
+    } catch (error) {
+      if (!isMissingProfileError(error)) {
+        throw error;
+      }
+
+      if (provider === 'apple') {
+        Sentry.captureMessage('Apple social login: backend profile missing, deciding whether to create profile.', {
+          level: 'info',
+          tags: {
+            area: 'social_auth_api',
+            provider: 'apple'
+          },
+          extra: {
+            mode,
+            termsAccepted,
+            privacyAccepted
+          }
+        });
+      }
+
+      if (!termsAccepted || !privacyAccepted) {
         return {
           success: false,
           requiresProfileCompletion: true,
           profileSetup: await getPendingProfileSetup({ provider, email, fullName }),
-          error: 'Finish creating your Emmaline account to continue.'
+          error: mode === 'create' ? 'Finish creating your Emmaline account to continue.' : null
         };
       }
+
+      user = await syncUserProfile({
+        marketingOptIn,
+        termsAccepted,
+        privacyAccepted,
+        email,
+        fullName
+      });
     }
 
     return {
@@ -300,6 +392,32 @@ export const loginWithSocialProvider = async ({
     };
   } catch (error) {
     logApiFailure('post', '/auth/profile/sync', error);
+
+    Sentry.captureException(error, {
+      tags: {
+        area: 'social_auth_api',
+        provider: provider || 'unknown'
+      },
+      extra: {
+        mode,
+        hasRedirectUrl: Boolean(redirectUrl),
+        hasIdToken: Boolean(idToken),
+        hasEmail: Boolean(email),
+        hasFullName: Boolean(fullName),
+        responseStatus: error?.response?.status || null,
+        responseData: error?.response?.data || null
+      }
+    });
+
+    if (isProfileConsentRequiredError(error)) {
+      return {
+        success: false,
+        requiresProfileCompletion: true,
+        profileSetup: await getPendingProfileSetup({ provider, email, fullName }),
+        error: 'Finish creating your Emmaline account to continue.'
+      };
+    }
+
     return {
       success: false,
       error: formatApiError(error, `Unable to sign in with ${provider || 'social login'}`)

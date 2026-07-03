@@ -9,16 +9,130 @@ import {
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Linking
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Sentry from '@sentry/react-native';
 import * as WebBrowser from 'expo-web-browser';
 
 import { beginSocialOAuth, completeAuthenticatedUserProfile, loginUser, loginWithSocialProvider, registerUser } from '../services/api.js';
 import { getOAuthRedirectUrl } from '../services/supabaseAuth.js';
 
 WebBrowser.maybeCompleteAuthSession();
+
+const OAUTH_REDIRECT_TIMEOUT_MS = 120000;
+const SOCIAL_LOGIN_TIMEOUT_MS = 20000;
+
+const withTimeout = (promise, timeoutMs, timeoutMessage) => {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      const timeoutError = new Error(timeoutMessage);
+      timeoutError.name = 'SocialAuthTimeoutError';
+      reject(timeoutError);
+    }, timeoutMs);
+
+    Promise.resolve(promise).then(
+      (value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      }
+    );
+  });
+};
+
+const waitForOAuthRedirect = (redirectUrl, timeoutMs = OAUTH_REDIRECT_TIMEOUT_MS) => {
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const finish = (result) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      subscription?.remove();
+
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
+      resolve(result);
+    };
+
+    const normalizedRedirectUrl = String(redirectUrl || '').toLowerCase();
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      const nextUrl = String(url || '');
+
+      if (nextUrl.toLowerCase().startsWith(normalizedRedirectUrl)) {
+        finish({ type: 'success', url: nextUrl, source: 'linking' });
+      }
+    });
+
+    const timeoutId = setTimeout(() => {
+      finish({ type: 'timeout', url: null, source: 'linking' });
+    }, timeoutMs);
+  });
+};
+
+const logAuthFlow = (step, details = null) => {
+  if (details === null || details === undefined) {
+    console.log(`[AuthFlow] ${step}`);
+    return;
+  }
+
+  console.log(`[AuthFlow] ${step}`, details);
+};
+
+const hasPendingProfileSetup = (profileSetup) => {
+  if (!profileSetup || typeof profileSetup !== 'object') {
+    return false;
+  }
+
+  return Boolean(profileSetup.email || profileSetup.provider || profileSetup.fullName);
+};
+
+const formatAppleFullName = (fullName) => {
+  if (!fullName || typeof fullName !== 'object') {
+    return null;
+  }
+
+  const parts = [fullName.givenName, fullName.familyName]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+
+  return parts.length > 0 ? parts.join(' ') : null;
+};
+
+const formatProviderLabel = (provider) => {
+  const normalizedProvider = String(provider || '').trim().toLowerCase();
+
+  if (!normalizedProvider) {
+    return 'Social';
+  }
+
+  return normalizedProvider.charAt(0).toUpperCase() + normalizedProvider.slice(1);
+};
+
+const formatAppleAuthErrorDetails = (error) => {
+  if (!error) {
+    return 'Unknown error.';
+  }
+
+  const details = [
+    error?.message ? `Reason: ${error.message}` : null,
+    error?.code ? `Code: ${error.code}` : null,
+    error?.domain ? `Domain: ${error.domain}` : null,
+    error?.name ? `Name: ${error.name}` : null
+  ].filter(Boolean);
+
+  return details.length > 0 ? details.join('\n') : 'Unknown error.';
+};
 
 const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null }) => {
   const [email, setEmail] = useState('');
@@ -31,6 +145,8 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
   const [localPendingProfileSetup, setLocalPendingProfileSetup] = useState(null);
+  const [appleAuthDebugMessage, setAppleAuthDebugMessage] = useState('');
+  const [appleAuthDebugLevel, setAppleAuthDebugLevel] = useState('info');
 
   useEffect(() => {
     const loadAppleAvailability = async () => {
@@ -48,10 +164,23 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
 
   const socialMode = isLogin ? 'login' : 'create';
   const activePendingProfileSetup = pendingProfileSetup || localPendingProfileSetup;
-  const showingPendingProfileSetup = Boolean(activePendingProfileSetup?.email);
+  const showingPendingProfileSetup = hasPendingProfileSetup(activePendingProfileSetup);
+
+  const updateAppleAuthDebug = (message, level = 'info') => {
+    setAppleAuthDebugMessage(String(message || ''));
+    setAppleAuthDebugLevel(level);
+  };
+
+  const clearAppleAuthError = () => {
+    setError((currentError) => (
+      currentError.includes('Apple Sign In') || currentError.includes('Apple sign-in')
+        ? ''
+        : currentError
+    ));
+  };
 
   useEffect(() => {
-    if (pendingProfileSetup?.email) {
+    if (hasPendingProfileSetup(pendingProfileSetup)) {
       setLocalPendingProfileSetup(pendingProfileSetup);
       return;
     }
@@ -72,31 +201,128 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
     setLoading(true);
     setError('');
 
+    if (provider === 'apple') {
+      updateAppleAuthDebug('Apple credential received. Finishing the Emmaline session with Supabase and the backend.', 'info');
+    }
+
+    logAuthFlow('completeSocialLogin:start', {
+      provider,
+      hasRedirectUrl: Boolean(redirectUrl),
+      mode: socialMode
+    });
+
     try {
-      const response = await loginWithSocialProvider({
-        mode: socialMode,
+      const response = await withTimeout(
+        loginWithSocialProvider({
+          mode: socialMode,
+          provider,
+          idToken,
+          redirectUrl,
+          email: socialEmail,
+          fullName: socialFullName,
+          marketingOptIn,
+          termsAccepted: acceptedRequiredTerms,
+          privacyAccepted: acceptedRequiredTerms
+        }),
+        SOCIAL_LOGIN_TIMEOUT_MS,
+        `${formatProviderLabel(provider)} sign-in timed out before Emmaline could finish the session.`
+      );
+
+      logAuthFlow('completeSocialLogin:response', {
         provider,
-        idToken,
-        redirectUrl,
-        email: socialEmail,
-        fullName: socialFullName,
-        marketingOptIn,
-        termsAccepted: acceptedRequiredTerms,
-        privacyAccepted: acceptedRequiredTerms
+        success: Boolean(response?.success),
+        requiresProfileCompletion: Boolean(response?.requiresProfileCompletion),
+        hasUser: Boolean(response?.user),
+        error: response?.error || null
       });
 
       if (!response.success) {
         if (response.requiresProfileCompletion) {
+          logAuthFlow('completeSocialLogin:pendingProfileSetup', response.profileSetup || null);
+          Sentry.captureMessage('Social sign-in requires profile completion.', {
+            level: 'info',
+            tags: {
+              area: 'social_auth_profile_completion',
+              provider
+            },
+            extra: {
+              mode: socialMode,
+              hasEmail: Boolean(response?.profileSetup?.email || socialEmail),
+              hasFullName: Boolean(response?.profileSetup?.fullName || socialFullName)
+            }
+          });
           setLocalPendingProfileSetup(response.profileSetup || null);
+          if (provider === 'apple') {
+            updateAppleAuthDebug('Apple Sign In worked, but this account still needs consent/profile completion before the app can continue.', 'info');
+          }
+          setError(response.error || `${formatProviderLabel(provider)} sign-in worked. Finish creating your Emmaline account to continue.`);
           return;
         }
+
+        if (provider === 'apple') {
+          updateAppleAuthDebug(`Apple Sign In reached Emmaline, but the app rejected the session: ${response.error || 'Unknown social-login response.'}`, 'error');
+        }
+
+        Sentry.captureMessage(response.error || `${provider} sign-in failed`, {
+          level: 'error',
+          tags: {
+            area: 'social_auth',
+            provider
+          },
+          extra: {
+            mode: socialMode,
+            hasRedirectUrl: Boolean(redirectUrl),
+            hasIdToken: Boolean(idToken)
+          }
+        });
 
         setError(response.error || `${provider} sign-in failed`);
         return;
       }
 
+      if (provider === 'apple') {
+        updateAppleAuthDebug('Apple Sign In finished successfully and the Emmaline session is ready.', 'info');
+      }
+
       onLoginSuccess(response.user);
     } catch (err) {
+      if (err?.name === 'SocialAuthTimeoutError') {
+        Sentry.captureMessage(err.message, {
+          level: 'error',
+          tags: {
+            area: 'social_auth_timeout',
+            provider
+          },
+          extra: {
+            mode: socialMode,
+            hasRedirectUrl: Boolean(redirectUrl),
+            hasIdToken: Boolean(idToken)
+          }
+        });
+      }
+
+      if (provider === 'apple') {
+        updateAppleAuthDebug(
+          [
+            'Apple Sign In failed while Emmaline was finishing the session.',
+            `Reason: ${err?.message || 'Unknown error.'}`,
+            `Error name: ${err?.name || 'Unknown'}`
+          ].join('\n'),
+          'error'
+        );
+      }
+
+      Sentry.captureException(err, {
+        tags: {
+          area: 'social_auth',
+          provider
+        },
+        extra: {
+          mode: socialMode,
+          hasRedirectUrl: Boolean(redirectUrl),
+          hasIdToken: Boolean(idToken)
+        }
+      });
       setError(err.message || `${provider} sign-in failed`);
     } finally {
       setLoading(false);
@@ -107,19 +333,27 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
     setError('');
 
     setLoading(true);
+    logAuthFlow('handleSocialOAuth:start', { provider, mode: socialMode });
 
     try {
+      const redirectUrl = getOAuthRedirectUrl();
       const oauthStart = await beginSocialOAuth({ provider, scopes, queryParams });
+      logAuthFlow('handleSocialOAuth:oauthStart', {
+        provider,
+        success: Boolean(oauthStart?.success),
+        hasUrl: Boolean(oauthStart?.url)
+      });
 
       if (!oauthStart.success || !oauthStart.url) {
         setError(oauthStart.error || unavailableMessage || `${provider} sign-in failed`);
         return;
       }
 
-      const result = await WebBrowser.openAuthSessionAsync(
-        oauthStart.url,
-        getOAuthRedirectUrl()
-      );
+      const result = await Promise.race([
+        WebBrowser.openAuthSessionAsync(oauthStart.url, redirectUrl),
+        waitForOAuthRedirect(redirectUrl)
+      ]);
+      logAuthFlow('handleSocialOAuth:result', result);
 
       if (result.type !== 'success' || !result.url) {
         if (result.type !== 'cancel') {
@@ -128,11 +362,24 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
         return;
       }
 
+      if (result.source === 'linking') {
+        try {
+          const dismissResult = WebBrowser.dismissBrowser();
+
+          if (dismissResult && typeof dismissResult.then === 'function') {
+            await dismissResult;
+          }
+        } catch {
+          // The browser may already be closed when the deep link resolves first.
+        }
+      }
+
       await completeSocialLogin({
         provider,
         redirectUrl: result.url
       });
     } catch (err) {
+      logAuthFlow('handleSocialOAuth:error', err?.message || String(err));
       setError(err.message || unavailableMessage || `${provider} sign-in failed`);
     } finally {
       setLoading(false);
@@ -180,18 +427,140 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
       return;
     }
 
+    setLoading(true);
+    setError('');
+    updateAppleAuthDebug('Apple Sign In started. Waiting for Face ID or Touch ID confirmation.', 'info');
+
+    Sentry.captureMessage('Apple sign-in started from login screen.', {
+      level: 'info',
+      tags: {
+        area: 'apple_auth'
+      },
+      extra: {
+        mode: socialMode,
+        appleAuthAvailable
+      }
+    });
+
     try {
-      await handleSocialOAuth({
-        provider: 'apple',
-        scopes: 'name email',
-        unavailableMessage: 'Apple sign-in failed'
+      logAuthFlow('handleAppleAuth:start', { mode: socialMode });
+
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL
+        ]
       });
-    } catch (err) {
-      if (err?.code === 'ERR_REQUEST_CANCELED') {
+
+      logAuthFlow('handleAppleAuth:credential', {
+        hasIdentityToken: Boolean(credential?.identityToken),
+        hasEmail: Boolean(credential?.email),
+        hasFullName: Boolean(credential?.fullName)
+      });
+
+      Sentry.captureMessage('Apple credential returned to the login screen.', {
+        level: 'info',
+        tags: {
+          area: 'apple_auth'
+        },
+        extra: {
+          mode: socialMode,
+          hasIdentityToken: Boolean(credential?.identityToken),
+          hasEmail: Boolean(credential?.email),
+          hasFullName: Boolean(credential?.fullName)
+        }
+      });
+
+      updateAppleAuthDebug(
+        [
+          'Apple credential received.',
+          `Identity token returned: ${credential?.identityToken ? 'yes' : 'no'}`,
+          `Email returned: ${credential?.email ? 'yes' : 'no'}`,
+          `Full name returned: ${credential?.fullName ? 'yes' : 'no'}`
+        ].join('\n'),
+        'info'
+      );
+
+      if (!credential?.identityToken) {
+        Sentry.captureMessage('Apple sign-in did not return an identity token.', {
+          level: 'error',
+          tags: {
+            area: 'apple_auth'
+          },
+          extra: {
+            mode: socialMode,
+            hasEmail: Boolean(credential?.email),
+            hasFullName: Boolean(credential?.fullName)
+          }
+        });
+        setError('Apple sign-in did not return an identity token. Apple approved the request, but no usable login token came back to the app.');
+        updateAppleAuthDebug(
+          [
+            'Apple Sign In did not return an identity token.',
+            `Email returned: ${credential?.email ? 'yes' : 'no'}`,
+            `Full name returned: ${credential?.fullName ? 'yes' : 'no'}`
+          ].join('\n'),
+          'info'
+        );
         return;
       }
 
-      setError(err.message || 'Apple sign-in failed');
+      updateAppleAuthDebug('Apple credential looks valid. Emmaline is now creating the app session.', 'info');
+
+      await completeSocialLogin({
+        provider: 'apple',
+        idToken: credential.identityToken,
+        socialEmail: credential.email || null,
+        socialFullName: formatAppleFullName(credential.fullName)
+      });
+    } catch (err) {
+      if (err?.code === 'ERR_REQUEST_CANCELED' || err?.code === 'ERR_CANCELED') {
+        const cancelDetails = formatAppleAuthErrorDetails(err);
+
+        Sentry.captureMessage('Apple Sign In canceled before Emmaline could create the session.', {
+          level: 'warning',
+          tags: {
+            area: 'apple_auth_cancel'
+          },
+          extra: {
+            mode: socialMode,
+            code: err?.code || null,
+            domain: err?.domain || null,
+            message: err?.message || null,
+            name: err?.name || null,
+            fullError: JSON.stringify(err, Object.getOwnPropertyNames(err || {}))
+          }
+        });
+
+        updateAppleAuthDebug(
+          [
+            'Apple Sign In was canceled before Emmaline could create the session.',
+            cancelDetails
+          ].join('\n'),
+          'info'
+        );
+        clearAppleAuthError();
+        return;
+      }
+
+      logAuthFlow('handleAppleAuth:error', err?.message || String(err));
+      Sentry.captureException(err, {
+        tags: {
+          area: 'apple_auth'
+        },
+        extra: {
+          mode: socialMode
+        }
+      });
+      const detailedError = [
+        'Apple Sign In failed before Emmaline could finish the login.',
+        `Reason: ${err?.message || 'Unknown error.'}`,
+        err?.code ? `Code: ${err.code}` : null
+      ].filter(Boolean).join('\n');
+      updateAppleAuthDebug(detailedError, 'info');
+      clearAppleAuthError();
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -215,6 +584,12 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
 
     setLoading(true);
     setError('');
+    logAuthFlow('handleCompletePendingProfileSetup:start', {
+      hasEmail: Boolean(activePendingProfileSetup?.email),
+      hasFullName: Boolean(activePendingProfileSetup?.fullName),
+      marketingOptIn,
+      acceptedRequiredTerms
+    });
 
     try {
       const response = await completeAuthenticatedUserProfile({
@@ -225,6 +600,12 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
         fullName: activePendingProfileSetup?.fullName || null
       });
 
+      logAuthFlow('handleCompletePendingProfileSetup:response', {
+        success: Boolean(response?.success),
+        hasUser: Boolean(response?.user),
+        error: response?.error || null
+      });
+
       if (!response.success) {
         setError(response.error || 'Unable to finish creating your account.');
         return;
@@ -233,6 +614,7 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
       setLocalPendingProfileSetup(null);
       onLoginSuccess(response.user);
     } catch (err) {
+      logAuthFlow('handleCompletePendingProfileSetup:error', err?.message || String(err));
       setError(err.message || 'Unable to finish creating your account.');
     } finally {
       setLoading(false);
@@ -258,21 +640,6 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
         </View>
 
         <View style={styles.form}>
-          {showingPendingProfileSetup ? (
-            <View style={styles.pendingSetupCard}>
-              <Text style={styles.pendingSetupTitle}>Finish creating your account</Text>
-              <Text style={styles.pendingSetupText}>
-                You signed in with {activePendingProfileSetup?.provider === 'google' ? 'Google' : activePendingProfileSetup?.provider === 'apple' ? 'Apple' : 'your provider'}, but your Emmaline account is not set up yet.
-              </Text>
-              {activePendingProfileSetup?.email ? (
-                <Text style={styles.pendingSetupEmail}>{activePendingProfileSetup.email}</Text>
-              ) : null}
-              <Text style={styles.pendingSetupText}>
-                Confirm the required terms below, then we will finish creating your Emmaline account.
-              </Text>
-            </View>
-          ) : null}
-
           {showingPendingProfileSetup ? null : (
             <View style={styles.socialGroup}>
               {appleAuthAvailable ? (
@@ -347,12 +714,21 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
 
           {showingPendingProfileSetup ? (
             <View style={styles.consentGroup}>
+              <View style={styles.pendingSetupNotice}>
+                <Text style={styles.pendingSetupTitle}>One more step</Text>
+                <Text style={styles.pendingSetupText}>
+                  Your {formatProviderLabel(activePendingProfileSetup?.provider)} sign-in worked. Confirm your consent preferences to finish creating your Emmaline account.
+                </Text>
+              </View>
+
               <View style={styles.consentItem}>
                 <TouchableOpacity
                   style={styles.checkboxRow}
                   onPress={() => {
                     setAcceptedRequiredTerms((current) => !current);
-                    setError('');
+                    if (!error.includes('Apple Sign In')) {
+                      setError('');
+                    }
                   }}
                   activeOpacity={0.85}
                   disabled={loading}
@@ -419,6 +795,8 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
               onPress={() => {
                 setIsLogin(!isLogin);
                 setError('');
+                setAppleAuthDebugMessage('');
+                setAppleAuthDebugLevel('info');
                 setAcceptedRequiredTerms(false);
                 setMarketingOptIn(false);
               }}
@@ -431,6 +809,26 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
               </Text>
             </TouchableOpacity>
           )}
+
+          {appleAuthDebugMessage ? (
+            <View style={[
+              styles.appleDebugCard,
+              styles.appleDebugCardInfo
+            ]}>
+              <Text style={[
+                styles.appleDebugTitle,
+                styles.appleDebugTitleInfo
+              ]}>
+                Apple Sign In status
+              </Text>
+              <Text style={[
+                styles.appleDebugText,
+                styles.appleDebugTextInfo
+              ]}>
+                {appleAuthDebugMessage}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.footer}>
@@ -473,31 +871,6 @@ const styles = StyleSheet.create({
   },
   form: {
     marginVertical: 32
-  },
-  pendingSetupCard: {
-    borderWidth: 1,
-    borderColor: 'rgba(245, 247, 250, 0.18)',
-    borderRadius: 12,
-    backgroundColor: 'rgba(245, 247, 250, 0.06)',
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    marginBottom: 18,
-    gap: 8
-  },
-  pendingSetupTitle: {
-    color: '#f5f7fa',
-    fontSize: 16,
-    fontWeight: '700'
-  },
-  pendingSetupText: {
-    color: '#d6dbe1',
-    fontSize: 12,
-    lineHeight: 18
-  },
-  pendingSetupEmail: {
-    color: '#f5f7fa',
-    fontSize: 13,
-    fontWeight: '600'
   },
   socialGroup: {
     gap: 12,
@@ -577,9 +950,54 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontWeight: '500'
   },
+  appleDebugCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 6,
+    marginTop: 12
+  },
+  appleDebugCardInfo: {
+    backgroundColor: 'rgba(245, 247, 250, 0.06)',
+    borderColor: 'rgba(245, 247, 250, 0.14)'
+  },
+  appleDebugTitle: {
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  appleDebugTitleInfo: {
+    color: '#f5f7fa'
+  },
+  appleDebugText: {
+    fontSize: 12,
+    lineHeight: 18
+  },
+  appleDebugTextInfo: {
+    color: '#d6dbe1'
+  },
   consentGroup: {
     gap: 12,
     marginBottom: 4
+  },
+  pendingSetupNotice: {
+    backgroundColor: 'rgba(245, 247, 250, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 247, 250, 0.14)',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 6
+  },
+  pendingSetupTitle: {
+    color: '#f5f7fa',
+    fontSize: 14,
+    fontWeight: '700'
+  },
+  pendingSetupText: {
+    color: '#d6dbe1',
+    fontSize: 13,
+    lineHeight: 19
   },
   consentItem: {
     gap: 8

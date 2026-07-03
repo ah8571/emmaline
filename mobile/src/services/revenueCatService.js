@@ -8,6 +8,22 @@ const PRO_ENTITLEMENT_ID = 'pro';
 let isConfigured = false;
 let currentAppUserId = null;
 
+const mapRevenueCatErrorMessage = (message) => {
+  const normalizedMessage = String(message || '').trim();
+  const lowerMessage = normalizedMessage.toLowerCase();
+
+  if (lowerMessage.includes('there is an issue with your configuration')
+    || lowerMessage.includes('there are no app store products')
+    || lowerMessage.includes('why-are-offerings-empty')) {
+    return [
+      'RevenueCat is connected, but the store configuration is still incomplete.',
+      normalizedMessage || 'RevenueCat did not return any App Store products for the active offering.'
+    ].join(' ');
+  }
+
+  return normalizedMessage || 'Unable to load subscription pricing right now.';
+};
+
 const getApiKey = () => {
   if (Platform.OS === 'ios') {
     return IOS_API_KEY;
@@ -35,6 +51,8 @@ export const getRevenueCatSetupMessage = () => {
 
   return 'RevenueCat is only available on iOS and Android builds.';
 };
+
+export const getRevenueCatDisplayMessage = (message) => mapRevenueCatErrorMessage(message);
 
 const ensureConfigured = async (appUserId = null) => {
   const apiKey = getApiKey();
@@ -83,7 +101,7 @@ export const initializeRevenueCat = async (appUserId = null) => {
   } catch (error) {
     return {
       success: false,
-      error: error?.message || 'Unable to initialize RevenueCat'
+      error: mapRevenueCatErrorMessage(error?.message || 'Unable to initialize RevenueCat')
     };
   }
 };
@@ -101,7 +119,7 @@ export const syncRevenueCatUser = async (appUserId = null) => {
   } catch (error) {
     return {
       success: false,
-      error: error?.message || 'Unable to sync RevenueCat user'
+      error: mapRevenueCatErrorMessage(error?.message || 'Unable to sync RevenueCat user')
     };
   }
 };

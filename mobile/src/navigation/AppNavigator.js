@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,7 +19,7 @@ import { getUser, logout as clearStoredAuth } from '../utils/secureStorage.js';
 import { useAppTheme } from '../theme/appTheme.js';
 import { designTokens } from '../theme/designSystem.js';
 import { getCurrentUser, logoutUser } from '../services/api.js';
-import { hasSession, initializeSupabaseAuth, onAuthStateChange as subscribeToSupabaseAuthState } from '../services/supabaseAuth.js';
+import { handleOAuthRedirect, hasSession, initializeSupabaseAuth, onAuthStateChange as subscribeToSupabaseAuthState } from '../services/supabaseAuth.js';
 import { syncRevenueCatUser } from '../services/revenueCatService.js';
 
 const Stack = createStackNavigator();
@@ -319,6 +319,29 @@ const AppNavigator = ({ onAuthStateChange }) => {
   useEffect(() => {
     const disposeSupabaseAuth = initializeSupabaseAuth();
 
+    const resolveOAuthRedirect = async (url, source) => {
+      if (!url) {
+        return false;
+      }
+
+      try {
+        const handled = await handleOAuthRedirect(url);
+
+        if (handled) {
+          console.log('[AuthFlow] AppNavigator:handledOAuthRedirect', { source, url });
+        }
+
+        return handled;
+      } catch (error) {
+        console.log('[AuthFlow] AppNavigator:handleOAuthRedirectError', {
+          source,
+          url,
+          message: error?.message || String(error)
+        });
+        return false;
+      }
+    };
+
     const checkAuthStatus = async () => {
       try {
         const authenticated = await hasSession();
@@ -378,56 +401,95 @@ const AppNavigator = ({ onAuthStateChange }) => {
       }
     };
 
-    checkAuthStatus();
+    let isMounted = true;
+
+    const initializeAuthState = async () => {
+      const initialUrl = await Linking.getInitialURL();
+      const handledInitialRedirect = await resolveOAuthRedirect(initialUrl, 'initial-url');
+
+      if (!isMounted) {
+        return;
+      }
+
+      await checkAuthStatus();
+
+      if (handledInitialRedirect) {
+        await checkAuthStatus();
+      }
+    };
+
+    initializeAuthState();
+
+    const linkingSubscription = Linking.addEventListener('url', async ({ url }) => {
+      const handled = await resolveOAuthRedirect(url, 'event');
+
+      if (handled) {
+        await checkAuthStatus();
+      }
+    });
 
     const {
       data: { subscription }
-    } = subscribeToSupabaseAuthState(async (_event, session) => {
-      if (!session) {
+    } = subscribeToSupabaseAuthState((_event, session) => {
+      Promise.resolve().then(async () => {
+        if (!session) {
+          Sentry.setUser(null);
+          await syncRevenueCatUser(null);
+          setIsAuthenticated(false);
+          setUser(null);
+          onAuthStateChange?.(false);
+          return;
+        }
+
+        const currentUserResponse = await getCurrentUser();
+        if (currentUserResponse?.requiresProfileCompletion) {
+          setPendingProfileSetup(currentUserResponse.profileSetup || null);
+          setIsAuthenticated(false);
+          setUser(null);
+          onAuthStateChange?.(false);
+          return;
+        }
+
+        if (!currentUserResponse.success || !currentUserResponse.user) {
+          await clearStoredAuth();
+          Sentry.setUser(null);
+          await syncRevenueCatUser(null);
+          setIsAuthenticated(false);
+          setUser(null);
+          onAuthStateChange?.(false);
+          return;
+        }
+
+        const nextUser = currentUserResponse.user || await getUser();
+        Sentry.setUser(
+          nextUser?.id
+            ? {
+                id: String(nextUser.id),
+                email: nextUser.email || undefined
+              }
+            : null
+        );
+        await syncRevenueCatUser(nextUser?.id ? String(nextUser.id) : null);
+        setPendingProfileSetup(null);
+        setUser(nextUser);
+        setIsAuthenticated(true);
+        onAuthStateChange?.(true);
+      }).catch((error) => {
+        Sentry.captureException(error, {
+          tags: {
+            area: 'auth_state_change'
+          }
+        });
         Sentry.setUser(null);
-        await syncRevenueCatUser(null);
         setIsAuthenticated(false);
         setUser(null);
         onAuthStateChange?.(false);
-        return;
-      }
-
-      const currentUserResponse = await getCurrentUser();
-      if (currentUserResponse?.requiresProfileCompletion) {
-        setPendingProfileSetup(currentUserResponse.profileSetup || null);
-        setIsAuthenticated(false);
-        setUser(null);
-        onAuthStateChange?.(false);
-        return;
-      }
-
-      if (!currentUserResponse.success || !currentUserResponse.user) {
-        await clearStoredAuth();
-        Sentry.setUser(null);
-        await syncRevenueCatUser(null);
-        setIsAuthenticated(false);
-        setUser(null);
-        onAuthStateChange?.(false);
-        return;
-      }
-
-      const nextUser = currentUserResponse.user || await getUser();
-      Sentry.setUser(
-        nextUser?.id
-          ? {
-              id: String(nextUser.id),
-              email: nextUser.email || undefined
-            }
-          : null
-      );
-      await syncRevenueCatUser(nextUser?.id ? String(nextUser.id) : null);
-      setPendingProfileSetup(null);
-      setUser(nextUser);
-      setIsAuthenticated(true);
-      onAuthStateChange?.(true);
+      });
     });
 
     return () => {
+      isMounted = false;
+      linkingSubscription.remove();
       subscription.unsubscribe();
       disposeSupabaseAuth?.();
     };

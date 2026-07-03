@@ -3,8 +3,9 @@ const appJson = require('./app.json');
 
 const baseConfig = appJson.expo;
 const buildProfile = process.env.EAS_BUILD_PROFILE || process.env.APP_VARIANT || 'development';
-const isProduction = buildProfile === 'production';
-const isDevelopmentClient = buildProfile === 'development';
+const appVariant = process.env.APP_VARIANT || buildProfile;
+const isProduction = appVariant === 'production';
+const isDevelopmentClient = appVariant === 'development';
 
 const productionBundleId = 'com.emmaline.app';
 const developmentBundleId = 'com.emmaline.app.dev';
@@ -51,7 +52,7 @@ module.exports = () => {
     },
     extra: {
       ...(baseConfig.extra || {}),
-      appVariant: isProduction ? 'production' : buildProfile,
+      appVariant,
       sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || null
     }
   };

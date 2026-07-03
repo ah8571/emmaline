@@ -53,6 +53,8 @@ const AppContent = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showLaunchSplash, setShowLaunchSplash] = useState(true);
   const [listenModeState, setListenModeState] = useState('idle');
+  const [showModePicker, setShowModePicker] = useState(false);
+  const [shouldPreferSpeaker, setShouldPreferSpeaker] = useState(false);
 
   const colors = isDarkMode ? darkColors : lightColors;
   const appBottomRailHeight = Math.max(insets.bottom, 12) + APP_BOTTOM_RAIL_HEIGHT;
@@ -112,6 +114,8 @@ const AppContent = () => {
     setSelectedAudioDevice(null);
     setIsMuted(false);
     setListenModeState('idle');
+    setShowModePicker(false);
+    setShouldPreferSpeaker(false);
 
     endVoiceCall().catch(() => {
       // Best-effort cleanup when the user logs out.
@@ -142,6 +146,32 @@ const AppContent = () => {
     return () => clearTimeout(statusTimer);
   }, [listenModeState]);
 
+  useEffect(() => {
+    if (!shouldPreferSpeaker || !isCalling) {
+      return;
+    }
+
+    if (!Array.isArray(audioDevices) || audioDevices.length === 0) {
+      return;
+    }
+
+    if (selectedAudioDevice?.type === 'speaker') {
+      setShouldPreferSpeaker(false);
+      return;
+    }
+
+    const speakerDevice = audioDevices.find((device) => device?.type === 'speaker');
+
+    if (!speakerDevice) {
+      return;
+    }
+
+    setShouldPreferSpeaker(false);
+    selectAudioDevice(speakerDevice.uuid).catch(() => {
+      // Best-effort default audio route for new calls.
+    });
+  }, [audioDevices, isCalling, selectedAudioDevice, shouldPreferSpeaker]);
+
   const stopLiveCall = async () => {
     const endResponse = await endVoiceCall();
 
@@ -152,6 +182,7 @@ const AppContent = () => {
 
     setIsCalling(false);
     setCallStatus('ended');
+    setShouldPreferSpeaker(false);
     return true;
   };
 
@@ -167,6 +198,7 @@ const AppContent = () => {
 
     setIsCalling(true);
     setCallStatus('connecting');
+    setShouldPreferSpeaker(true);
 
     try {
       const permissionResponse = await ensureMicrophonePermission();
@@ -174,6 +206,7 @@ const AppContent = () => {
       if (!permissionResponse.success) {
         setIsCalling(false);
         setCallStatus('failed');
+        setShouldPreferSpeaker(false);
         Alert.alert(
           'Microphone permission required',
           permissionResponse.error || 'Please allow microphone access to start an in-app call.'
@@ -191,6 +224,7 @@ const AppContent = () => {
       if (!tokenResponse.success || !tokenResponse.token) {
         setIsCalling(false);
         setCallStatus('failed');
+        setShouldPreferSpeaker(false);
 
         let errorMessage = tokenResponse.error || 'Unable to get a voice token.';
 
@@ -224,6 +258,7 @@ const AppContent = () => {
 
           if (status === 'ended' || status === 'failed') {
             setIsCalling(false);
+            setShouldPreferSpeaker(false);
           }
         },
         onError: (message) => {
@@ -240,6 +275,7 @@ const AppContent = () => {
       if (!response.success) {
         setIsCalling(false);
         setCallStatus('failed');
+        setShouldPreferSpeaker(false);
 
         Alert.alert(
           'In-app call failed',
@@ -255,6 +291,7 @@ const AppContent = () => {
       });
       setIsCalling(false);
       setCallStatus('failed');
+      setShouldPreferSpeaker(false);
       Alert.alert('Call error', error.message || 'Unexpected error while starting the call.');
     }
   };
@@ -275,32 +312,25 @@ const AppContent = () => {
       return;
     }
 
-    Alert.alert(
-      'Choose audio mode',
-      'Start a live call or record in Listen Mode.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: 'Listen Mode',
-          onPress: () => {
-            handleStartListenMode().catch(() => {
-              // Errors are surfaced inside the handler.
-            });
-          }
-        },
-        {
-          text: 'Live Call',
-          onPress: () => {
-            startLiveCall().catch(() => {
-              // Errors are surfaced inside the handler.
-            });
-          }
-        }
-      ]
-    );
+    setShowModePicker(true);
+  };
+
+  const handleDismissModePicker = () => {
+    setShowModePicker(false);
+  };
+
+  const handleChooseListenMode = () => {
+    setShowModePicker(false);
+    handleStartListenMode().catch(() => {
+      // Errors are surfaced inside the handler.
+    });
+  };
+
+  const handleChooseLiveCall = () => {
+    setShowModePicker(false);
+    startLiveCall().catch(() => {
+      // Errors are surfaced inside the handler.
+    });
   };
 
   const handleStartListenMode = async () => {
@@ -395,7 +425,7 @@ const AppContent = () => {
     return (
       <AppThemeProvider value={{ isDarkMode, colors, toggleTheme: handleToggleTheme }}>
         <View style={styles.splashScreen}>
-          <Image source={require('../assets/launch-splash-icon.png')} style={styles.splashIcon} resizeMode="contain" />
+          <Image source={require('../assets/launch-splash-icon-black.png')} style={styles.splashIcon} resizeMode="contain" />
           <Text style={styles.splashLabel}>Emmaline</Text>
         </View>
       </AppThemeProvider>
@@ -424,9 +454,10 @@ const AppContent = () => {
           <FloatingCallButton
             onPress={handleInitiateCall}
             isActiveCall={isCalling || listenModeState === 'recording' || listenModeState === 'processing'}
+            showCallControls={isCalling}
             statusLabel={
               listenModeState === 'recording'
-                ? 'Listening... tap to stop'
+                ? 'Listening'
                 : listenModeState === 'processing'
                   ? 'Processing recording...'
                   : listenModeState === 'saved'
@@ -454,6 +485,51 @@ const AppContent = () => {
             onToggleMute={handleToggleMute}
             bottomInset={appBottomRailHeight}
           />
+        ) : null}
+
+        {showModePicker ? (
+          <View style={styles.modePickerOverlay} pointerEvents="box-none">
+            <TouchableOpacity style={styles.modePickerBackdrop} activeOpacity={1} onPress={handleDismissModePicker} />
+            <View
+              style={[
+                styles.modePickerCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border
+                }
+              ]}
+            >
+              <Text style={[styles.modePickerTitle, { color: colors.text }]}>Choose audio mode</Text>
+              <Text style={[styles.modePickerSubtitle, { color: colors.mutedText }]}>Start a live call or record in Listen Mode.</Text>
+
+              <TouchableOpacity
+                style={[styles.modePickerOption, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
+                onPress={handleChooseLiveCall}
+                activeOpacity={0.85}
+              >
+                <View style={styles.modePickerOptionHeader}>
+                  <Text style={[styles.modePickerOptionTitle, { color: colors.text }]}>Live Call</Text>
+                  <Text style={[styles.modePickerOptionHint, { color: colors.mutedText }]}>Speaker by default</Text>
+                </View>
+                <Text style={[styles.modePickerOptionDescription, { color: colors.mutedText }]}>Talk to Emmaline live with call controls and audio routing.</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modePickerOption, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
+                onPress={handleChooseListenMode}
+                activeOpacity={0.85}
+              >
+                <View style={styles.modePickerOptionHeader}>
+                  <Text style={[styles.modePickerOptionTitle, { color: colors.text }]}>Listen Mode</Text>
+                </View>
+                <Text style={[styles.modePickerOptionDescription, { color: colors.mutedText }]}>Record first, then upload the session for transcription and summary.</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modePickerCancelButton} onPress={handleDismissModePicker} activeOpacity={0.8}>
+                <Text style={[styles.modePickerCancelText, { color: colors.mutedText }]}>Not now</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         ) : null}
 
       </View>
@@ -552,8 +628,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700'
   },
+  modePickerOptionHint: {
+    fontSize: 12,
+    fontWeight: '600'
+  },
   modePickerOptionDescription: {
     fontSize: 13,
     lineHeight: 18
+  },
+  modePickerCancelButton: {
+    alignSelf: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginTop: 2
+  },
+  modePickerCancelText: {
+    fontSize: 13,
+    fontWeight: '600'
   },
 });

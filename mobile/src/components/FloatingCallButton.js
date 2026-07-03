@@ -19,6 +19,7 @@ const FloatingCallButton = ({
   onPress,
   statusLabel = null,
   isActiveCall = false,
+  showCallControls = false,
   isMuted = false,
   audioRoutes = [],
   selectedAudioRoute = null,
@@ -56,7 +57,7 @@ const FloatingCallButton = ({
     onPress();
   };
 
-  const showAudioRoutes = isActiveCall && (audioRoutes.length > 0 || Boolean(onToggleMute));
+  const showAudioRoutes = showCallControls && (audioRoutes.length > 0 || Boolean(onToggleMute));
 
   return (
     <>

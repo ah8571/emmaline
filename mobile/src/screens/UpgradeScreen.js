@@ -3,6 +3,7 @@ import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { getBillingStatus } from '../services/api.js';
 import {
   getRevenueCatCustomerInfo,
+  getRevenueCatDisplayMessage,
   getRevenueCatOfferings,
   getRevenueCatSetupMessage,
   initializeRevenueCat,
@@ -65,9 +66,9 @@ const UpgradeScreen = () => {
         const defaultPackage = currentOffering?.monthly || currentOffering?.availablePackages?.[0] || null;
 
         setOfferingPackage(defaultPackage);
-        setRevenueCatMessage(defaultPackage ? null : 'RevenueCat is connected, but no current offering is available yet. Confirm the default offering includes emmaline_pro_monthly.');
+        setRevenueCatMessage(defaultPackage ? null : 'Subscriptions are not available in this build yet. The App Store products still need to be attached to the active RevenueCat offering.');
       } catch (error) {
-        setRevenueCatMessage(error?.message || 'Unable to load subscription pricing right now.');
+        setRevenueCatMessage(getRevenueCatDisplayMessage(error?.message));
       } finally {
         setOfferingsLoading(false);
       }
@@ -185,9 +186,15 @@ const UpgradeScreen = () => {
         <View style={[styles.statusCard, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
           <Text style={[styles.statusLabel, { color: colors.mutedText }]}>Available minutes</Text>
           <Text style={[styles.statusValue, { color: colors.text }]}>
-            {loading ? '...' : billing ? billing.availableVoiceMinutes.toFixed(2) : 'Unavailable'}
+            {loading ? '...' : billing?.voiceAccessSource === 'subscription' ? 'Pro active' : billing ? billing.availableVoiceMinutes.toFixed(2) : 'Unavailable'}
           </Text>
-          <Text style={[styles.statusFootnote, { color: colors.mutedText }]}>Trial minutes remaining: {loading ? '...' : billing ? Math.ceil((billing.remainingFreeTrialSeconds || 0) / 60) : 'Unavailable'}</Text>
+          <Text style={[styles.statusFootnote, { color: colors.mutedText }]}>
+            {loading
+              ? 'Trial minutes remaining: ...'
+              : billing?.voiceAccessSource === 'subscription'
+                ? 'Your RevenueCat pro entitlement is currently unlocking voice access.'
+                : `Trial minutes remaining: ${billing ? Math.ceil((billing.remainingFreeTrialSeconds || 0) / 60) : 'Unavailable'}`}
+          </Text>
         </View>
       </View>
 

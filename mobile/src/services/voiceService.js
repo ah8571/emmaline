@@ -1,5 +1,8 @@
 import { Voice, Call } from '@twilio/voice-react-native-sdk';
+import { Audio } from 'expo-av';
 import { PermissionsAndroid, Platform } from 'react-native';
+
+const CALL_CONNECT_TIMEOUT_MS = 20000;
 
 let voiceInstance = null;
 let activeCall = null;
@@ -95,11 +98,24 @@ const requestBluetoothAudioPermission = async () => {
 };
 
 export const ensureMicrophonePermission = async () => {
-  if (Platform.OS !== 'android') {
-    return { success: true };
-  }
-
   try {
+    if (Platform.OS === 'ios') {
+      const permission = await Audio.requestPermissionsAsync();
+
+      if (permission.granted) {
+        return { success: true };
+      }
+
+      return {
+        success: false,
+        error: 'Microphone permission denied'
+      };
+    }
+
+    if (Platform.OS !== 'android') {
+      return { success: true };
+    }
+
     const hasPermission = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
 
     if (hasPermission) {
@@ -269,6 +285,21 @@ export const startVoiceCall = async ({ token, params = {}, onStatusChange, onErr
     const voice = getVoiceInstance();
     ensureAudioDeviceEventsBound();
 
+    let hasResolvedConnection = false;
+    let connectTimeoutId = null;
+
+    const clearConnectTimeout = () => {
+      if (connectTimeoutId) {
+        clearTimeout(connectTimeoutId);
+        connectTimeoutId = null;
+      }
+    };
+
+    const markConnectionResolved = () => {
+      hasResolvedConnection = true;
+      clearConnectTimeout();
+    };
+
     onStatusChange?.('connecting');
 
     const call = await voice.connect(token, {
@@ -283,11 +314,36 @@ export const startVoiceCall = async ({ token, params = {}, onStatusChange, onErr
       // Best-effort sync for audio routes.
     });
 
+    connectTimeoutId = setTimeout(async () => {
+      if (hasResolvedConnection || activeCall !== call) {
+        return;
+      }
+
+      activeCall = null;
+      updateAudioDeviceState({ audioDevices: [], selectedDevice: null });
+      updateMuteState(false);
+      onStatusChange?.('failed');
+
+      try {
+        await call.disconnect();
+      } catch {
+        // Ignore cleanup errors after timing out the connection attempt.
+      }
+
+      const timeoutMessage = Platform.OS === 'ios'
+        ? 'The iPhone call stayed in connecting for too long. Twilio never confirmed a live connection.'
+        : 'The call stayed in connecting for too long. Twilio never confirmed a live connection.';
+
+      onError?.(timeoutMessage);
+    }, CALL_CONNECT_TIMEOUT_MS);
+
     call.on(Call.Event.Ringing, () => {
+      markConnectionResolved();
       onStatusChange?.('ringing');
     });
 
     call.on(Call.Event.Connected, () => {
+      markConnectionResolved();
       onStatusChange?.('live');
       refreshAudioDevices().catch(() => {
         // Best-effort sync for audio routes.
@@ -299,18 +355,28 @@ export const startVoiceCall = async ({ token, params = {}, onStatusChange, onErr
     });
 
     call.on(Call.Event.Reconnected, () => {
+      markConnectionResolved();
       onStatusChange?.('live');
     });
 
     call.on(Call.Event.ConnectFailure, (error) => {
+      markConnectionResolved();
       activeCall = null;
       updateAudioDeviceState({ audioDevices: [], selectedDevice: null });
       updateMuteState(false);
       onStatusChange?.('failed');
-      onError?.(error?.message || 'Failed to connect call');
+
+      const failureMessage = [
+        error?.message || 'Failed to connect call',
+        error?.code ? `Code: ${error.code}` : null,
+        Platform.OS === 'ios' ? 'iPhone call setup did not complete through Twilio.' : null
+      ].filter(Boolean).join('\n');
+
+      onError?.(failureMessage);
     });
 
     call.on(Call.Event.Disconnected, () => {
+      markConnectionResolved();
       activeCall = null;
       updateAudioDeviceState({ audioDevices: [], selectedDevice: null });
       updateMuteState(false);

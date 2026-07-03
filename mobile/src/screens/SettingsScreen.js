@@ -102,7 +102,9 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
   const [billingSummary, setBillingSummary] = useState({
     loading: true,
     availableVoiceMinutes: 0,
-    remainingFreeTrialSeconds: 0
+    remainingFreeTrialSeconds: 0,
+    voiceAccessSource: 'none',
+    isProActive: false
   });
   const scrollViewRef = useRef(null);
   const scrollOffsetRef = useRef(0);
@@ -133,7 +135,9 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
         setBillingSummary({
           loading: false,
           availableVoiceMinutes: Number(response.billing.availableVoiceMinutes || 0),
-          remainingFreeTrialSeconds: Number(response.billing.remainingFreeTrialSeconds || 0)
+          remainingFreeTrialSeconds: Number(response.billing.remainingFreeTrialSeconds || 0),
+          voiceAccessSource: response.billing.voiceAccessSource || 'none',
+          isProActive: Boolean(response.billing.revenueCat?.isProActive)
         });
         return;
       }
@@ -141,7 +145,9 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
       setBillingSummary({
         loading: false,
         availableVoiceMinutes: 0,
-        remainingFreeTrialSeconds: 0
+        remainingFreeTrialSeconds: 0,
+        voiceAccessSource: 'none',
+        isProActive: false
       });
     };
 
@@ -285,8 +291,16 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
         <View style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.infoCardCopy}>
             <Text style={[styles.infoCardTitle, { color: colors.text }]}>Voice access</Text>
-            <Text style={[styles.infoCardDescription, { color: colors.mutedText }]}>5 free minutes, then $10/month for continued access.</Text>
-            <Text style={[styles.billingFootnote, { color: colors.mutedText }]}>Available now: {billingSummary.loading ? '...' : billingSummary.availableVoiceMinutes.toFixed(2)} min</Text>
+            <Text style={[styles.infoCardDescription, { color: colors.mutedText }]}>
+              {billingSummary.isProActive ? 'Emmaline Pro is active on this account.' : '5 free minutes, then $10/month for continued access.'}
+            </Text>
+            <Text style={[styles.billingFootnote, { color: colors.mutedText }]}>
+              {billingSummary.loading
+                ? 'Available now: ...'
+                : billingSummary.voiceAccessSource === 'subscription'
+                  ? 'Available now: Pro access active'
+                  : `Available now: ${billingSummary.availableVoiceMinutes.toFixed(2)} min`}
+            </Text>
           </View>
           <TouchableOpacity onPress={onOpenUpgrade} activeOpacity={0.8}>
             <Text style={[styles.upgradeLink, { color: colors.accent }]}>Upgrade</Text>
