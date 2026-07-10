@@ -1,7 +1,11 @@
 import express from 'express';
 import multer from 'multer';
 import authMiddleware from '../middleware/auth.js';
-import { saveReaderAudio as saveReaderAudioRecord } from '../services/databaseService.js';
+import {
+  deleteReaderAudio as deleteReaderAudioRecord,
+  listReaderAudio as listReaderAudioRecords,
+  saveReaderAudio as saveReaderAudioRecord
+} from '../services/databaseService.js';
 import { extractReaderTextFromUpload } from '../services/documentReaderService.js';
 import { textToAudio } from '../services/textToSpeechService.js';
 
@@ -178,6 +182,52 @@ router.post('/audio/save', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Reader audio save failed:', error.message);
     return res.status(400).json({ error: error.message || 'Unable to save reader audio' });
+  }
+});
+
+router.get('/audio/saved', authMiddleware, async (req, res) => {
+  try {
+    const savedAudioEntries = await listReaderAudioRecords(req.user.userId);
+
+    return res.status(200).json({
+      success: true,
+      entries: savedAudioEntries.map((entry) => ({
+        id: entry.id,
+        title: entry.title,
+        fileName: entry.file_name,
+        contentType: entry.content_type,
+        audioBase64: entry.audio_base64,
+        metadata: {
+          ...(entry.metadata || {}),
+          characterCount: entry.character_count,
+          chunkCount: entry.chunk_count,
+          languageCode: entry.language_code
+        },
+        createdAt: entry.created_at,
+        updatedAt: entry.updated_at
+      }))
+    });
+  } catch (error) {
+    console.error('Reader audio list failed:', error.message);
+    return res.status(400).json({ error: error.message || 'Unable to load saved reader audio' });
+  }
+});
+
+router.delete('/audio/saved/:savedAudioId', authMiddleware, async (req, res) => {
+  try {
+    const deletedAudio = await deleteReaderAudioRecord(req.user.userId, req.params.savedAudioId);
+
+    if (!deletedAudio) {
+      return res.status(404).json({ error: 'Saved reader audio not found' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      deletedId: deletedAudio.id
+    });
+  } catch (error) {
+    console.error('Reader audio delete failed:', error.message);
+    return res.status(400).json({ error: error.message || 'Unable to delete saved reader audio' });
   }
 });
 

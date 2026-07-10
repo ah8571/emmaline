@@ -19,11 +19,38 @@ import {
 } from './supabaseAuth.js';
 
 // Configuration
-const API_BASE_URL =
+const DEFAULT_API_BASE_URL = 'https://api.emmaline.app/api';
+
+const normalizeApiBaseUrl = (url) => {
+  const normalizedUrl = String(url || '').trim();
+
+  if (!normalizedUrl) {
+    return DEFAULT_API_BASE_URL;
+  }
+
+  try {
+    const parsedUrl = new URL(normalizedUrl);
+
+    if (parsedUrl.hostname === 'api.emmaine.app') {
+      parsedUrl.hostname = 'api.emmaline.app';
+    } else if (parsedUrl.hostname === 'emmaine.app') {
+      parsedUrl.hostname = 'emmaline.app';
+    }
+
+    parsedUrl.pathname = parsedUrl.pathname.replace(/\/+$/, '') || '/api';
+
+    return parsedUrl.toString().replace(/\/+$/, '');
+  } catch (error) {
+    return normalizedUrl.replace('api.emmaine.app', 'api.emmaline.app').replace('emmaine.app', 'emmaline.app').replace(/\/+$/, '');
+  }
+};
+
+const API_BASE_URL = normalizeApiBaseUrl(
   process.env.EXPO_PUBLIC_API_URL ||
   process.env.REACT_NATIVE_BACKEND_URL ||
   process.env.REACT_APP_API_URL ||
-  'https://api.emmaline.app/api';
+  DEFAULT_API_BASE_URL
+);
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 
 const formatApiError = (error, fallbackMessage) => {
@@ -831,6 +858,52 @@ export const saveReaderAudio = async ({ text, title, languagePreference = 'en', 
     return {
       success: false,
       error: formatApiError(error, 'Failed to save reader audio')
+    };
+  }
+};
+
+export const getSavedReaderAudio = async () => {
+  try {
+    await addTokenToHeaders();
+    logApiRequest('get', '/reader/audio/saved');
+    const response = await apiClient.get('/reader/audio/saved');
+
+    return {
+      success: true,
+      entries: Array.isArray(response.data?.entries) ? response.data.entries : []
+    };
+  } catch (error) {
+    if (error.response?.status === 404) {
+      return {
+        success: true,
+        entries: [],
+        unavailable: true
+      };
+    }
+
+    logApiFailure('get', '/reader/audio/saved', error);
+    return {
+      success: false,
+      error: formatApiError(error, 'Failed to load saved reader audio')
+    };
+  }
+};
+
+export const deleteSavedReaderAudio = async (savedAudioId) => {
+  try {
+    await addTokenToHeaders();
+    logApiRequest('delete', `/reader/audio/saved/${savedAudioId}`);
+    const response = await apiClient.delete(`/reader/audio/saved/${savedAudioId}`);
+
+    return {
+      success: true,
+      deletedId: response.data?.deletedId || savedAudioId
+    };
+  } catch (error) {
+    logApiFailure('delete', `/reader/audio/saved/${savedAudioId}`, error);
+    return {
+      success: false,
+      error: formatApiError(error, 'Failed to delete saved reader audio')
     };
   }
 };

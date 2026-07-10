@@ -12,12 +12,18 @@ import {
   View
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Speech from 'expo-speech';
 import { Audio } from 'expo-av';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { importReaderDocument, saveReaderAudio } from '../services/api.js';
+import {
+  deleteSavedReaderAudio,
+  generateReaderAudio,
+  getSavedReaderAudio,
+  importReaderDocument,
+  saveReaderAudio
+} from '../services/api.js';
 import { useAppTheme } from '../theme/appTheme.js';
 import { getCallLanguagePreference, getSpeechRatePreference } from '../utils/secureStorage.js';
 
@@ -26,6 +32,16 @@ const MAX_SPEECH_CHUNK_LENGTH = 1600;
 const MIN_BODY_INPUT_HEIGHT = 280;
 const READER_AUDIO_DIRECTORY = `${FileSystem.documentDirectory}reader-audio`;
 const READER_AUDIO_INDEX_FILE = `${READER_AUDIO_DIRECTORY}/latest.json`;
+const READER_TTS_START_TIMEOUT_MS = 2500;
+
+const logReaderTts = (step, details = null) => {
+  if (details === null || details === undefined) {
+    console.log(`[ReaderTTS] ${step}`);
+    return;
+  }
+
+  console.log(`[ReaderTTS] ${step}`, details);
+};
 
 const resolveSpeechLanguage = (languagePreference) => {
   if (languagePreference === 'es') {
@@ -92,28 +108,107 @@ const ensureReaderAudioDirectory = async () => {
   }
 };
 
+const normalizeSavedReaderAudioEntries = (value) => {
+  const entries = Array.isArray(value)
+    ? value
+    : value && typeof value === 'object'
+      ? [value]
+      : [];
+
+  return entries
+    .filter((entry) => entry && typeof entry === 'object' && entry.uri)
+    .sort((leftEntry, rightEntry) => {
+      const leftTimestamp = Date.parse(leftEntry.createdAt || 0) || 0;
+      const rightTimestamp = Date.parse(rightEntry.createdAt || 0) || 0;
+      return rightTimestamp - leftTimestamp;
+    });
+};
+
 const loadSavedReaderAudio = async () => {
   await ensureReaderAudioDirectory();
   const indexInfo = await FileSystem.getInfoAsync(READER_AUDIO_INDEX_FILE);
 
   if (!indexInfo.exists) {
-    return null;
+    return [];
   }
 
   const serializedEntry = await FileSystem.readAsStringAsync(READER_AUDIO_INDEX_FILE);
   const parsedEntry = JSON.parse(serializedEntry);
-  const audioInfo = await FileSystem.getInfoAsync(parsedEntry.uri);
+  const normalizedEntries = normalizeSavedReaderAudioEntries(parsedEntry);
+  const existingEntries = [];
 
-  if (!audioInfo.exists) {
+  for (const entry of normalizedEntries) {
+    const audioInfo = await FileSystem.getInfoAsync(entry.uri);
+
+    if (audioInfo.exists) {
+      existingEntries.push(entry);
+    }
+  }
+
+  if (existingEntries.length !== normalizedEntries.length) {
+    await persistSavedReaderAudio(existingEntries);
+  }
+
+  return existingEntries;
+};
+
+const persistSavedReaderAudio = async (entries) => {
+  await ensureReaderAudioDirectory();
+  await FileSystem.writeAsStringAsync(READER_AUDIO_INDEX_FILE, JSON.stringify(normalizeSavedReaderAudioEntries(entries)));
+};
+
+const buildSavedAudioEntryFromRemote = async (entry) => {
+  if (!entry?.id || !entry?.audioBase64) {
     return null;
   }
 
-  return parsedEntry;
+  await ensureReaderAudioDirectory();
+
+  const normalizedFileName = sanitizeAudioFileName((entry.fileName || entry.title || 'reader-audio').replace(/\.mp3$/i, ''));
+  const targetUri = `${READER_AUDIO_DIRECTORY}/${entry.id}-${normalizedFileName}.mp3`;
+  const audioInfo = await FileSystem.getInfoAsync(targetUri);
+
+  if (!audioInfo.exists) {
+    await FileSystem.writeAsStringAsync(targetUri, entry.audioBase64, {
+      encoding: FileSystem.EncodingType.Base64
+    });
+  }
+
+  return {
+    id: entry.id,
+    savedAudioId: entry.id,
+    title: entry.title || 'Reader audio',
+    uri: targetUri,
+    fileName: entry.fileName || `${normalizedFileName}.mp3`,
+    createdAt: entry.createdAt || new Date().toISOString(),
+    textSignature: null,
+    characterCount: entry.metadata?.characterCount || 0,
+    languageCode: entry.metadata?.languageCode || 'en-US'
+  };
 };
 
-const persistSavedReaderAudio = async (entry) => {
-  await ensureReaderAudioDirectory();
-  await FileSystem.writeAsStringAsync(READER_AUDIO_INDEX_FILE, JSON.stringify(entry));
+const syncSavedReaderAudioFromBackend = async (existingEntries = []) => {
+  const response = await getSavedReaderAudio();
+
+  if (!response.success) {
+    throw new Error(response.error || 'Unable to load saved audio.');
+  }
+
+  const remoteEntries = [];
+
+  for (const entry of response.entries || []) {
+    const normalizedEntry = await buildSavedAudioEntryFromRemote(entry);
+
+    if (normalizedEntry) {
+      remoteEntries.push(normalizedEntry);
+    }
+  }
+
+  const localOnlyEntries = normalizeSavedReaderAudioEntries(existingEntries).filter((entry) => !entry.savedAudioId);
+  const mergedEntries = normalizeSavedReaderAudioEntries([...remoteEntries, ...localOnlyEntries]);
+  await persistSavedReaderAudio(mergedEntries);
+
+  return mergedEntries;
 };
 
 const ReaderScreen = ({ onAppHeaderScroll }) => {
@@ -124,24 +219,34 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
   const [importMetadata, setImportMetadata] = useState(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPreparingReadAloudFallback, setIsPreparingReadAloudFallback] = useState(false);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
-  const [savedAudioEntry, setSavedAudioEntry] = useState(null);
-  const [isSavedAudioPlaying, setIsSavedAudioPlaying] = useState(false);
+  const [savedAudioEntries, setSavedAudioEntries] = useState([]);
+  const [activeSavedAudioId, setActiveSavedAudioId] = useState(null);
+  const [playingSavedAudioId, setPlayingSavedAudioId] = useState(null);
   const [bodyInputHeight, setBodyInputHeight] = useState(MIN_BODY_INPUT_HEIGHT);
   const speechChunksRef = useRef([]);
   const speechIndexRef = useRef(0);
   const speechCancelledRef = useRef(false);
+  const speechStartTimeoutRef = useRef(null);
+  const readAloudFallbackSoundRef = useRef(null);
+  const readAloudFallbackUriRef = useRef(null);
   const savedAudioSoundRef = useRef(null);
 
   const currentTextSignature = buildReaderTextSignature(documentTitle, readerText);
-  const isSavedAudioCurrent = savedAudioEntry?.textSignature === currentTextSignature;
 
   useEffect(() => {
     loadSavedReaderAudio()
-      .then((entry) => {
-        if (entry) {
-          setSavedAudioEntry(entry);
-        }
+      .then((entries) => {
+        setSavedAudioEntries(entries);
+
+        return syncSavedReaderAudioFromBackend(entries)
+          .then((syncedEntries) => {
+            setSavedAudioEntries(syncedEntries);
+          })
+          .catch(() => {
+            // Fall back to local saved audio if backend hydration fails.
+          });
       })
       .catch(() => {
         // Ignore best-effort hydration failures.
@@ -149,6 +254,28 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
 
     return () => {
       speechCancelledRef.current = true;
+      const unloadReadAloudFallbackAudio = async () => {
+        if (readAloudFallbackSoundRef.current) {
+          try {
+            await readAloudFallbackSoundRef.current.unloadAsync();
+          } catch {
+            // Ignore cleanup failures during unmount.
+          } finally {
+            readAloudFallbackSoundRef.current = null;
+          }
+        }
+
+        if (readAloudFallbackUriRef.current) {
+          try {
+            await FileSystem.deleteAsync(readAloudFallbackUriRef.current, { idempotent: true });
+          } catch {
+            // Ignore cleanup failures during unmount.
+          } finally {
+            readAloudFallbackUriRef.current = null;
+          }
+        }
+      };
+
       const unloadSavedAudio = async () => {
         if (!savedAudioSoundRef.current) {
           return;
@@ -166,6 +293,13 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
       Speech.stop().catch(() => {
         // Ignore cleanup failures during unmount.
       });
+      if (speechStartTimeoutRef.current) {
+        clearTimeout(speechStartTimeoutRef.current);
+        speechStartTimeoutRef.current = null;
+      }
+      unloadReadAloudFallbackAudio().catch(() => {
+        // Ignore cleanup failures during unmount.
+      });
       unloadSavedAudio().catch(() => {
         // Ignore cleanup failures during unmount.
       });
@@ -179,23 +313,61 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
   };
 
   const stopReading = useCallback(async () => {
+    logReaderTts('stopReading:start', {
+      isSpeaking,
+      queuedChunks: speechChunksRef.current.length,
+      currentChunkIndex: speechIndexRef.current
+    });
     speechCancelledRef.current = true;
     speechChunksRef.current = [];
     speechIndexRef.current = 0;
+    if (speechStartTimeoutRef.current) {
+      clearTimeout(speechStartTimeoutRef.current);
+      speechStartTimeoutRef.current = null;
+    }
+    setIsPreparingReadAloudFallback(false);
     setIsSpeaking(false);
 
     try {
       await Speech.stop();
+      logReaderTts('stopReading:completed');
     } catch {
+      logReaderTts('stopReading:stopError');
       // Some Android TTS engines throw when stop is called before the engine binds.
     }
-  }, []);
+
+    if (readAloudFallbackSoundRef.current) {
+      try {
+        await readAloudFallbackSoundRef.current.stopAsync();
+      } catch {
+        // Ignore best-effort stop failures.
+      }
+
+      try {
+        await readAloudFallbackSoundRef.current.unloadAsync();
+      } catch {
+        // Ignore best-effort unload failures.
+      }
+
+      readAloudFallbackSoundRef.current = null;
+    }
+
+    if (readAloudFallbackUriRef.current) {
+      try {
+        await FileSystem.deleteAsync(readAloudFallbackUriRef.current, { idempotent: true });
+      } catch {
+        // Ignore best-effort cleanup failures.
+      }
+
+      readAloudFallbackUriRef.current = null;
+    }
+  }, [isSpeaking]);
 
   const stopSavedAudioPlayback = useCallback(async () => {
     const activeSound = savedAudioSoundRef.current;
 
     if (!activeSound) {
-      setIsSavedAudioPlaying(false);
+      setPlayingSavedAudioId(null);
       return;
     }
 
@@ -212,46 +384,220 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
     }
 
     savedAudioSoundRef.current = null;
-    setIsSavedAudioPlaying(false);
+    setPlayingSavedAudioId(null);
   }, []);
 
-  const speakNextChunk = useCallback(async (language, rate) => {
+  const playReadAloudFallbackAudio = useCallback(async ({ text, title, languagePreference, speechRate }) => {
+    setIsPreparingReadAloudFallback(true);
+    logReaderTts('fallbackAudio:start', {
+      languagePreference,
+      speechRate,
+      textLength: String(text || '').trim().length
+    });
+
+    const response = await generateReaderAudio({
+      text,
+      title,
+      languagePreference,
+      speechRate
+    });
+
+    if (!response.success || !response.audioBase64) {
+      logReaderTts('fallbackAudio:requestFailed', {
+        error: response.error || 'Unable to create reader audio'
+      });
+      setIsPreparingReadAloudFallback(false);
+      setIsSpeaking(false);
+      Alert.alert(
+        'Reader error',
+        response.error || 'Read aloud could not start on this device, and the audio fallback is not available right now.'
+      );
+      return;
+    }
+
     if (speechCancelledRef.current) {
+      logReaderTts('fallbackAudio:cancelledBeforePlayback');
+      setIsPreparingReadAloudFallback(false);
+      setIsSpeaking(false);
+      return;
+    }
+
+    await ensureReaderAudioDirectory();
+
+    if (readAloudFallbackUriRef.current) {
+      try {
+        await FileSystem.deleteAsync(readAloudFallbackUriRef.current, { idempotent: true });
+      } catch {
+        // Ignore best-effort cleanup failures.
+      }
+    }
+
+    const fileName = sanitizeAudioFileName((title || response.fileName || 'reader-preview').replace(/\.mp3$/i, ''));
+    const targetUri = `${READER_AUDIO_DIRECTORY}/preview-${Date.now()}-${fileName}.mp3`;
+
+    await FileSystem.writeAsStringAsync(targetUri, response.audioBase64, {
+      encoding: FileSystem.EncodingType.Base64
+    });
+    readAloudFallbackUriRef.current = targetUri;
+
+    await Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false
+    });
+
+    const { sound } = await Audio.Sound.createAsync(
+      { uri: targetUri },
+      { shouldPlay: true },
+      (status) => {
+        if (!status.isLoaded) {
+          if (status.error) {
+            logReaderTts('fallbackAudio:playbackError', {
+              error: status.error
+            });
+            setIsPreparingReadAloudFallback(false);
+            setIsSpeaking(false);
+            readAloudFallbackSoundRef.current = null;
+          }
+
+          return;
+        }
+
+        if (status.didJustFinish) {
+          logReaderTts('fallbackAudio:finished');
+          setIsSpeaking(false);
+          sound.unloadAsync().catch(() => {
+            // Ignore cleanup failures after playback completes.
+          });
+          readAloudFallbackSoundRef.current = null;
+
+          if (readAloudFallbackUriRef.current) {
+            FileSystem.deleteAsync(readAloudFallbackUriRef.current, { idempotent: true }).catch(() => {
+              // Ignore best-effort cleanup failures.
+            });
+            readAloudFallbackUriRef.current = null;
+          }
+        }
+      }
+    );
+
+    readAloudFallbackSoundRef.current = sound;
+    setIsPreparingReadAloudFallback(false);
+    logReaderTts('fallbackAudio:playing');
+  }, []);
+
+  const speakNextChunk = useCallback(async (language, rate, fallbackConfig) => {
+    if (speechCancelledRef.current) {
+      logReaderTts('speakNextChunk:cancelledBeforeStart');
       return;
     }
 
     const nextChunk = speechChunksRef.current[speechIndexRef.current];
 
     if (!nextChunk) {
+      logReaderTts('speakNextChunk:noChunkRemaining');
       setIsSpeaking(false);
       return;
     }
 
+    logReaderTts('speakNextChunk:start', {
+      chunkIndex: speechIndexRef.current,
+      totalChunks: speechChunksRef.current.length,
+      chunkLength: nextChunk.length,
+      language,
+      rate
+    });
+
+    if (speechStartTimeoutRef.current) {
+      clearTimeout(speechStartTimeoutRef.current);
+    }
+
+    speechStartTimeoutRef.current = setTimeout(() => {
+      speechStartTimeoutRef.current = null;
+
+      if (speechCancelledRef.current) {
+        return;
+      }
+
+      logReaderTts('speakNextChunk:startTimeout', {
+        chunkIndex: speechIndexRef.current
+      });
+      Speech.stop().catch(() => {
+        // Ignore best-effort stop failures when the engine never bound.
+      });
+      playReadAloudFallbackAudio(fallbackConfig).catch((error) => {
+        logReaderTts('fallbackAudio:unexpectedError', {
+          error: error?.message || String(error)
+        });
+        setIsSpeaking(false);
+        Alert.alert(
+          'Reader error',
+          'Read aloud could not start on this device, and the audio fallback failed too.'
+        );
+      });
+    }, READER_TTS_START_TIMEOUT_MS);
+
     Speech.speak(nextChunk, {
       language,
       rate,
+      onStart: () => {
+        if (speechStartTimeoutRef.current) {
+          clearTimeout(speechStartTimeoutRef.current);
+          speechStartTimeoutRef.current = null;
+        }
+        logReaderTts('speakNextChunk:onStart', {
+          chunkIndex: speechIndexRef.current
+        });
+      },
       onDone: () => {
+        if (speechStartTimeoutRef.current) {
+          clearTimeout(speechStartTimeoutRef.current);
+          speechStartTimeoutRef.current = null;
+        }
+        logReaderTts('speakNextChunk:onDone', {
+          chunkIndex: speechIndexRef.current
+        });
         speechIndexRef.current += 1;
 
         if (speechIndexRef.current >= speechChunksRef.current.length) {
+          logReaderTts('speakNextChunk:finishedAllChunks');
           setIsSpeaking(false);
           return;
         }
 
-        speakNextChunk(language, rate);
+        speakNextChunk(language, rate, fallbackConfig);
       },
       onStopped: () => {
+        if (speechStartTimeoutRef.current) {
+          clearTimeout(speechStartTimeoutRef.current);
+          speechStartTimeoutRef.current = null;
+        }
+        logReaderTts('speakNextChunk:onStopped', {
+          chunkIndex: speechIndexRef.current
+        });
         setIsSpeaking(false);
       },
-      onError: () => {
+      onError: (error) => {
+        if (speechStartTimeoutRef.current) {
+          clearTimeout(speechStartTimeoutRef.current);
+          speechStartTimeoutRef.current = null;
+        }
+        logReaderTts('speakNextChunk:onError', {
+          chunkIndex: speechIndexRef.current,
+          error: error ? String(error) : null
+        });
         setIsSpeaking(false);
         Alert.alert('Reader error', 'The device could not read this text aloud.');
       }
     });
-  }, []);
+  }, [playReadAloudFallbackAudio]);
 
   const handleReadAloud = useCallback(async () => {
     const normalizedText = String(readerText || '').trim();
+
+    logReaderTts('handleReadAloud:pressed', {
+      hasText: Boolean(normalizedText),
+      textLength: normalizedText.length
+    });
 
     if (!normalizedText) {
       Alert.alert('Nothing to read', 'Paste text or import a document first.');
@@ -266,13 +612,27 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
     ]);
     const speechLanguage = resolveSpeechLanguage(languagePreference);
     const speechRate = Math.max(0.75, Math.min(1.1, Number(savedSpeechRate) || 1));
+    const speechChunks = splitTextIntoSpeechChunks(normalizedText);
+    const fallbackConfig = {
+      text: normalizedText,
+      title: documentTitle,
+      languagePreference,
+      speechRate
+    };
+
+    logReaderTts('handleReadAloud:prepared', {
+      languagePreference,
+      speechLanguage,
+      speechRate,
+      chunkCount: speechChunks.length
+    });
 
     speechCancelledRef.current = false;
-    speechChunksRef.current = splitTextIntoSpeechChunks(normalizedText);
+    speechChunksRef.current = speechChunks;
     speechIndexRef.current = 0;
     setIsSpeaking(true);
-    speakNextChunk(speechLanguage, speechRate);
-  }, [readerText, speakNextChunk, stopReading]);
+    speakNextChunk(speechLanguage, speechRate, fallbackConfig);
+  }, [documentTitle, readerText, speakNextChunk, stopReading]);
 
   const handleImportDocument = async () => {
     try {
@@ -349,7 +709,7 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
       });
 
       const nextSavedAudioEntry = {
-        id: String(Date.now()),
+        id: response.savedAudioId || String(Date.now()),
         savedAudioId: response.savedAudioId || null,
         title: documentTitle || 'Reader audio',
         uri: targetUri,
@@ -360,21 +720,23 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
         languageCode: response.metadata?.languageCode || resolveSpeechLanguage(languagePreference)
       };
 
-      await persistSavedReaderAudio(nextSavedAudioEntry);
-      setSavedAudioEntry(nextSavedAudioEntry);
+      const nextSavedAudioEntries = normalizeSavedReaderAudioEntries([nextSavedAudioEntry, ...savedAudioEntries]);
+      await persistSavedReaderAudio(nextSavedAudioEntries);
+      setSavedAudioEntries(nextSavedAudioEntries);
+      setActiveSavedAudioId(nextSavedAudioEntry.id);
     } catch (error) {
       Alert.alert('Audio save failed', error.message || 'Unable to save this audio file right now.');
     } finally {
       setIsGeneratingAudio(false);
     }
-  }, [documentTitle, readerText, stopSavedAudioPlayback]);
+  }, [documentTitle, readerText, savedAudioEntries, stopSavedAudioPlayback]);
 
-  const handleToggleSavedAudioPlayback = useCallback(async () => {
-    if (!savedAudioEntry?.uri) {
+  const handleToggleSavedAudioPlayback = useCallback(async (entry) => {
+    if (!entry?.uri) {
       return;
     }
 
-    if (isSavedAudioPlaying) {
+    if (playingSavedAudioId === entry.id) {
       await stopSavedAudioPlayback();
       return;
     }
@@ -388,12 +750,12 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
       });
 
       const { sound } = await Audio.Sound.createAsync(
-        { uri: savedAudioEntry.uri },
+        { uri: entry.uri },
         { shouldPlay: true },
         (status) => {
           if (!status.isLoaded) {
             if (status.error) {
-              setIsSavedAudioPlaying(false);
+              setPlayingSavedAudioId(null);
               savedAudioSoundRef.current = null;
             }
 
@@ -401,7 +763,7 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
           }
 
           if (status.didJustFinish) {
-            setIsSavedAudioPlaying(false);
+            setPlayingSavedAudioId(null);
 
             sound.unloadAsync().catch(() => {
               // Ignore cleanup failures after playback completes.
@@ -412,15 +774,15 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
       );
 
       savedAudioSoundRef.current = sound;
-      setIsSavedAudioPlaying(true);
+      setPlayingSavedAudioId(entry.id);
     } catch (error) {
-      setIsSavedAudioPlaying(false);
+      setPlayingSavedAudioId(null);
       Alert.alert('Playback failed', error.message || 'Unable to play this saved audio file.');
     }
-  }, [isSavedAudioPlaying, savedAudioEntry, stopReading, stopSavedAudioPlayback]);
+  }, [playingSavedAudioId, stopReading, stopSavedAudioPlayback]);
 
-  const handleShareSavedAudio = useCallback(async () => {
-    if (!savedAudioEntry?.uri) {
+  const handleShareSavedAudio = useCallback(async (entry) => {
+    if (!entry?.uri) {
       return;
     }
 
@@ -432,14 +794,45 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
         return;
       }
 
-      await Sharing.shareAsync(savedAudioEntry.uri, {
+      await Sharing.shareAsync(entry.uri, {
         mimeType: 'audio/mpeg',
         dialogTitle: 'Download reader audio'
       });
     } catch (error) {
       Alert.alert('Download failed', error.message || 'Unable to download this audio file right now.');
     }
-  }, [savedAudioEntry]);
+  }, []);
+
+  const handleDeleteSavedAudio = useCallback(async (entry) => {
+    if (!entry?.id) {
+      return;
+    }
+
+    try {
+      if (entry.savedAudioId) {
+        const response = await deleteSavedReaderAudio(entry.savedAudioId);
+
+        if (!response.success) {
+          throw new Error(response.error || 'Unable to delete this saved audio file right now.');
+        }
+      }
+
+      if (playingSavedAudioId === entry.id) {
+        await stopSavedAudioPlayback();
+      }
+
+      if (entry.uri) {
+        await FileSystem.deleteAsync(entry.uri, { idempotent: true });
+      }
+
+      const nextSavedAudioEntries = savedAudioEntries.filter((savedEntry) => savedEntry.id !== entry.id);
+      await persistSavedReaderAudio(nextSavedAudioEntries);
+      setSavedAudioEntries(nextSavedAudioEntries);
+      setActiveSavedAudioId((currentId) => (currentId === entry.id ? null : currentId));
+    } catch (error) {
+      Alert.alert('Delete failed', error.message || 'Unable to delete this saved audio file right now.');
+    }
+  }, [playingSavedAudioId, savedAudioEntries, stopSavedAudioPlayback]);
 
   const handleClear = () => {
     stopReading().catch(() => {
@@ -547,7 +940,9 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
               onPress={handleReadAloud}
               activeOpacity={0.85}
             >
-              <Text style={[styles.primaryButtonText, { color: primaryButtonTextColor }]}>{isSpeaking ? 'Restart reading' : 'Read aloud'}</Text>
+              <Text style={[styles.primaryButtonText, { color: primaryButtonTextColor }]}>
+                {isPreparingReadAloudFallback ? 'Preparing audio...' : isSpeaking ? 'Reading...' : 'Read aloud'}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -573,34 +968,84 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
             <Text style={[styles.secondaryButtonText, { color: colors.text }]}>{isGeneratingAudio ? 'Saving audio...' : 'Save audio below'}</Text>
           </TouchableOpacity>
 
-          {savedAudioEntry ? (
+          {savedAudioEntries.length > 0 ? (
             <View style={[styles.audioCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Text style={[styles.metaTitle, { color: colors.text }]}>Saved audio</Text>
-              <Text style={[styles.metaText, { color: colors.mutedText }]}>{savedAudioEntry.title || 'Reader audio'}</Text>
-              <Text style={[styles.metaText, { color: colors.mutedText }]}>
-                {isSavedAudioCurrent ? 'Saved below and ready to replay or download.' : 'Saved from an earlier text version. You can still play or download it, or save a fresh file below.'}
-              </Text>
-              <View style={styles.actionRow}>
-                <TouchableOpacity
-                  style={[styles.primaryButton, { backgroundColor: primaryButtonBackground, borderColor: colors.border, opacity: isGeneratingAudio ? 0.7 : 1 }]}
-                  onPress={handleToggleSavedAudioPlayback}
-                  activeOpacity={0.85}
-                >
-                  <Text style={[styles.primaryButtonText, { color: primaryButtonTextColor }]}>{isSavedAudioPlaying ? 'Stop audio' : 'Play saved audio'}</Text>
-                </TouchableOpacity>
+              <Text style={[styles.metaText, { color: colors.mutedText }]}>Each saved file keeps its own title. Open the `⋮` menu for download or delete.</Text>
+              <View style={styles.savedAudioList}>
+                {savedAudioEntries.map((entry) => {
+                  const isCurrentDraft = entry.textSignature === currentTextSignature;
+                  const isPlayingEntry = playingSavedAudioId === entry.id;
+                  const isMenuOpen = activeSavedAudioId === entry.id;
 
-                <TouchableOpacity
-                  style={[styles.secondaryButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
-                  onPress={handleShareSavedAudio}
-                  activeOpacity={0.85}
-                >
-                  <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Download</Text>
-                </TouchableOpacity>
+                  return (
+                    <View key={entry.id} style={[styles.savedAudioRowCard, { borderColor: colors.border, backgroundColor: colors.background }]}>
+                      <View style={styles.savedAudioRowTop}>
+                        <TouchableOpacity
+                          style={[
+                            styles.savedAudioPlayButton,
+                            {
+                              backgroundColor: primaryButtonBackground,
+                              borderColor: colors.border,
+                              opacity: isGeneratingAudio ? 0.7 : 1
+                            }
+                          ]}
+                          onPress={() => handleToggleSavedAudioPlayback(entry)}
+                          activeOpacity={0.85}
+                        >
+                          <Text style={[styles.primaryButtonText, { color: primaryButtonTextColor }]}>{isPlayingEntry ? 'Stop' : 'Play'}</Text>
+                        </TouchableOpacity>
+
+                        <View style={styles.savedAudioInfo}>
+                          <Text style={[styles.savedAudioTitle, { color: colors.text }]} numberOfLines={1}>{entry.title || 'Reader audio'}</Text>
+                          <Text style={[styles.savedAudioMeta, { color: colors.mutedText }]} numberOfLines={2}>
+                            {isCurrentDraft ? 'Matches current text' : 'Saved from earlier text'}
+                            {entry.createdAt ? ` · ${new Date(entry.createdAt).toLocaleString()}` : ''}
+                          </Text>
+                        </View>
+
+                        <TouchableOpacity
+                          style={[styles.savedAudioMenuButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                          onPress={() => {
+                            setActiveSavedAudioId((currentId) => (currentId === entry.id ? null : entry.id));
+                          }}
+                          activeOpacity={0.85}
+                        >
+                          <Text style={[styles.savedAudioMenuButtonText, { color: colors.text }]}>⋮</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {isMenuOpen ? (
+                        <View style={styles.savedAudioActionsRow}>
+                          <TouchableOpacity
+                            style={[styles.savedAudioActionButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                            onPress={() => handleShareSavedAudio(entry)}
+                            activeOpacity={0.85}
+                          >
+                            <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Download</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.savedAudioDeleteButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                            onPress={() => handleDeleteSavedAudio(entry)}
+                            activeOpacity={0.85}
+                          >
+                            <Text style={[styles.savedAudioDeleteButtonText, { color: colors.text }]}>×</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })}
               </View>
             </View>
           ) : null}
 
-          <Text style={[styles.helpText, { color: colors.mutedText }]}>Read aloud uses the device voice for speed. Save audio below to keep an MP3 on this screen, then download it whenever you want.</Text>
+          <Text style={[styles.helpText, { color: colors.mutedText }]}>
+            {isPreparingReadAloudFallback
+              ? 'Preparing audio fallback for this device. Keep the app open for a few seconds.'
+              : 'Read aloud uses the device voice for speed. Save audio below to keep an MP3 on this screen, then download it whenever you want.'}
+          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -703,6 +1148,80 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 16,
     gap: 8
+  },
+  savedAudioList: {
+    gap: 10
+  },
+  savedAudioRowCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 10,
+    gap: 10
+  },
+  savedAudioRowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10
+  },
+  savedAudioPlayButton: {
+    minHeight: 44,
+    minWidth: 92,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1
+  },
+  savedAudioInfo: {
+    flex: 1,
+    gap: 2
+  },
+  savedAudioTitle: {
+    fontSize: 15,
+    fontWeight: '700'
+  },
+  savedAudioMeta: {
+    fontSize: 12,
+    lineHeight: 17
+  },
+  savedAudioMenuButton: {
+    minHeight: 44,
+    width: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1
+  },
+  savedAudioMenuButtonText: {
+    fontSize: 20,
+    lineHeight: 20,
+    fontWeight: '700'
+  },
+  savedAudioActionsRow: {
+    flexDirection: 'row',
+    gap: 10
+  },
+  savedAudioActionButton: {
+    minHeight: 42,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    flex: 1
+  },
+  savedAudioDeleteButton: {
+    minHeight: 42,
+    width: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1
+  },
+  savedAudioDeleteButtonText: {
+    fontSize: 22,
+    lineHeight: 22,
+    fontWeight: '700'
   },
   editorCard: {
     borderWidth: 1,

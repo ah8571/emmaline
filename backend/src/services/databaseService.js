@@ -277,6 +277,40 @@ export const saveReaderAudio = async (userId, readerAudio) => {
   return data;
 };
 
+export const listReaderAudio = async (userId) => {
+  const client = getSupabaseClient();
+  const { data, error } = await client
+    .from('reader_saved_audio')
+    .select('id, title, file_name, content_type, audio_base64, character_count, chunk_count, language_code, metadata, created_at, updated_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error listing reader audio:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+export const deleteReaderAudio = async (userId, savedAudioId) => {
+  const client = getSupabaseClient();
+  const { data, error } = await client
+    .from('reader_saved_audio')
+    .delete()
+    .eq('user_id', userId)
+    .eq('id', savedAudioId)
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error deleting reader audio:', error);
+    throw error;
+  }
+
+  return data || null;
+};
+
 const attachRelatedCallRows = async (calls = [], options = {}) => {
   if (!Array.isArray(calls) || calls.length === 0) {
     return calls;
