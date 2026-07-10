@@ -158,6 +158,14 @@ const persistSavedReaderAudio = async (entries) => {
   await FileSystem.writeAsStringAsync(READER_AUDIO_INDEX_FILE, JSON.stringify(normalizeSavedReaderAudioEntries(entries)));
 };
 
+const formatAudioTime = (value) => {
+  const totalSeconds = Math.max(0, Math.floor(Number(value || 0) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+};
+
 const buildSavedAudioFileName = (title, fallbackValue = 'reader-audio') => {
   const fallbackStem = String(fallbackValue || 'reader-audio').replace(/\.mp3$/i, '');
   return `${sanitizeAudioFileName(title || fallbackStem)}.mp3`;
@@ -260,7 +268,14 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
   const [editingSavedAudioId, setEditingSavedAudioId] = useState(null);
   const [editingSavedAudioTitle, setEditingSavedAudioTitle] = useState('');
   const [isUpdatingSavedAudioId, setIsUpdatingSavedAudioId] = useState(null);
+  const [loadedSavedAudioId, setLoadedSavedAudioId] = useState(null);
   const [playingSavedAudioId, setPlayingSavedAudioId] = useState(null);
+  const [savedAudioPlaybackState, setSavedAudioPlaybackState] = useState({
+    entryId: null,
+    isPlaying: false,
+    positionMillis: 0,
+    durationMillis: 0
+  });
   const [bodyInputHeight, setBodyInputHeight] = useState(MIN_BODY_INPUT_HEIGHT);
   const speechChunksRef = useRef([]);
   const speechIndexRef = useRef(0);
@@ -269,6 +284,7 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
   const readAloudFallbackSoundRef = useRef(null);
   const readAloudFallbackUriRef = useRef(null);
   const savedAudioSoundRef = useRef(null);
+  const savedAudioSeekTrackWidthsRef = useRef({});
 
   const currentTextSignature = buildReaderTextSignature(documentTitle, readerText);
 
@@ -404,7 +420,14 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
     const activeSound = savedAudioSoundRef.current;
 
     if (!activeSound) {
+      setLoadedSavedAudioId(null);
       setPlayingSavedAudioId(null);
+      setSavedAudioPlaybackState({
+        entryId: null,
+        isPlaying: false,
+        positionMillis: 0,
+        durationMillis: 0
+      });
       return;
     }
 
@@ -421,7 +444,14 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
     }
 
     savedAudioSoundRef.current = null;
+    setLoadedSavedAudioId(null);
     setPlayingSavedAudioId(null);
+    setSavedAudioPlaybackState({
+      entryId: null,
+      isPlaying: false,
+      positionMillis: 0,
+      durationMillis: 0
+    });
   }, []);
 
   const playReadAloudFallbackAudio = useCallback(async ({ text, title, languagePreference, speechRate }) => {
@@ -773,13 +803,37 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
       return;
     }
 
-    if (playingSavedAudioId === entry.id) {
-      await stopSavedAudioPlayback();
-      return;
-    }
-
     try {
       await stopReading();
+
+      if (loadedSavedAudioId === entry.id && savedAudioSoundRef.current) {
+        const status = await savedAudioSoundRef.current.getStatusAsync();
+
+        if (status.isLoaded && status.isPlaying) {
+          await savedAudioSoundRef.current.pauseAsync();
+          setPlayingSavedAudioId(null);
+          setSavedAudioPlaybackState({
+            entryId: entry.id,
+            isPlaying: false,
+            positionMillis: Number(status.positionMillis || 0),
+            durationMillis: Number(status.durationMillis || 0)
+          });
+          return;
+        }
+
+        if (status.isLoaded) {
+          await savedAudioSoundRef.current.playAsync();
+          setPlayingSavedAudioId(entry.id);
+          setSavedAudioPlaybackState({
+            entryId: entry.id,
+            isPlaying: true,
+            positionMillis: Number(status.positionMillis || 0),
+            durationMillis: Number(status.durationMillis || 0)
+          });
+          return;
+        }
+      }
+
       await stopSavedAudioPlayback();
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
@@ -792,15 +846,36 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
         (status) => {
           if (!status.isLoaded) {
             if (status.error) {
+              setLoadedSavedAudioId(null);
               setPlayingSavedAudioId(null);
               savedAudioSoundRef.current = null;
+              setSavedAudioPlaybackState({
+                entryId: null,
+                isPlaying: false,
+                positionMillis: 0,
+                durationMillis: 0
+              });
             }
 
             return;
           }
 
+          setSavedAudioPlaybackState({
+            entryId: entry.id,
+            isPlaying: Boolean(status.isPlaying),
+            positionMillis: Number(status.positionMillis || 0),
+            durationMillis: Number(status.durationMillis || 0)
+          });
+
           if (status.didJustFinish) {
+            setLoadedSavedAudioId(null);
             setPlayingSavedAudioId(null);
+            setSavedAudioPlaybackState({
+              entryId: null,
+              isPlaying: false,
+              positionMillis: 0,
+              durationMillis: Number(status.durationMillis || 0)
+            });
 
             sound.unloadAsync().catch(() => {
               // Ignore cleanup failures after playback completes.
@@ -811,12 +886,72 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
       );
 
       savedAudioSoundRef.current = sound;
+      setLoadedSavedAudioId(entry.id);
       setPlayingSavedAudioId(entry.id);
+      setSavedAudioPlaybackState({
+        entryId: entry.id,
+        isPlaying: true,
+        positionMillis: 0,
+        durationMillis: 0
+      });
     } catch (error) {
+      setLoadedSavedAudioId(null);
       setPlayingSavedAudioId(null);
+      setSavedAudioPlaybackState({
+        entryId: null,
+        isPlaying: false,
+        positionMillis: 0,
+        durationMillis: 0
+      });
       Alert.alert('Playback failed', error.message || 'Unable to play this saved audio file.');
     }
-  }, [playingSavedAudioId, stopReading, stopSavedAudioPlayback]);
+  }, [loadedSavedAudioId, stopReading, stopSavedAudioPlayback]);
+
+  const handleSeekSavedAudio = useCallback(async (entry, locationX) => {
+    if (!entry?.id || loadedSavedAudioId !== entry.id || !savedAudioSoundRef.current) {
+      return;
+    }
+
+    const trackWidth = Number(savedAudioSeekTrackWidthsRef.current[entry.id] || 0);
+    const durationMillis = Number(savedAudioPlaybackState.durationMillis || 0);
+
+    if (!trackWidth || !durationMillis) {
+      return;
+    }
+
+    const clampedRatio = Math.max(0, Math.min(1, Number(locationX || 0) / trackWidth));
+    const nextPositionMillis = Math.round(durationMillis * clampedRatio);
+
+    try {
+      await savedAudioSoundRef.current.setPositionAsync(nextPositionMillis);
+      setSavedAudioPlaybackState((currentState) => ({
+        ...currentState,
+        positionMillis: nextPositionMillis
+      }));
+    } catch {
+      // Ignore best-effort seek failures.
+    }
+  }, [loadedSavedAudioId, savedAudioPlaybackState.durationMillis]);
+
+  const handleJumpSavedAudio = useCallback(async (entry, deltaMillis) => {
+    if (!entry?.id || loadedSavedAudioId !== entry.id || !savedAudioSoundRef.current) {
+      return;
+    }
+
+    const durationMillis = Number(savedAudioPlaybackState.durationMillis || 0);
+    const currentPositionMillis = Number(savedAudioPlaybackState.positionMillis || 0);
+    const nextPositionMillis = Math.max(0, Math.min(durationMillis || currentPositionMillis + deltaMillis, currentPositionMillis + deltaMillis));
+
+    try {
+      await savedAudioSoundRef.current.setPositionAsync(nextPositionMillis);
+      setSavedAudioPlaybackState((currentState) => ({
+        ...currentState,
+        positionMillis: nextPositionMillis
+      }));
+    } catch {
+      // Ignore best-effort seek failures.
+    }
+  }, [loadedSavedAudioId, savedAudioPlaybackState.durationMillis, savedAudioPlaybackState.positionMillis]);
 
   const handleShareSavedAudio = useCallback(async (entry) => {
     if (!entry?.uri) {
@@ -1075,14 +1210,17 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
           {savedAudioEntries.length > 0 ? (
             <View style={styles.savedAudioSection}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Saved audio</Text>
-              <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>Each saved file keeps its own title. Open the `⋮` menu for download or delete.</Text>
               <View style={styles.savedAudioList}>
                 {savedAudioEntries.map((entry) => {
                   const isCurrentDraft = entry.textSignature === currentTextSignature;
+                  const isLoadedEntry = loadedSavedAudioId === entry.id;
                   const isPlayingEntry = playingSavedAudioId === entry.id;
                   const isMenuOpen = activeSavedAudioId === entry.id;
                   const isEditingEntry = editingSavedAudioId === entry.id;
                   const isUpdatingEntry = isUpdatingSavedAudioId === entry.id;
+                  const progressRatio = isLoadedEntry && savedAudioPlaybackState.durationMillis
+                    ? Math.max(0, Math.min(1, savedAudioPlaybackState.positionMillis / savedAudioPlaybackState.durationMillis))
+                    : 0;
 
                   return (
                     <View key={entry.id} style={[styles.savedAudioRowCard, { borderColor: colors.border, backgroundColor: colors.background }]}>
@@ -1130,6 +1268,64 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
                           <Text style={[styles.savedAudioMenuButtonText, { color: colors.text }]}>⋮</Text>
                         </TouchableOpacity>
                       </View>
+
+                      {isLoadedEntry ? (
+                        <View style={styles.savedAudioPlaybackSection}>
+                          <TouchableOpacity
+                            style={[styles.savedAudioProgressTrack, { backgroundColor: colors.surface }]}
+                            activeOpacity={0.9}
+                            onLayout={(event) => {
+                              savedAudioSeekTrackWidthsRef.current[entry.id] = event.nativeEvent.layout.width;
+                            }}
+                            onPress={(event) => handleSeekSavedAudio(entry, event.nativeEvent.locationX)}
+                          >
+                            <View
+                              style={[
+                                styles.savedAudioProgressFill,
+                                {
+                                  backgroundColor: primaryButtonBackground,
+                                  width: `${progressRatio * 100}%`
+                                }
+                              ]}
+                            />
+                          </TouchableOpacity>
+
+                          <View style={styles.savedAudioPlaybackMetaRow}>
+                            <Text style={[styles.savedAudioPlaybackMetaText, { color: colors.mutedText }]}>
+                              {formatAudioTime(savedAudioPlaybackState.positionMillis)}
+                            </Text>
+                            <Text style={[styles.savedAudioPlaybackMetaText, { color: colors.mutedText }]}>
+                              {formatAudioTime(savedAudioPlaybackState.durationMillis)}
+                            </Text>
+                          </View>
+
+                          <View style={styles.savedAudioPlaybackControlsRow}>
+                            <TouchableOpacity
+                              style={[styles.savedAudioPlaybackControlButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                              onPress={() => handleJumpSavedAudio(entry, -15000)}
+                              activeOpacity={0.85}
+                            >
+                              <Text style={[styles.savedAudioPlaybackControlText, { color: colors.text }]}>-15s</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              style={[styles.savedAudioPlaybackControlButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                              onPress={() => handleJumpSavedAudio(entry, -Number(savedAudioPlaybackState.positionMillis || 0))}
+                              activeOpacity={0.85}
+                            >
+                              <Text style={[styles.savedAudioPlaybackControlText, { color: colors.text }]}>Restart</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              style={[styles.savedAudioPlaybackControlButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                              onPress={() => handleJumpSavedAudio(entry, 15000)}
+                              activeOpacity={0.85}
+                            >
+                              <Text style={[styles.savedAudioPlaybackControlText, { color: colors.text }]}>+15s</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ) : null}
 
                       {isMenuOpen ? (
                         <View style={styles.savedAudioActionsRow}>
@@ -1350,6 +1546,44 @@ const styles = StyleSheet.create({
   savedAudioActionsRow: {
     flexDirection: 'row',
     gap: 10
+  },
+  savedAudioPlaybackSection: {
+    gap: 8
+  },
+  savedAudioProgressTrack: {
+    height: 10,
+    borderRadius: 999,
+    overflow: 'hidden'
+  },
+  savedAudioProgressFill: {
+    height: '100%',
+    borderRadius: 999
+  },
+  savedAudioPlaybackMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12
+  },
+  savedAudioPlaybackMetaText: {
+    fontSize: 12,
+    lineHeight: 16
+  },
+  savedAudioPlaybackControlsRow: {
+    flexDirection: 'row',
+    gap: 8
+  },
+  savedAudioPlaybackControlButton: {
+    minHeight: 38,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    flex: 1
+  },
+  savedAudioPlaybackControlText: {
+    fontSize: 13,
+    fontWeight: '600'
   },
   savedAudioActionButton: {
     minHeight: 42,
