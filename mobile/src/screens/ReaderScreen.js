@@ -22,7 +22,8 @@ import {
   generateReaderAudio,
   getSavedReaderAudio,
   importReaderDocument,
-  saveReaderAudio
+  saveReaderAudio,
+  updateSavedReaderAudio
 } from '../services/api.js';
 import { useAppTheme } from '../theme/appTheme.js';
 import { getCallLanguagePreference, getSpeechRatePreference } from '../utils/secureStorage.js';
@@ -157,6 +158,39 @@ const persistSavedReaderAudio = async (entries) => {
   await FileSystem.writeAsStringAsync(READER_AUDIO_INDEX_FILE, JSON.stringify(normalizeSavedReaderAudioEntries(entries)));
 };
 
+const buildSavedAudioFileName = (title, fallbackValue = 'reader-audio') => {
+  const fallbackStem = String(fallbackValue || 'reader-audio').replace(/\.mp3$/i, '');
+  return `${sanitizeAudioFileName(title || fallbackStem)}.mp3`;
+};
+
+const renameSavedAudioFileIfNeeded = async (entry, nextTitle, nextFileName = null) => {
+  if (!entry?.uri) {
+    return {
+      uri: entry?.uri || null,
+      fileName: nextFileName || buildSavedAudioFileName(nextTitle, entry?.fileName)
+    };
+  }
+
+  const resolvedFileName = nextFileName || buildSavedAudioFileName(nextTitle, entry.fileName);
+  const currentUri = String(entry.uri);
+  const currentFileName = currentUri.split('/').pop() || '';
+  const entryPrefix = currentFileName.includes('-') ? currentFileName.slice(0, currentFileName.indexOf('-')) : String(entry.savedAudioId || entry.id || Date.now());
+  const targetUri = `${READER_AUDIO_DIRECTORY}/${entryPrefix}-${resolvedFileName}`;
+
+  if (targetUri !== currentUri) {
+    const currentInfo = await FileSystem.getInfoAsync(currentUri);
+
+    if (currentInfo.exists) {
+      await FileSystem.moveAsync({ from: currentUri, to: targetUri });
+    }
+  }
+
+  return {
+    uri: targetUri,
+    fileName: resolvedFileName
+  };
+};
+
 const buildSavedAudioEntryFromRemote = async (entry) => {
   if (!entry?.id || !entry?.audioBase64) {
     return null;
@@ -223,6 +257,9 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [savedAudioEntries, setSavedAudioEntries] = useState([]);
   const [activeSavedAudioId, setActiveSavedAudioId] = useState(null);
+  const [editingSavedAudioId, setEditingSavedAudioId] = useState(null);
+  const [editingSavedAudioTitle, setEditingSavedAudioTitle] = useState('');
+  const [isUpdatingSavedAudioId, setIsUpdatingSavedAudioId] = useState(null);
   const [playingSavedAudioId, setPlayingSavedAudioId] = useState(null);
   const [bodyInputHeight, setBodyInputHeight] = useState(MIN_BODY_INPUT_HEIGHT);
   const speechChunksRef = useRef([]);
@@ -803,6 +840,73 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
     }
   }, []);
 
+  const handleStartEditingSavedAudio = useCallback((entry) => {
+    setActiveSavedAudioId(entry?.id || null);
+    setEditingSavedAudioId(entry?.id || null);
+    setEditingSavedAudioTitle(String(entry?.title || 'Reader audio'));
+  }, []);
+
+  const handleCancelEditingSavedAudio = useCallback(() => {
+    setEditingSavedAudioId(null);
+    setEditingSavedAudioTitle('');
+  }, []);
+
+  const handleUpdateSavedAudioTitle = useCallback(async (entry) => {
+    if (!entry?.id) {
+      return;
+    }
+
+    const nextTitle = String(editingSavedAudioTitle || '').trim();
+
+    if (!nextTitle) {
+      Alert.alert('Title required', 'Add a title before saving this audio name.');
+      return;
+    }
+
+    try {
+      setIsUpdatingSavedAudioId(entry.id);
+
+      let nextFileName = buildSavedAudioFileName(nextTitle, entry.fileName);
+
+      if (entry.savedAudioId) {
+        const response = await updateSavedReaderAudio(entry.savedAudioId, nextTitle);
+
+        if (!response.success) {
+          throw new Error(response.error || 'Unable to rename this saved audio file right now.');
+        }
+
+        nextFileName = response.fileName || nextFileName;
+      }
+
+      if (playingSavedAudioId === entry.id) {
+        await stopSavedAudioPlayback();
+      }
+
+      const renamedFile = await renameSavedAudioFileIfNeeded(entry, nextTitle, nextFileName);
+      const nextSavedAudioEntries = normalizeSavedReaderAudioEntries(savedAudioEntries.map((savedEntry) => {
+        if (savedEntry.id !== entry.id) {
+          return savedEntry;
+        }
+
+        return {
+          ...savedEntry,
+          title: nextTitle,
+          fileName: renamedFile.fileName,
+          uri: renamedFile.uri
+        };
+      }));
+
+      await persistSavedReaderAudio(nextSavedAudioEntries);
+      setSavedAudioEntries(nextSavedAudioEntries);
+      setEditingSavedAudioId(null);
+      setEditingSavedAudioTitle('');
+    } catch (error) {
+      Alert.alert('Rename failed', error.message || 'Unable to rename this saved audio file right now.');
+    } finally {
+      setIsUpdatingSavedAudioId(null);
+    }
+  }, [editingSavedAudioTitle, playingSavedAudioId, savedAudioEntries, stopSavedAudioPlayback]);
+
   const handleDeleteSavedAudio = useCallback(async (entry) => {
     if (!entry?.id) {
       return;
@@ -969,14 +1073,16 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
           </TouchableOpacity>
 
           {savedAudioEntries.length > 0 ? (
-            <View style={[styles.audioCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.metaTitle, { color: colors.text }]}>Saved audio</Text>
-              <Text style={[styles.metaText, { color: colors.mutedText }]}>Each saved file keeps its own title. Open the `⋮` menu for download or delete.</Text>
+            <View style={styles.savedAudioSection}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Saved audio</Text>
+              <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>Each saved file keeps its own title. Open the `⋮` menu for download or delete.</Text>
               <View style={styles.savedAudioList}>
                 {savedAudioEntries.map((entry) => {
                   const isCurrentDraft = entry.textSignature === currentTextSignature;
                   const isPlayingEntry = playingSavedAudioId === entry.id;
                   const isMenuOpen = activeSavedAudioId === entry.id;
+                  const isEditingEntry = editingSavedAudioId === entry.id;
+                  const isUpdatingEntry = isUpdatingSavedAudioId === entry.id;
 
                   return (
                     <View key={entry.id} style={[styles.savedAudioRowCard, { borderColor: colors.border, backgroundColor: colors.background }]}>
@@ -997,7 +1103,17 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
                         </TouchableOpacity>
 
                         <View style={styles.savedAudioInfo}>
-                          <Text style={[styles.savedAudioTitle, { color: colors.text }]} numberOfLines={1}>{entry.title || 'Reader audio'}</Text>
+                          {isEditingEntry ? (
+                            <TextInput
+                              value={editingSavedAudioTitle}
+                              onChangeText={setEditingSavedAudioTitle}
+                              placeholder="Audio title"
+                              placeholderTextColor={colors.mutedText}
+                              style={[styles.savedAudioTitleInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
+                            />
+                          ) : (
+                            <Text style={[styles.savedAudioTitle, { color: colors.text }]} numberOfLines={1}>{entry.title || 'Reader audio'}</Text>
+                          )}
                           <Text style={[styles.savedAudioMeta, { color: colors.mutedText }]} numberOfLines={2}>
                             {isCurrentDraft ? 'Matches current text' : 'Saved from earlier text'}
                             {entry.createdAt ? ` · ${new Date(entry.createdAt).toLocaleString()}` : ''}
@@ -1017,6 +1133,35 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
 
                       {isMenuOpen ? (
                         <View style={styles.savedAudioActionsRow}>
+                          {isEditingEntry ? (
+                            <>
+                              <TouchableOpacity
+                                style={[styles.savedAudioActionButton, { borderColor: colors.border, backgroundColor: colors.surface, opacity: isUpdatingEntry ? 0.7 : 1 }]}
+                                onPress={() => handleUpdateSavedAudioTitle(entry)}
+                                disabled={isUpdatingEntry}
+                                activeOpacity={0.85}
+                              >
+                                <Text style={[styles.secondaryButtonText, { color: colors.text }]}>{isUpdatingEntry ? 'Saving...' : 'Save name'}</Text>
+                              </TouchableOpacity>
+
+                              <TouchableOpacity
+                                style={[styles.savedAudioActionButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                                onPress={handleCancelEditingSavedAudio}
+                                activeOpacity={0.85}
+                              >
+                                <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Cancel</Text>
+                              </TouchableOpacity>
+                            </>
+                          ) : (
+                            <TouchableOpacity
+                              style={[styles.savedAudioActionButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                              onPress={() => handleStartEditingSavedAudio(entry)}
+                              activeOpacity={0.85}
+                            >
+                              <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Rename</Text>
+                            </TouchableOpacity>
+                          )}
+
                           <TouchableOpacity
                             style={[styles.savedAudioActionButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
                             onPress={() => handleShareSavedAudio(entry)}
@@ -1142,12 +1287,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18
   },
-  audioCard: {
-    borderWidth: 1,
-    borderRadius: 18,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    gap: 8
+  savedAudioSection: {
+    gap: 10
   },
   savedAudioList: {
     gap: 10
@@ -1179,6 +1320,15 @@ const styles = StyleSheet.create({
   savedAudioTitle: {
     fontSize: 15,
     fontWeight: '700'
+  },
+  savedAudioTitleInput: {
+    minHeight: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    fontWeight: '600'
   },
   savedAudioMeta: {
     fontSize: 12,

@@ -311,6 +311,38 @@ export const deleteReaderAudio = async (userId, savedAudioId) => {
   return data || null;
 };
 
+export const updateReaderAudio = async (userId, savedAudioId, updates = {}) => {
+  const client = getSupabaseClient();
+  const payload = {};
+
+  if (updates.title) {
+    payload.title = updates.title;
+  }
+
+  if (updates.fileName) {
+    payload.file_name = updates.fileName;
+  }
+
+  if (Object.keys(payload).length === 0) {
+    throw new Error('No reader audio updates were provided');
+  }
+
+  const { data, error } = await client
+    .from('reader_saved_audio')
+    .update(payload)
+    .eq('user_id', userId)
+    .eq('id', savedAudioId)
+    .select('id, title, file_name, updated_at')
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error updating reader audio:', error);
+    throw error;
+  }
+
+  return data || null;
+};
+
 const attachRelatedCallRows = async (calls = [], options = {}) => {
   if (!Array.isArray(calls) || calls.length === 0) {
     return calls;

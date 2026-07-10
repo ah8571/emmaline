@@ -4,6 +4,7 @@ import authMiddleware from '../middleware/auth.js';
 import {
   deleteReaderAudio as deleteReaderAudioRecord,
   listReaderAudio as listReaderAudioRecords,
+  updateReaderAudio as updateReaderAudioRecord,
   saveReaderAudio as saveReaderAudioRecord
 } from '../services/databaseService.js';
 import { extractReaderTextFromUpload } from '../services/documentReaderService.js';
@@ -228,6 +229,37 @@ router.delete('/audio/saved/:savedAudioId', authMiddleware, async (req, res) => 
   } catch (error) {
     console.error('Reader audio delete failed:', error.message);
     return res.status(400).json({ error: error.message || 'Unable to delete saved reader audio' });
+  }
+});
+
+router.patch('/audio/saved/:savedAudioId', authMiddleware, async (req, res) => {
+  try {
+    const title = String(req.body?.title || '').trim();
+
+    if (!title) {
+      return res.status(400).json({ error: 'Saved audio title is required' });
+    }
+
+    const fileName = `${sanitizeFileStem(title)}.mp3`;
+    const updatedAudio = await updateReaderAudioRecord(req.user.userId, req.params.savedAudioId, {
+      title,
+      fileName
+    });
+
+    if (!updatedAudio) {
+      return res.status(404).json({ error: 'Saved reader audio not found' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      savedAudioId: updatedAudio.id,
+      title: updatedAudio.title,
+      fileName: updatedAudio.file_name,
+      updatedAt: updatedAudio.updated_at
+    });
+  } catch (error) {
+    console.error('Reader audio update failed:', error.message);
+    return res.status(400).json({ error: error.message || 'Unable to update saved reader audio' });
   }
 });
 

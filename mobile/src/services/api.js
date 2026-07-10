@@ -908,6 +908,28 @@ export const deleteSavedReaderAudio = async (savedAudioId) => {
   }
 };
 
+export const updateSavedReaderAudio = async (savedAudioId, title) => {
+  try {
+    await addTokenToHeaders();
+    logApiRequest('patch', `/reader/audio/saved/${savedAudioId}`, { title });
+    const response = await apiClient.patch(`/reader/audio/saved/${savedAudioId}`, { title });
+
+    return {
+      success: true,
+      savedAudioId: response.data?.savedAudioId || savedAudioId,
+      title: response.data?.title || title,
+      fileName: response.data?.fileName || null,
+      updatedAt: response.data?.updatedAt || null
+    };
+  } catch (error) {
+    logApiFailure('patch', `/reader/audio/saved/${savedAudioId}`, error);
+    return {
+      success: false,
+      error: formatApiError(error, 'Failed to update saved reader audio')
+    };
+  }
+};
+
 export const uploadListenModeRecording = async (recordingAsset, languagePreference = 'en') => {
   try {
     const token = await getAccessToken();
