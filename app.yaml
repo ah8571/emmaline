@@ -46,6 +46,8 @@ services:
         value: ${RESEND_API_KEY}
       - key: RESEND_FROM_EMAIL
         value: ${RESEND_FROM_EMAIL}
+      - key: SUPPORT_EMAIL_TO
+        value: ${SUPPORT_EMAIL_TO}
       - key: NEWSLETTER_ADMIN_KEY
         scope: RUN_AND_BUILD_TIME
         value: ${NEWSLETTER_ADMIN_KEY}

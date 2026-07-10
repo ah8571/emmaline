@@ -582,7 +582,9 @@ export const submitSupportRequest = async ({ name = '', email, subject, message,
 
     return {
       success: true,
-      supportRequest: response.data.supportRequest || null
+      message: response.data.message || '',
+      supportRequest: response.data.supportRequest || null,
+      emailDelivery: response.data.emailDelivery || null
     };
   } catch (error) {
     return {

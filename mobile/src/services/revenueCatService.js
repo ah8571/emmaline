@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import appsFlyer from 'react-native-appsflyer';
 import Purchases, { LOG_LEVEL, PURCHASES_ERROR_CODE } from 'react-native-purchases';
 
 const IOS_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY || '';
@@ -8,6 +9,22 @@ const PRO_PRODUCT_IDS = ['emmaline_pro_monthly'];
 
 let isConfigured = false;
 let currentAppUserId = null;
+
+const getAppsFlyerUID = () => new Promise((resolve, reject) => {
+  appsFlyer.getAppsFlyerUID((error, uid) => {
+    if (error) {
+      reject(error);
+      return;
+    }
+
+    if (!uid) {
+      reject(new Error('AppsFlyer UID is unavailable.'));
+      return;
+    }
+
+    resolve(uid);
+  });
+});
 
 const mapRevenueCatErrorMessage = (message) => {
   const normalizedMessage = String(message || '').trim();
@@ -71,6 +88,19 @@ export const getRevenueCatSetupMessage = () => {
 
 export const getRevenueCatDisplayMessage = (message) => mapRevenueCatErrorMessage(message);
 
+export const syncRevenueCatAttribution = async () => {
+  if (!isConfigured) {
+    return false;
+  }
+
+  await Purchases.collectDeviceIdentifiers();
+
+  const appsFlyerUID = await getAppsFlyerUID();
+  await Purchases.setAppsflyerID(appsFlyerUID);
+
+  return true;
+};
+
 const ensureConfigured = async (appUserId = null) => {
   const apiKey = getApiKey();
 
@@ -86,18 +116,18 @@ const ensureConfigured = async (appUserId = null) => {
     });
     isConfigured = true;
     currentAppUserId = appUserId || null;
-    return;
-  }
-
-  if (appUserId && currentAppUserId !== appUserId) {
+  } else if (appUserId && currentAppUserId !== appUserId) {
     await Purchases.logIn(appUserId);
     currentAppUserId = appUserId;
-    return;
-  }
-
-  if (!appUserId && currentAppUserId) {
+  } else if (!appUserId && currentAppUserId) {
     await Purchases.logOut();
     currentAppUserId = null;
+  }
+
+  try {
+    await syncRevenueCatAttribution();
+  } catch {
+    // Best-effort: AppsFlyer may not be initialized yet during early startup.
   }
 };
 

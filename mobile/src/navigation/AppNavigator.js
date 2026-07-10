@@ -490,8 +490,6 @@ const AppNavigator = ({ onAuthStateChange }) => {
     return () => {
       isMounted = false;
       linkingSubscription.remove();
-      subscription.unsubscribe();
-      disposeSupabaseAuth?.();
     };
   }, [onAuthStateChange]);
 

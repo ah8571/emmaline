@@ -74,7 +74,9 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
   useEffect(() => {
     return () => {
       speechCancelledRef.current = true;
-      Speech.stop();
+      Speech.stop().catch(() => {
+        // Ignore cleanup failures during unmount.
+      });
       onAppHeaderScroll?.(0);
     };
   }, [onAppHeaderScroll]);
@@ -84,12 +86,12 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
     onAppHeaderScroll?.(nextOffsetY);
   };
 
-  const stopReading = useCallback(() => {
+  const stopReading = useCallback(async () => {
     speechCancelledRef.current = true;
     speechChunksRef.current = [];
     speechIndexRef.current = 0;
     setIsSpeaking(false);
-    Speech.stop();
+    await Speech.stop();
   }, []);
 
   const speakNextChunk = useCallback(async (language, rate) => {
@@ -135,7 +137,7 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
       return;
     }
 
-    stopReading();
+    await stopReading();
 
     const [languagePreference, savedSpeechRate] = await Promise.all([
       getCallLanguagePreference(),
@@ -177,7 +179,7 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
         throw new Error(response.error || 'Unable to import document');
       }
 
-      stopReading();
+      await stopReading();
       setDocumentTitle(response.title || selectedFile.name || 'Imported document');
       setReaderText(response.text || '');
       setImportMetadata(response.metadata || null);
@@ -189,7 +191,9 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
   };
 
   const handleClear = () => {
-    stopReading();
+    stopReading().catch(() => {
+      // Best-effort clear.
+    });
     setDocumentTitle('');
     setReaderText('');
     setImportMetadata(null);
@@ -287,7 +291,11 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
 
           <TouchableOpacity
             style={[styles.secondaryButton, { borderColor: colors.border, backgroundColor: colors.surface, opacity: isSpeaking ? 1 : 0.55 }]}
-            onPress={stopReading}
+            onPress={() => {
+              stopReading().catch(() => {
+                // Best-effort stop.
+              });
+            }}
             disabled={!isSpeaking}
             activeOpacity={0.85}
           >

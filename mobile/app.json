@@ -19,10 +19,6 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Emmaline needs microphone access so you can talk to your AI assistant during in-app calls.",
-        "UIBackgroundModes": [
-          "audio",
-          "voip"
-        ],
         "ITSAppUsesNonExemptEncryption": false
       }
     },

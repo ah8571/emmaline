@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { getBillingStatus } from '../services/api.js';
 import {
   getRevenueCatCustomerInfo,
@@ -18,6 +18,7 @@ import { designTokens } from '../theme/designSystem.js';
 
 const UpgradeScreen = () => {
   const { colors } = useAppTheme();
+  const isLiveCallAvailable = Platform.OS !== 'ios';
   const [billing, setBilling] = useState(null);
   const [loading, setLoading] = useState(true);
   const [offeringPackage, setOfferingPackage] = useState(null);
@@ -149,7 +150,9 @@ const UpgradeScreen = () => {
 
             {[
               'Continue using Emmaline after the free 5-minute trial is used.',
-              'Use live calls and Listen Mode with one simple monthly plan.',
+              isLiveCallAvailable
+                ? 'Use live calls and Listen Mode with one simple monthly plan.'
+                : 'Use Listen Mode and ongoing voice features with one simple monthly plan.',
               'Keep access to ongoing voice features without juggling one-off top-ups.'
             ].map((item) => (
               <View key={item} style={styles.bulletRow}>

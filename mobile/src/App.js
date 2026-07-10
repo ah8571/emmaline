@@ -1,10 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Alert, View, Image, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, Alert, View, Image, Text, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Sentry from '@sentry/react-native';
+import Constants from 'expo-constants';
+import appsFlyer from 'react-native-appsflyer';
 import AppNavigator from './navigation/AppNavigator';
 import FloatingCallButton from './components/FloatingCallButton';
 import { getVoiceToken, uploadListenModeRecording } from './services/api.js';
+import { syncRevenueCatAttribution } from './services/revenueCatService.js';
 import {
   isListenModeRecordingActive,
   startListenModeRecording,
@@ -33,6 +36,13 @@ import { AppThemeProvider, darkColors, lightColors } from './theme/appTheme.js';
 
 const APP_BOTTOM_RAIL_HEIGHT = 5;
 const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN || '';
+const appConfigExtra =
+  Constants.expoConfig?.extra ||
+  Constants.manifest2?.extra?.expoClient?.extra ||
+  Constants.manifest?.extra ||
+  {};
+const appsFlyerDevKey = appConfigExtra.appsflyerDevKey || '';
+const appsFlyerIosAppId = appConfigExtra.appsflyerIosAppId || '';
 
 Sentry.init({
   dsn: sentryDsn,
@@ -43,6 +53,7 @@ Sentry.init({
 });
 
 const AppContent = () => {
+  const isLiveCallAvailable = Platform.OS !== 'ios';
   const insets = useSafeAreaInsets();
   const [isCalling, setIsCalling] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -55,6 +66,7 @@ const AppContent = () => {
   const [listenModeState, setListenModeState] = useState('idle');
   const [showModePicker, setShowModePicker] = useState(false);
   const [shouldPreferSpeaker, setShouldPreferSpeaker] = useState(false);
+  const hasInitializedAppsFlyerRef = useRef(false);
   const liveCallTraceRef = useRef({
     attemptId: null,
     startedAtMs: null
@@ -109,6 +121,36 @@ const AppContent = () => {
     };
 
     loadThemeMode();
+  }, []);
+
+  useEffect(() => {
+    if (hasInitializedAppsFlyerRef.current || !appsFlyerDevKey) {
+      return;
+    }
+
+    hasInitializedAppsFlyerRef.current = true;
+
+    appsFlyer.initSdk(
+      {
+        devKey: appsFlyerDevKey,
+        appId: appsFlyerIosAppId || undefined,
+        isDebug: __DEV__,
+        onInstallConversionDataListener: false,
+        onDeepLinkListener: false
+      },
+      (result) => {
+        syncRevenueCatAttribution().catch(() => {
+          // RevenueCat attribution sync is best-effort; retry on the next RevenueCat setup call.
+        });
+
+        if (__DEV__) {
+          console.log('[AppsFlyer] init success', result);
+        }
+      },
+      (error) => {
+        console.error('[AppsFlyer] init failed', error);
+      }
+    );
   }, []);
 
   useEffect(() => {
@@ -596,18 +638,24 @@ const AppContent = () => {
               ]}
             >
               <Text style={[styles.modePickerTitle, { color: colors.text }]}>Choose audio mode</Text>
-              <Text style={[styles.modePickerSubtitle, { color: colors.mutedText }]}>Start a live call or record in Listen Mode.</Text>
+              <Text style={[styles.modePickerSubtitle, { color: colors.mutedText }]}>
+                {isLiveCallAvailable
+                  ? 'Start a live call or record in Listen Mode.'
+                  : 'Record in Listen Mode.'}
+              </Text>
 
-              <TouchableOpacity
-                style={[styles.modePickerOption, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
-                onPress={handleChooseLiveCall}
-                activeOpacity={0.85}
-              >
-                <View style={styles.modePickerOptionHeader}>
-                  <Text style={[styles.modePickerOptionTitle, { color: colors.text }]}>Live Call</Text>
-                </View>
-                <Text style={[styles.modePickerOptionDescription, { color: colors.mutedText }]}>Talk to Emmaline live with call controls and audio routing.</Text>
-              </TouchableOpacity>
+              {isLiveCallAvailable ? (
+                <TouchableOpacity
+                  style={[styles.modePickerOption, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
+                  onPress={handleChooseLiveCall}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.modePickerOptionHeader}>
+                    <Text style={[styles.modePickerOptionTitle, { color: colors.text }]}>Live Call</Text>
+                  </View>
+                  <Text style={[styles.modePickerOptionDescription, { color: colors.mutedText }]}>Talk to Emmaline live with call controls and audio routing.</Text>
+                </TouchableOpacity>
+              ) : null}
 
               <TouchableOpacity
                 style={[styles.modePickerOption, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}

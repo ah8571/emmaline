@@ -29,6 +29,23 @@ module.exports = () => {
     plugins.push('expo-apple-authentication');
   }
 
+  const hasAppsFlyerPlugin = plugins.some((plugin) => {
+    if (Array.isArray(plugin)) {
+      return plugin[0] === 'react-native-appsflyer';
+    }
+
+    return plugin === 'react-native-appsflyer';
+  });
+
+  if (!hasAppsFlyerPlugin) {
+    plugins.push([
+      'react-native-appsflyer',
+      {
+        preferAppsFlyerBackupRules: false
+      }
+    ]);
+  }
+
   const config = {
     ...baseConfig,
     scheme: baseConfig.scheme || 'emmaline',
@@ -53,7 +70,9 @@ module.exports = () => {
     extra: {
       ...(baseConfig.extra || {}),
       appVariant,
-      sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || null
+      sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || null,
+      appsflyerDevKey: process.env.APPSFLYER_DEV_KEY || null,
+      appsflyerIosAppId: process.env.APPSFLYER_IOS_APP_ID || '6783906612'
     }
   };
 
