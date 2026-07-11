@@ -3,7 +3,7 @@
     "name": "Emmaline",
     "slug": "emmaline",
     "version": "0.1.0",
-    "icon": "./assets/white-outline-favicon.png",
+    "icon": "./assets/app-icon.png",
     "newArchEnabled": false,
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -14,7 +14,7 @@
       "**/*"
     ],
     "ios": {
-      "icon": "./assets/white-outline-favicon.png",
+      "icon": "./assets/app-icon.png",
       "bundleIdentifier": "com.emmaline.app",
       "supportsTablet": true,
       "infoPlist": {
@@ -29,7 +29,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/white-outline-favicon.png",
+        "foregroundImage": "./assets/app-icon.png",
         "backgroundColor": "#000000"
       },
       "permissions": [
@@ -39,9 +39,7 @@
       "package": "com.emmaline.app"
     },
     "plugins": [
-      "expo-secure-store",
-      "expo-dev-client",
-      "./plugins/withTwilioVoiceApplicationProxy"
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

@@ -1,0 +1,303 @@
+/**
+ * Routes for legacy Twilio in-app voice transport and dedicated number management.
+ * Kept separate from Voice Mode so future phone capability can be reviewed independently.
+ */
+
+import express from 'express';
+import twilio from 'twilio';
+import authMiddleware from '../middleware/auth.js';
+import {
+  generateVoiceAccessToken,
+  generateClientConnectTwiML,
+  findAvailablePhoneNumbers,
+  provisionDedicatedNumberForUser,
+  releaseDedicatedNumberForUser
+} from '../services/twilioService.js';
+import { getUserPhoneNumber } from '../services/databaseService.js';
+import { assertUserCanStartVoiceSession } from '../services/billingService.js';
+
+const router = express.Router();
+const RECENT_VOICE_ACCESS_WINDOW_MS = Number(process.env.VOICE_CONNECT_AUTH_WINDOW_MS || 2 * 60 * 1000);
+const recentVoiceAccessChecks = new Map();
+
+const getDetailedErrorText = (error) => {
+  return [error?.message, error?.details, error?.hint]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+};
+
+const isBillingSchemaInitializationError = (error) => {
+  const detailText = getDetailedErrorText(error);
+
+  if (!detailText) {
+    return false;
+  }
+
+  return /(free_trial_seconds_granted|prepaid_seconds_balance|billing_state|auto_recharge_enabled|auto_recharge_threshold_seconds|auto_recharge_amount_seconds)/i.test(detailText)
+    && /(column|schema|select|users)/i.test(detailText);
+};
+
+const parseUserIdFromIdentity = (identity) => {
+  const value = String(identity || '').trim();
+  return value.startsWith('user_') ? value.slice(5) : null;
+};
+
+const pruneRecentVoiceAccessChecks = () => {
+  const cutoff = Date.now() - RECENT_VOICE_ACCESS_WINDOW_MS;
+
+  for (const [userId, checkedAt] of recentVoiceAccessChecks.entries()) {
+    if (checkedAt < cutoff) {
+      recentVoiceAccessChecks.delete(userId);
+    }
+  }
+};
+
+const markRecentVoiceAccessCheck = (userId) => {
+  pruneRecentVoiceAccessChecks();
+  recentVoiceAccessChecks.set(String(userId), Date.now());
+};
+
+const hasRecentVoiceAccessCheck = (userId) => {
+  pruneRecentVoiceAccessChecks();
+
+  const checkedAt = recentVoiceAccessChecks.get(String(userId));
+
+  return Boolean(checkedAt && Date.now() - checkedAt <= RECENT_VOICE_ACCESS_WINDOW_MS);
+};
+
+const verifyTwilioRequest = (req, res, next) => {
+  const skipValidation = String(process.env.TWILIO_SKIP_REQUEST_VALIDATION || '').toLowerCase() === 'true';
+
+  if (skipValidation) {
+    console.warn('Skipping Twilio request signature validation for Twilio voice transport (debug mode enabled).');
+    return next();
+  }
+
+  const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
+
+  if (!twilioAuthToken) {
+    return res.status(500).json({ error: 'Missing TWILIO_AUTH_TOKEN for request validation' });
+  }
+
+  const signature = req.get('x-twilio-signature') || '';
+  const forwardedProto = req.get('x-forwarded-proto') || req.protocol || 'https';
+  const forwardedHost = req.get('x-forwarded-host') || req.get('host') || '';
+
+  const candidateUrls = [
+    `${process.env.WEBHOOK_URL || ''}${req.originalUrl}`,
+    `${forwardedProto}://${forwardedHost}${req.originalUrl}`
+  ].filter(Boolean);
+
+  const isValidRequest = candidateUrls.some((url) =>
+    twilio.validateRequest(twilioAuthToken, signature, url, req.body)
+  );
+
+  if (!isValidRequest) {
+    console.warn('Unauthorized Twilio request on legacy Twilio voice transport', {
+      candidateUrls
+    });
+    return res.status(403).json({ error: 'Unauthorized Twilio request' });
+  }
+
+  next();
+};
+
+router.post('/token', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const billingStatus = await assertUserCanStartVoiceSession(userId);
+    markRecentVoiceAccessCheck(userId);
+    const identity = `user_${userId}`;
+    const result = generateVoiceAccessToken({ identity });
+
+    return res.status(200).json({
+      success: true,
+      provider: 'twilio-voice',
+      transport: 'twilio-client-token',
+      session: {
+        provider: 'twilio-voice',
+        transport: 'twilio-client-token',
+        token: result.token,
+        identity: result.identity,
+        ttl: result.ttl
+      },
+      token: result.token,
+      identity: result.identity,
+      ttl: result.ttl,
+      billing: billingStatus
+    });
+  } catch (error) {
+    const detailText = getDetailedErrorText(error);
+    console.error('Error generating Twilio voice token:', detailText || error.message);
+
+    if (error.code === 'VOICE_PAYWALL_REQUIRED') {
+      return res.status(error.statusCode || 402).json({
+        error: error.message,
+        code: error.code,
+        billing: error.billingStatus
+      });
+    }
+
+    if (isBillingSchemaInitializationError(error)) {
+      return res.status(500).json({
+        error: 'Billing schema is not initialized on the backend',
+        code: 'VOICE_BILLING_NOT_INITIALIZED'
+      });
+    }
+
+    if (String(error.message || '').includes('Missing Twilio Voice token configuration')) {
+      return res.status(500).json({
+        error: error.message,
+        code: 'VOICE_TWILIO_NOT_CONFIGURED'
+      });
+    }
+
+    return res.status(500).json({
+      error: 'Failed to generate Twilio voice token',
+      code: 'VOICE_TOKEN_GENERATION_FAILED'
+    });
+  }
+});
+
+router.post('/connect', verifyTwilioRequest, async (req, res) => {
+  try {
+    const identity = req.body.identity || req.body.Caller || null;
+    const userId = parseUserIdFromIdentity(identity);
+    const language = req.body.language || 'en';
+    const speechRate = req.body.speechRate || '1';
+    const responseDelayMs = req.body.responseDelayMs || '1600';
+
+    if (!userId) {
+      console.warn('Rejected Twilio voice connect request with invalid identity', {
+        identity
+      });
+      return res.status(403).json({ error: 'Invalid voice identity' });
+    }
+
+    if (!hasRecentVoiceAccessCheck(userId)) {
+      await assertUserCanStartVoiceSession(userId);
+      markRecentVoiceAccessCheck(userId);
+    }
+
+    const twiml = generateClientConnectTwiML({
+      identity,
+      language,
+      speechRate,
+      responseDelayMs
+    });
+
+    res.type('text/xml');
+    return res.send(twiml);
+  } catch (error) {
+    const detailText = getDetailedErrorText(error);
+    console.error('Error generating Twilio client connect TwiML:', detailText || error.message);
+
+    if (error.code === 'VOICE_PAYWALL_REQUIRED') {
+      return res.status(error.statusCode || 402).json({
+        error: error.message,
+        code: error.code,
+        billing: error.billingStatus
+      });
+    }
+
+    if (isBillingSchemaInitializationError(error)) {
+      return res.status(500).json({
+        error: 'Billing schema is not initialized on the backend',
+        code: 'VOICE_BILLING_NOT_INITIALIZED'
+      });
+    }
+
+    return res.status(500).json({
+      error: 'Failed to connect Twilio voice session',
+      code: 'VOICE_CONNECT_FAILED'
+    });
+  }
+});
+
+router.get('/numbers/current', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const number = await getUserPhoneNumber(userId);
+
+    return res.status(200).json({
+      success: true,
+      number: number || null
+    });
+  } catch (error) {
+    console.error('Error fetching current dedicated number:', error.message);
+    return res.status(500).json({ error: 'Failed to fetch current number' });
+  }
+});
+
+router.get('/numbers/available', authMiddleware, async (req, res) => {
+  try {
+    const { countryCode = 'US', areaCode, limit = '5' } = req.query;
+    const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 5, 1), 20);
+
+    const numbers = await findAvailablePhoneNumbers({
+      countryCode,
+      areaCode,
+      limit: parsedLimit
+    });
+
+    return res.status(200).json({
+      success: true,
+      numbers
+    });
+  } catch (error) {
+    console.error('Error listing available dedicated numbers:', error.message);
+    return res.status(500).json({ error: 'Failed to list available numbers' });
+  }
+});
+
+router.post('/numbers/provision', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { countryCode = 'US', areaCode } = req.body || {};
+
+    const result = await provisionDedicatedNumberForUser(userId, { countryCode, areaCode });
+
+    if (result.alreadyAssigned) {
+      return res.status(409).json({
+        success: false,
+        message: 'User already has an active dedicated number',
+        number: result.number
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: 'Dedicated number provisioned',
+      number: result.number
+    });
+  } catch (error) {
+    console.error('Error provisioning dedicated number:', error.message);
+    return res.status(500).json({ error: 'Failed to provision dedicated number' });
+  }
+});
+
+router.delete('/numbers/current', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const result = await releaseDedicatedNumberForUser(userId);
+
+    if (!result.released) {
+      return res.status(404).json({
+        success: false,
+        message: result.reason
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Dedicated number released',
+      phoneNumber: result.phoneNumber
+    });
+  } catch (error) {
+    console.error('Error releasing dedicated number:', error.message);
+    return res.status(500).json({ error: 'Failed to release dedicated number' });
+  }
+});
+
+export default router;

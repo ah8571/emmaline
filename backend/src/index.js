@@ -11,7 +11,6 @@ import { WebSocketServer } from 'ws';
 dotenv.config();
 
 // Import routes
-import twilioRoutes from './routes/twilio.js';
 import callRoutes from './routes/calls.js';
 import noteRoutes from './routes/notes.js';
 import authRoutes from './routes/auth.js';
@@ -26,7 +25,6 @@ import voiceRoutes from './routes/voice.js';
 import { errorHandler, requestLogger } from './middleware/index.js';
 
 // Import WebSocket handler
-import { handleMediaStreamWebSocket } from './websocket/mediaStreamHandler.js';
 import { handleEchoWebSocket } from './websocket/echoHandler.js';
 import { getGoogleCloudConfigStatus } from './services/googleCloudAuth.js';
 import { getSupabaseDebugInfo } from './services/databaseService.js';
@@ -42,14 +40,6 @@ const server = http.createServer(app);
 
 // Create WebSocket servers for media streams and a minimal echo endpoint.
 const websocketRoutes = [
-  {
-    path: '/ws/media-stream',
-    handler: handleMediaStreamWebSocket
-  },
-  {
-    path: '/api/ws/media-stream',
-    handler: handleMediaStreamWebSocket
-  },
   {
     path: '/ws/echo',
     handler: handleEchoWebSocket
@@ -96,7 +86,6 @@ app.use(requestLogger);
 // Routes
 // Keep both prefixed and unprefixed mounts so deployments that already route
 // /api/* to this service don't require clients to use /api/api/*.
-app.use('/api/twilio', twilioRoutes);
 app.use('/api/calls', callRoutes);
 app.use('/api/notes', noteRoutes);
 app.use('/api/auth', authRoutes);
@@ -107,7 +96,6 @@ app.use('/api/reader', readerRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/voice', voiceRoutes);
 
-app.use('/twilio', twilioRoutes);
 app.use('/calls', callRoutes);
 app.use('/notes', noteRoutes);
 app.use('/auth', authRoutes);
@@ -134,7 +122,6 @@ app.get('/', (req, res) => {
     version: '0.1.0',
     endpoints: {
       health: '/health',
-      twilio: '/api/twilio/webhook',
       calls: '/api/calls',
       notes: '/api/notes',
       auth: '/api/auth',
@@ -143,7 +130,6 @@ app.get('/', (req, res) => {
       reader: '/api/reader',
       support: '/api/support',
       voice: '/api/voice',
-      websocket: `${websocketProtocol}://${forwardedHost}/ws/media-stream`,
       websocketEcho: `${websocketProtocol}://${forwardedHost}/ws/echo`
     }
   });

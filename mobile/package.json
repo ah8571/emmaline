@@ -10,7 +10,8 @@
           "expo-dev-client",
           "expo-dev-launcher",
           "expo-dev-menu",
-          "expo-dev-menu-interface"
+          "expo-dev-menu-interface",
+          "@twilio/voice-react-native-sdk"
         ]
       },
       "android": {
@@ -18,7 +19,8 @@
           "expo-dev-client",
           "expo-dev-launcher",
           "expo-dev-menu",
-          "expo-dev-menu-interface"
+          "expo-dev-menu-interface",
+          "@twilio/voice-react-native-sdk"
         ]
       }
     }

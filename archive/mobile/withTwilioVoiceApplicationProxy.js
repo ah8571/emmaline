@@ -1,4 +1,4 @@
-const { withMainApplication, createRunOncePlugin } = require('@expo/config-plugins');
+const { withMainApplication, withAndroidManifest, createRunOncePlugin } = require('@expo/config-plugins');
 
 function addImport(src, statement) {
   if (src.includes(statement)) {
@@ -80,7 +80,7 @@ function addKotlinOnTerminate(src) {
 }
 
 function withTwilioVoiceApplicationProxy(config) {
-  return withMainApplication(config, (mod) => {
+  config = withMainApplication(config, (mod) => {
     let src = mod.modResults.contents;
 
     if (mod.modResults.language === 'java') {
@@ -96,6 +96,28 @@ function withTwilioVoiceApplicationProxy(config) {
     }
 
     mod.modResults.contents = src;
+    return mod;
+  });
+
+  return withAndroidManifest(config, (mod) => {
+    const application = mod.modResults.manifest.application?.[0];
+
+    if (!application) {
+      return mod;
+    }
+
+    const existingReplace = application.$['tools:replace'] || '';
+    const replaceValues = new Set(
+      existingReplace
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean)
+    );
+
+    replaceValues.add('android:fullBackupContent');
+    replaceValues.add('android:dataExtractionRules');
+    application.$['tools:replace'] = Array.from(replaceValues).join(',');
+
     return mod;
   });
 }
