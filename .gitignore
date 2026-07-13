@@ -49,4 +49,12 @@ node_modules/
 .watchman-cookie
 .eas-inspect*/
 mobile/.eas-inspect*/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/.gradle/
 mobile/android/app/debug.keystore
+mobile/android/local.properties
+mobile/android/.cxx/
+mobile/android/app/.cxx/
+mobile/*.pem
+mobile/*.jks
