@@ -392,6 +392,23 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
       '}',
       '::placeholder {',
       `color: ${colors.mutedText};`,
+      '}',
+      '.emmaline-checklist {',
+      'list-style: none;',
+      'padding-left: 4px;',
+      '}',
+      '.emmaline-checklist li {',
+      'display: flex;',
+      'align-items: flex-start;',
+      'gap: 8px;',
+      'margin-bottom: 8px;',
+      '}',
+      '.emmaline-checkbox {',
+      'width: 18px;',
+      'height: 18px;',
+      'margin-top: 3px;',
+      'flex-shrink: 0;',
+      'accent-color: #3b82f6;',
       '}'
     ].join(' ');
 
@@ -437,6 +454,23 @@ const CreateNoteScreen = ({ route, navigation, onAppHeaderScroll, notesResetToke
       var placeholderNode = document.querySelector('.pell-content[contenteditable="true"]');
       if (placeholderNode) {
         placeholderNode.style.setProperty('--placeholder-color', ${escapedMutedText});
+      }
+
+      if (!window.emmalineCheckboxHandlerInstalled) {
+        window.emmalineCheckboxHandlerInstalled = true;
+        document.addEventListener('change', function(event) {
+          var target = event.target;
+          if (target && target.classList && target.classList.contains('emmaline-checkbox')) {
+            var li = target.closest('li');
+            if (li) {
+              var label = li.querySelector('.emmaline-checkbox-label');
+              if (label) {
+                label.style.textDecoration = target.checked ? 'line-through' : 'none';
+                label.style.opacity = target.checked ? '0.55' : '1';
+              }
+            }
+          }
+        });
       }
     `);
   }, [colors.background, colors.mutedText, colors.text, editorContentBottomPadding, editorFontSize, editorLineHeight, heading1Size, heading2Size, heading3Size]);

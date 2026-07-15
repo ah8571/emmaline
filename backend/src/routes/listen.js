@@ -2,8 +2,9 @@ import express from 'express';
 import multer from 'multer';
 import authMiddleware from '../middleware/auth.js';
 import { summarizeTranscript } from '../services/aiService.js';
-import { saveCall, saveSummary, saveTranscript } from '../services/databaseService.js';
+import { saveCall, saveCallCosts, saveSummary, saveTranscript } from '../services/databaseService.js';
 import { transcribeUploadedAudio } from '../services/speechToTextService.js';
+import { consumeCredits } from '../services/creditService.js';
 
 const router = express.Router();
 
@@ -47,7 +48,46 @@ router.post('/sessions', authMiddleware, upload.single('audio'), async (req, res
       callMode: 'listen_mode'
     });
 
+    const listenDurationSeconds = Math.round(durationMs / 1000);
+    await saveCallCosts(callRecord.id, req.user.userId, [
+      {
+        pricingTier: 'tier1',
+        provider: 'google',
+        service: 'speech_to_text',
+        quantity: Number((listenDurationSeconds / 60).toFixed(2)),
+        unit: 'minutes',
+        vendorCostUsd: Number(((listenDurationSeconds / 60) * 0.016).toFixed(6)),
+        billableCostUsd: Number(((listenDurationSeconds / 60) * 0.016).toFixed(6)),
+        measurementSource: 'estimated',
+        costSource: 'rate_card',
+        metadata: { language: languagePreference }
+      },
+      {
+        pricingTier: 'tier1',
+        provider: 'listen_mode',
+        service: 'listen_mode_session',
+        quantity: listenDurationSeconds,
+        unit: 'seconds',
+        vendorCostUsd: Number(((listenDurationSeconds / 60) * 0.016).toFixed(6)),
+        billableCostUsd: Number(((listenDurationSeconds / 60) * 0.016).toFixed(6)),
+        measurementSource: 'stream_measured',
+        costSource: 'rate_card',
+        metadata: { language: languagePreference }
+      }
+    ]);
+
     await saveTranscript(callRecord.id, req.user.userId, transcriptText);
+
+    // Deduct credits for listen mode (1 credit/min)
+    let creditResult = null;
+    try {
+      creditResult = await consumeCredits(req.user.userId, 'listen_mode', listenDurationSeconds, {
+        language: languagePreference,
+        callId: callRecord.id
+      });
+    } catch (creditError) {
+      console.error('Credit deduction failed for listen session:', creditError.message);
+    }
 
     const summary = await summarizeTranscript(transcriptText, {
       languagePreference

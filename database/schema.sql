@@ -371,6 +371,22 @@ CREATE TABLE notes (
   is_archived BOOLEAN DEFAULT FALSE
 );
 
+CREATE TABLE reader_saved_audio (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  source_text TEXT NOT NULL,
+  file_name VARCHAR(255) NOT NULL,
+  content_type VARCHAR(100) NOT NULL DEFAULT 'audio/mpeg',
+  audio_base64 TEXT NOT NULL,
+  character_count INTEGER NOT NULL,
+  chunk_count INTEGER NOT NULL,
+  language_code VARCHAR(20) NOT NULL,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE note_revisions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   note_id UUID NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
@@ -489,6 +505,7 @@ ALTER TABLE summaries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE topics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE note_revisions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reader_saved_audio ENABLE ROW LEVEL SECURITY;
 ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
@@ -515,6 +532,9 @@ CREATE POLICY "Users can view their own notes" ON notes FOR SELECT
   USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can view their own note revisions" ON note_revisions FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can view their own reader audio" ON reader_saved_audio FOR SELECT
   USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can view their own audit logs" ON audit_logs FOR SELECT

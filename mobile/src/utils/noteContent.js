@@ -103,6 +103,20 @@ export const convertMarkdownishToHtml = (value) => {
       continue;
     }
 
+    const checklistMatch = line.match(/^\[([ xX])\]\s+(.+)$/);
+    if (checklistMatch) {
+      flushParagraph();
+      if (listType !== 'checklist') {
+        flushList();
+        listType = 'checklist';
+        html.push('<ul class="emmaline-checklist">');
+      }
+      const checked = checklistMatch[1].toLowerCase() === 'x' ? ' checked' : '';
+      const itemText = applyInlineFormatting(checklistMatch[2]);
+      html.push(`<li><input type="checkbox" class="emmaline-checkbox"${checked} /><span class="emmaline-checkbox-label">${itemText}</span></li>`);
+      continue;
+    }
+
     const bulletMatch = line.match(/^[-*+]\s+(.+)$/);
     if (bulletMatch) {
       flushParagraph();

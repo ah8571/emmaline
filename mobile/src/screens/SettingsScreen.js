@@ -1,16 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
 import { deleteAccount, getBillingStatus } from '../services/api.js';
 import {
   getCallLanguagePreference,
+  getCallVoicePreference,
   getNoteTextScalePreference,
-  getCallResponseDelayPreference,
-  getSpeechRatePreference,
-  saveCallResponseDelayPreference,
   saveCallLanguagePreference,
+  saveCallVoicePreference,
   saveNoteTextScalePreference,
-  saveSpeechRatePreference
 } from '../utils/secureStorage.js';
 import { useAppTheme } from '../theme/appTheme.js';
 
@@ -18,55 +16,109 @@ const LANGUAGE_OPTIONS = [
   {
     value: 'en',
     title: 'English',
-    description: 'Use English for speech recognition and spoken replies.'
+    description: 'Use English as the primary language. You can still mix in Spanish during the call.'
   },
   {
     value: 'es',
     title: 'Spanish',
-    description: 'Use Spanish for speech recognition and spoken replies.'
+    description: 'Use Spanish as the primary language. You can still mix in English during the call.'
   },
   {
-    value: 'teacher_es_en',
-    title: 'English / Spanish Teacher',
-    description: 'A beginner-friendly bilingual mode that listens for both languages and teaches Spanish with short English support.'
+    value: 'pt',
+    title: 'Portuguese',
+    description: 'Use Portuguese as the primary language, while still handling mixed-language moments naturally.'
+  },
+  {
+    value: 'fr',
+    title: 'French',
+    description: 'Use French as the primary language, while still handling mixed-language moments naturally.'
+  },
+  {
+    value: 'de',
+    title: 'German',
+    description: 'Use German as the primary language, while still handling mixed-language moments naturally.'
+  },
+  {
+    value: 'it',
+    title: 'Italian',
+    description: 'Use Italian as the primary language, while still handling mixed-language moments naturally.'
+  },
+  {
+    value: 'zh',
+    title: 'Mandarin Chinese',
+    description: 'Use Mandarin Chinese as the primary language, while still handling mixed-language moments naturally.'
+  },
+  {
+    value: 'hi',
+    title: 'Hindi',
+    description: 'Use Hindi as the primary language, while still handling mixed-language moments naturally.'
+  },
+  {
+    value: 'ar',
+    title: 'Arabic',
+    description: 'Use Arabic as the primary language, while still handling mixed-language moments naturally.'
+  },
+  {
+    value: 'ja',
+    title: 'Japanese',
+    description: 'Use Japanese as the primary language, while still handling mixed-language moments naturally.'
   }
 ];
 
-const SPEECH_RATE_OPTIONS = [
+
+const VOICE_OPTIONS = [
   {
-    value: 0.82,
-    title: 'Slower',
-    description: 'More breathing room when Emmaline is giving a lot of detail.'
+    value: 'marin',
+    title: 'Marin',
+    description: 'Recommended by OpenAI for the strongest overall realtime quality.'
   },
   {
-    value: 0.92,
-    title: 'Relaxed',
-    description: 'A little slower than normal without sounding stretched.'
+    value: 'cedar',
+    title: 'Cedar',
+    description: 'Also recommended by OpenAI for high-quality realtime replies.'
   },
   {
-    value: 1,
-    title: 'Normal',
-    description: 'Default speaking speed.'
+    value: 'alloy',
+    title: 'Alloy',
+    description: 'A built-in realtime voice option with a neutral profile.'
+  },
+  {
+    value: 'ash',
+    title: 'Ash',
+    description: 'A built-in realtime voice option with a distinct timbre.'
+  },
+  {
+    value: 'ballad',
+    title: 'Ballad',
+    description: 'A built-in realtime voice option with a softer presentation.'
+  },
+  {
+    value: 'coral',
+    title: 'Coral',
+    description: 'A built-in realtime voice option with a brighter tone.'
+  },
+  {
+    value: 'echo',
+    title: 'Echo',
+    description: 'A built-in realtime voice option with a crisp delivery.'
+  },
+  {
+    value: 'sage',
+    title: 'Sage',
+    description: 'A built-in realtime voice option with a calmer pacing profile.'
+  },
+  {
+    value: 'shimmer',
+    title: 'Shimmer',
+    description: 'A built-in realtime voice option with a lighter texture.'
+  },
+  {
+    value: 'verse',
+    title: 'Verse',
+    description: 'A built-in realtime voice option with a more stylized feel.'
   }
 ];
 
-const RESPONSE_DELAY_OPTIONS = [
-  {
-    value: 900,
-    title: 'Faster',
-    description: 'Emmaline responds sooner after you stop talking. Best for quick back-and-forth.'
-  },
-  {
-    value: 1600,
-    title: 'Balanced',
-    description: 'A middle ground that works well for most conversations.'
-  },
-  {
-    value: 2300,
-    title: 'Patient',
-    description: 'Wait longer before replying if you tend to pause while thinking out loud.'
-  }
-];
 
 const NOTE_TEXT_SIZE_OPTIONS = [
   {
@@ -96,12 +148,12 @@ const areDelayValuesEqual = (left, right) => Number(left) === Number(right);
 const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDeleted }) => {
   const { colors, isDarkMode, toggleTheme } = useAppTheme();
   const [callLanguage, setCallLanguage] = useState('en');
-  const [speechRate, setSpeechRate] = useState(1);
-  const [callResponseDelayMs, setCallResponseDelayMs] = useState(1600);
+  const [callVoice, setCallVoice] = useState('marin');
   const [noteTextScale, setNoteTextScale] = useState(1);
   const [billingSummary, setBillingSummary] = useState({
     loading: true,
     availableVoiceMinutes: 0,
+    usedVoiceMinutes: 0,
     remainingFreeTrialSeconds: 0,
     voiceAccessSource: 'none',
     isProActive: false
@@ -111,48 +163,48 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
 
   useEffect(() => {
     const loadPreferences = async () => {
-      const [savedLanguage, savedSpeechRate, savedResponseDelayMs, savedNoteTextScale] = await Promise.all([
+      const [savedLanguage, savedVoice, savedNoteTextScale] = await Promise.all([
         getCallLanguagePreference(),
-        getSpeechRatePreference(),
-        getCallResponseDelayPreference(),
+        getCallVoicePreference(),
         getNoteTextScalePreference()
       ]);
 
       setCallLanguage(savedLanguage || 'en');
-      setSpeechRate(savedSpeechRate || 1);
-      setCallResponseDelayMs(savedResponseDelayMs || 1600);
+      setCallVoice(savedVoice || 'marin');
       setNoteTextScale(savedNoteTextScale || 1);
     };
 
     loadPreferences();
   }, []);
 
-  useEffect(() => {
-    const loadBillingSummary = async () => {
-      const response = await getBillingStatus();
+  const loadBillingSummary = useCallback(async () => {
+    const response = await getBillingStatus();
 
-      if (response.success && response.billing) {
-        setBillingSummary({
-          loading: false,
-          availableVoiceMinutes: Number(response.billing.availableVoiceMinutes || 0),
-          remainingFreeTrialSeconds: Number(response.billing.remainingFreeTrialSeconds || 0),
-          voiceAccessSource: response.billing.voiceAccessSource || 'none',
-          isProActive: Boolean(response.billing.revenueCat?.isProActive)
-        });
-        return;
-      }
-
+    if (response.success && response.billing) {
       setBillingSummary({
         loading: false,
-        availableVoiceMinutes: 0,
-        remainingFreeTrialSeconds: 0,
-        voiceAccessSource: 'none',
-        isProActive: false
+        availableVoiceMinutes: Number(response.billing.availableVoiceMinutes || 0),
+        usedVoiceMinutes: Number(((response.billing.usedCallSeconds || 0) / 60).toFixed(1)),
+        remainingFreeTrialSeconds: Number(response.billing.remainingFreeTrialSeconds || 0),
+        voiceAccessSource: response.billing.voiceAccessSource || 'none',
+        isProActive: Boolean(response.billing.revenueCat?.isProActive)
       });
-    };
+      return;
+    }
 
-    loadBillingSummary();
+    setBillingSummary({
+      loading: false,
+      availableVoiceMinutes: 0,
+      usedVoiceMinutes: 0,
+      remainingFreeTrialSeconds: 0,
+      voiceAccessSource: 'none',
+      isProActive: false
+    });
   }, []);
+
+  useEffect(() => {
+    loadBillingSummary();
+  }, [loadBillingSummary]);
 
   const handleScroll = (event) => {
     scrollOffsetRef.current = Math.max(0, event.nativeEvent.contentOffset.y || 0);
@@ -174,24 +226,6 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
 
     if (!saved) {
       Alert.alert('Settings error', 'Unable to save your call language preference.');
-    }
-  };
-
-  const handleSelectSpeechRate = async (value) => {
-    setSpeechRate(value);
-    const saved = await saveSpeechRatePreference(value);
-
-    if (!saved) {
-      Alert.alert('Settings error', 'Unable to save your speech speed preference.');
-    }
-  };
-
-  const handleSelectResponseDelay = async (value) => {
-    setCallResponseDelayMs(value);
-    const saved = await saveCallResponseDelayPreference(value);
-
-    if (!saved) {
-      Alert.alert('Settings error', 'Unable to save your response timing preference.');
     }
   };
 
@@ -292,14 +326,14 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
           <View style={styles.infoCardCopy}>
             <Text style={[styles.infoCardTitle, { color: colors.text }]}>Voice access</Text>
             <Text style={[styles.infoCardDescription, { color: colors.mutedText }]}>
-              {billingSummary.isProActive ? 'Emmaline Pro is active on this account.' : '5 free minutes, then $10/month for continued access.'}
+              {billingSummary.isProActive ? 'Emmaline Pro is active on this account.' : 'Free trial included, then monthly subscription for continued access.'}
             </Text>
             <Text style={[styles.billingFootnote, { color: colors.mutedText }]}>
               {billingSummary.loading
-                ? 'Available now: ...'
+                ? 'Loading...'
                 : billingSummary.voiceAccessSource === 'subscription'
                   ? 'Available now: Pro access active'
-                  : `Available now: ${billingSummary.availableVoiceMinutes.toFixed(2)} min`}
+                  : `Used: ${billingSummary.usedVoiceMinutes} min · Available: ${billingSummary.availableVoiceMinutes.toFixed(1)} min`}
             </Text>
           </View>
           <TouchableOpacity onPress={onOpenUpgrade} activeOpacity={0.8}>
@@ -311,7 +345,7 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Call language</Text>
         <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>
-          Choose the language Emmaline should expect on voice calls.
+          Choose the primary language Emmaline should expect on live voice calls. Users can still mix languages, but this sets the dedicated assistant language. Listen Mode is still the place for saved transcripts.
         </Text>
 
         {LANGUAGE_OPTIONS.map((option) => {
@@ -341,18 +375,11 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Speech speed</Text>
-        <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>
-          Slow Emmaline down if the spoken responses feel too dense to follow in real time.
-        </Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Voice Mode voice</Text>
+        <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>Choose which OpenAI realtime voice Emmaline should use when speaking back.</Text>
 
-        <View style={[styles.speedometerCard, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
-          <Text style={[styles.speedometerLabel, { color: colors.mutedText }]}>Current pace</Text>
-          <Text style={[styles.speedometerValue, { color: colors.text }]}>{speechRate.toFixed(2)}x</Text>
-        </View>
-
-        {SPEECH_RATE_OPTIONS.map((option) => {
-          const selected = areRatesEqual(speechRate, option.value);
+        {VOICE_OPTIONS.map((option) => {
+          const selected = callVoice === option.value;
 
           return (
             <TouchableOpacity
@@ -362,7 +389,7 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
                 { backgroundColor: colors.surface, borderColor: colors.border },
                 selected && [styles.optionCardSelected, { borderColor: colors.accent, backgroundColor: colors.surfaceAlt }]
               ]}
-              onPress={() => handleSelectSpeechRate(option.value)}
+              onPress={() => handleSelectVoice(option.value)}
               activeOpacity={0.85}
             >
               <View style={[styles.radio, { borderColor: colors.mutedText }, selected && [styles.radioSelected, { borderColor: colors.accent }]]}>
@@ -372,7 +399,6 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
                 <Text style={[styles.optionTitle, { color: colors.text }]}>{option.title}</Text>
                 <Text style={[styles.optionDescription, { color: colors.mutedText }]}>{option.description}</Text>
               </View>
-              <Text style={[styles.rateBadge, { color: colors.mutedText }]}>{option.value.toFixed(2)}x</Text>
             </TouchableOpacity>
           );
         })}
@@ -404,44 +430,6 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
                 <Text style={[styles.optionDescription, { color: colors.mutedText }]}>{option.description}</Text>
               </View>
               <Text style={[styles.rateBadge, { color: colors.mutedText }]}>{option.value.toFixed(2)}x</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Response timing</Text>
-        <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>
-          Adjust how long Emmaline waits after you stop speaking before it responds.
-        </Text>
-
-        <View style={[styles.speedometerCard, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
-          <Text style={[styles.speedometerLabel, { color: colors.mutedText }]}>Current wait</Text>
-          <Text style={[styles.speedometerValue, { color: colors.text }]}>{(callResponseDelayMs / 1000).toFixed(1)}s</Text>
-        </View>
-
-        {RESPONSE_DELAY_OPTIONS.map((option) => {
-          const selected = areDelayValuesEqual(callResponseDelayMs, option.value);
-
-          return (
-            <TouchableOpacity
-              key={option.value}
-              style={[
-                styles.optionCard,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-                selected && [styles.optionCardSelected, { borderColor: colors.accent, backgroundColor: colors.surfaceAlt }]
-              ]}
-              onPress={() => handleSelectResponseDelay(option.value)}
-              activeOpacity={0.85}
-            >
-              <View style={[styles.radio, { borderColor: colors.mutedText }, selected && [styles.radioSelected, { borderColor: colors.accent }]]}>
-                {selected ? <View style={[styles.radioInner, { backgroundColor: colors.accent }]} /> : null}
-              </View>
-              <View style={styles.optionContent}>
-                <Text style={[styles.optionTitle, { color: colors.text }]}>{option.title}</Text>
-                <Text style={[styles.optionDescription, { color: colors.mutedText }]}>{option.description}</Text>
-              </View>
-              <Text style={[styles.rateBadge, { color: colors.mutedText }]}>{(option.value / 1000).toFixed(1)}s</Text>
             </TouchableOpacity>
           );
         })}
@@ -709,3 +697,4 @@ const styles = StyleSheet.create({
 });
 
 export default SettingsScreen;
+

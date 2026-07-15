@@ -26,9 +26,8 @@ import {
   toggleMute
 } from './services/voiceService.js';
 import {
-  getCallResponseDelayPreference,
   getCallLanguagePreference,
-  getSpeechRatePreference,
+  getCallVoicePreference,
   getThemeModePreference,
   saveThemeModePreference
 } from './utils/secureStorage.js';
@@ -69,10 +68,10 @@ Sentry.init({
   attachStacktrace: true
 });
 
-const LIVE_CALLS_ENABLED = false;
+const VOICE_MODE_ENABLED = true;
 
 const AppContent = () => {
-  const isLiveCallAvailable = Platform.OS !== 'ios' && LIVE_CALLS_ENABLED;
+  const isLiveCallAvailable = VOICE_MODE_ENABLED && (Platform.OS === 'ios' || Platform.OS === 'android');
   const insets = useSafeAreaInsets();
   const [isCalling, setIsCalling] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -80,6 +79,7 @@ const AppContent = () => {
   const [audioDevices, setAudioDevices] = useState([]);
   const [selectedAudioDevice, setSelectedAudioDevice] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
+  const [callActivityState, setCallActivityState] = useState('idle');
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showLaunchSplash, setShowLaunchSplash] = useState(true);
   const [listenModeState, setListenModeState] = useState('idle');
@@ -131,6 +131,55 @@ const AppContent = () => {
     const suffix = Object.keys(payload).length > 0 ? ` details=${JSON.stringify(payload)}` : '';
 
     console.log(`[VoiceCallTiming] attempt=${trace.attemptId} stage=${stage} elapsedMs=${elapsedMs}${suffix}`);
+  };
+
+  const syncCallActivityFromStage = (stage) => {
+    let nextActivityState = null;
+
+    if (
+      stage === 'start_live_call_entered'
+      || stage === 'voice_session_request_started'
+      || stage === 'voice_session_request_finished'
+      || stage === 'voice_session_request_bypassed'
+      || stage === 'native_webrtc_audio_mode_configuring'
+      || stage === 'native_webrtc_get_user_media_started'
+      || stage === 'native_webrtc_offer_creating'
+      || stage === 'native_webrtc_sdp_exchange_started'
+      || stage === 'voice_provider_status_connecting'
+      || stage === 'voice_provider_status_reconnecting'
+    ) {
+      nextActivityState = 'connecting';
+    } else if (stage.includes('input_audio_buffer.speech_started')) {
+      nextActivityState = 'listening';
+    } else if (
+      stage.includes('input_audio_buffer.speech_stopped')
+      || stage.includes('input_audio_transcription.completed')
+    ) {
+      nextActivityState = 'thinking';
+    } else if (
+      stage.includes('response.audio.delta')
+      || stage.includes('output_audio')
+    ) {
+      nextActivityState = 'speaking';
+    } else if (
+      stage === 'voice_provider_status_live'
+      || stage.includes('response.done')
+      || stage.includes('response.audio.done')
+      || stage.includes('output_audio_transcript.done')
+    ) {
+      nextActivityState = 'idle';
+    } else if (
+      stage.includes('failed')
+      || stage.includes('ended')
+      || stage.includes('exception')
+      || stage === 'call_stopped'
+    ) {
+      nextActivityState = 'idle';
+    }
+
+    if (nextActivityState) {
+      setCallActivityState((current) => (current === nextActivityState ? current : nextActivityState));
+    }
   };
 
   useEffect(() => {
@@ -214,6 +263,7 @@ const AppContent = () => {
     setAudioDevices([]);
     setSelectedAudioDevice(null);
     setIsMuted(false);
+    setCallActivityState('idle');
     setListenModeState('idle');
     setShowModePicker(false);
     setShouldPreferSpeaker(false);
@@ -288,6 +338,7 @@ const AppContent = () => {
 
     setIsCalling(false);
     setCallStatus('ended');
+    setCallActivityState('idle');
     setShouldPreferSpeaker(false);
     traceLiveCallStage('call_stopped');
     resetLiveCallTrace();
@@ -306,6 +357,7 @@ const AppContent = () => {
 
     setIsCalling(true);
     setCallStatus('connecting');
+    setCallActivityState('connecting');
     setShouldPreferSpeaker(true);
     traceLiveCallStage('start_live_call_entered');
 
@@ -321,6 +373,7 @@ const AppContent = () => {
       if (!permissionResponse.success) {
         setIsCalling(false);
         setCallStatus('failed');
+        setCallActivityState('idle');
         setShouldPreferSpeaker(false);
         traceLiveCallStage('microphone_permission_failed');
         Alert.alert(
@@ -339,21 +392,22 @@ const AppContent = () => {
         statusCode: voiceSessionResponse.statusCode
       });
 
-      const [callLanguage, speechRate, callResponseDelayMs] = await Promise.all([
+      const [callLanguage, callVoice] = await Promise.all([
         getCallLanguagePreference(),
-        getSpeechRatePreference(),
-        getCallResponseDelayPreference()
+        getCallVoicePreference()
       ]);
 
       traceLiveCallStage('voice_preferences_loaded', {
         callLanguage: callLanguage || 'en',
-        speechRate: speechRate || 1,
-        responseDelayMs: callResponseDelayMs || 1600
+        callVoice: callVoice || 'marin'
       });
 
-      if (!voiceSessionResponse.success || !voiceSessionResponse.session) {
+      const canProceedWithoutBootstrapSession = voiceSessionResponse.code === 'VOICE_OPENAI_SESSION_FAILED';
+
+      if ((!voiceSessionResponse.success || !voiceSessionResponse.session) && !canProceedWithoutBootstrapSession) {
         setIsCalling(false);
         setCallStatus('failed');
+        setCallActivityState('idle');
         setShouldPreferSpeaker(false);
         traceLiveCallStage('voice_session_request_failed', {
           code: voiceSessionResponse.code,
@@ -370,6 +424,8 @@ const AppContent = () => {
           errorMessage = 'Voice provider token settings are missing on the backend.';
         } else if (voiceSessionResponse.code === 'VOICE_OPENAI_SESSION_FAILED') {
           errorMessage = 'The backend could not open an OpenAI realtime voice session.';
+        } else if (voiceSessionResponse.code === 'VOICE_OPENAI_CALL_FAILED') {
+          errorMessage = voiceSessionResponse.error || 'The backend could not open an OpenAI realtime voice call.';
         } else if (voiceSessionResponse.statusCode) {
           errorMessage = `${errorMessage} (status ${voiceSessionResponse.statusCode})`;
         }
@@ -381,20 +437,33 @@ const AppContent = () => {
         return;
       }
 
+      if (canProceedWithoutBootstrapSession) {
+        traceLiveCallStage('voice_session_request_bypassed', {
+          code: voiceSessionResponse.code,
+          statusCode: voiceSessionResponse.statusCode
+        });
+      }
+
       const response = await startVoiceCall({
-        session: voiceSessionResponse.session,
+        session: voiceSessionResponse.session || null,
         params: {
           identity: voiceSessionResponse.identity || 'unknown',
           language: callLanguage || 'en',
-          speechRate: String(speechRate || 1),
-          responseDelayMs: String(callResponseDelayMs || 1600)
+          voice: callVoice || 'marin'
         },
         onStatusChange: (status) => {
           traceLiveCallStage(`voice_provider_status_${status}`);
+          syncCallActivityFromStage(`voice_provider_status_${status}`);
           setCallStatus(status);
+
+          if (status === 'live') {
+            setIsCalling(true);
+            return;
+          }
 
           if (status === 'ended' || status === 'failed') {
             setIsCalling(false);
+            setCallActivityState('idle');
             setShouldPreferSpeaker(false);
             resetLiveCallTrace();
           }
@@ -413,12 +482,14 @@ const AppContent = () => {
         },
         onTrace: (stage, details) => {
           traceLiveCallStage(stage, details);
+          syncCallActivityFromStage(stage);
         }
       });
 
       if (!response.success) {
         setIsCalling(false);
         setCallStatus('failed');
+        setCallActivityState('idle');
         setShouldPreferSpeaker(false);
         traceLiveCallStage('start_voice_call_failed', {
           error: response.error
@@ -429,7 +500,6 @@ const AppContent = () => {
           'In-app call failed',
           response.error || 'Unable to start in-app call.'
         );
-        return;
       }
     } catch (error) {
       Sentry.captureException(error, {
@@ -442,6 +512,7 @@ const AppContent = () => {
       });
       setIsCalling(false);
       setCallStatus('failed');
+      setCallActivityState('idle');
       setShouldPreferSpeaker(false);
       resetLiveCallTrace();
       Alert.alert('Call error', error.message || 'Unexpected error while starting the call.');
@@ -618,7 +689,7 @@ const AppContent = () => {
                 : listenModeState === 'processing'
                   ? 'Processing recording...'
                   : listenModeState === 'saved'
-                    ? 'Listen Mode saved'
+                    ? 'Transcript complete'
                     : listenModeState === 'failed'
                       ? 'Listen Mode failed'
                       : callStatus === 'idle'
@@ -640,7 +711,9 @@ const AppContent = () => {
             onSelectAudioRoute={handleSelectAudioRoute}
             isMuted={isMuted}
             onToggleMute={handleToggleMute}
+            callActivityState={callActivityState}
             bottomInset={appBottomRailHeight}
+            topInset={insets.top}
           />
         ) : null}
 
@@ -672,7 +745,7 @@ const AppContent = () => {
                   <View style={styles.modePickerOptionHeader}>
                     <Text style={[styles.modePickerOptionTitle, { color: colors.text }]}>Voice Mode</Text>
                   </View>
-                  <Text style={[styles.modePickerOptionDescription, { color: colors.mutedText }]}>Talk to Emmaline live with low-latency voice, mute, and audio routing controls.</Text>
+                  <Text style={[styles.modePickerOptionDescription, { color: colors.mutedText }]}>Talk to Emmaline live in a full-screen voice conversation. Saved transcripts are currently available in Listen Mode.</Text>
                 </TouchableOpacity>
               ) : null}
 

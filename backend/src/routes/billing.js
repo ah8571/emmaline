@@ -2,8 +2,10 @@ import express from 'express';
 import authMiddleware from '../middleware/auth.js';
 import {
   getUserVoiceBillingStatus,
-  grantUserPrepaidVoiceSeconds
+  grantUserCredits,
+  getWeeklyTierForProduct
 } from '../services/billingService.js';
+import { getUserCreditStatus, grantFreeCredits } from '../services/creditService.js';
 
 const router = express.Router();
 
@@ -19,11 +21,18 @@ const isBillingAdminAuthorized = (req) => {
 
 router.get('/status', authMiddleware, async (req, res) => {
   try {
-    const billingStatus = await getUserVoiceBillingStatus(req.user.userId);
+    // Ensure free credits are granted (idempotent — only grants once)
+    await grantFreeCredits(req.user.userId).catch(() => {});
+
+    const [billingStatus, creditStatus] = await Promise.all([
+      getUserVoiceBillingStatus(req.user.userId),
+      getUserCreditStatus(req.user.userId)
+    ]);
 
     return res.status(200).json({
       success: true,
-      billing: billingStatus
+      billing: billingStatus,
+      credits: creditStatus
     });
   } catch (error) {
     console.error('Error fetching billing status:', error.message);
@@ -31,28 +40,82 @@ router.get('/status', authMiddleware, async (req, res) => {
   }
 });
 
-router.post('/grant-seconds', authMiddleware, async (req, res) => {
+router.post('/grant-credits', authMiddleware, async (req, res) => {
   try {
     if (!isBillingAdminAuthorized(req)) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const secondsToAdd = Math.round(Number(req.body?.seconds || 0));
+    const creditsToAdd = Math.round(Number(req.body?.credits || 0));
 
-    if (!Number.isFinite(secondsToAdd) || secondsToAdd <= 0) {
-      return res.status(400).json({ error: 'seconds must be a positive integer' });
+    if (!Number.isFinite(creditsToAdd) || creditsToAdd <= 0) {
+      return res.status(400).json({ error: 'credits must be a positive integer' });
     }
 
-    const result = await grantUserPrepaidVoiceSeconds(req.user.userId, secondsToAdd);
+    const result = await grantUserCredits(req.user.userId, creditsToAdd);
 
     return res.status(200).json({
       success: true,
-      addedSeconds: secondsToAdd,
+      addedCredits: creditsToAdd,
       billing: result.billingStatus
     });
   } catch (error) {
-    console.error('Error granting prepaid seconds:', error.message);
-    return res.status(500).json({ error: 'Failed to grant prepaid seconds' });
+    console.error('Error granting credits:', error.message);
+    return res.status(500).json({ error: 'Failed to grant credits' });
+  }
+});
+
+/**
+ * POST /api/billing/revenuecat-webhook
+ * Called by RevenueCat when a purchase is made. Grants monthly credits
+ * (100 credits/month) for pro subscribers.
+ */
+router.post('/revenuecat-webhook', async (req, res) => {
+  try {
+    const event = req.body?.event;
+    const eventType = String(event?.type || '');
+
+    // Only process initial purchase and renewal events
+    if (eventType !== 'INITIAL_PURCHASE' && eventType !== 'RENEWAL') {
+      return res.status(200).json({ acknowledged: true, reason: 'event_type_ignored' });
+    }
+
+    const productId = String(event?.product_id || '');
+    const appUserId = String(event?.app_user_id || '').trim();
+
+    if (!appUserId) {
+      return res.status(400).json({ error: 'Missing app_user_id in RevenueCat event.' });
+    }
+
+    // For the monthly pro product, grant 100 credits/month
+    if (productId === 'emmaline_pro_monthly') {
+      const { setMonthlyCreditAllocation } = await import('../services/creditService.js');
+      const result = await setMonthlyCreditAllocation(appUserId, 100);
+      console.log(`[Billing] Granted monthly credits (100) to user ${appUserId} via RevenueCat webhook. Renewed: ${result.renewed}`);
+
+      return res.status(200).json({
+        acknowledged: true,
+        product: productId,
+        monthlyCredits: 100,
+        renewed: result.renewed,
+        balance: result.balance
+      });
+    }
+
+    // Legacy weekly tier fallback — convert seconds to credits at voice rate
+    const tier = getWeeklyTierForProduct(productId);
+    if (tier) {
+      const creditsToGrant = Math.round(tier.seconds / 60) * 5; // voice rate
+      await grantUserCredits(appUserId, creditsToGrant);
+      console.log(`[Billing] Granted ${creditsToGrant} credits (${tier.label}) to user ${appUserId} via RevenueCat webhook`);
+
+      return res.status(200).json({ acknowledged: true, tier: tier.label, credits: creditsToGrant });
+    }
+
+    return res.status(200).json({ acknowledged: true, reason: 'product_not_configured' });
+  } catch (error) {
+    console.error('RevenueCat webhook error:', error.message);
+    return res.status(500).json({ error: 'Webhook processing failed.' });
   }
 });
 

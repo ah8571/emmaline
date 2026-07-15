@@ -3,10 +3,6 @@ apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
-def appVariant = System.getenv("APP_VARIANT") ?: System.getenv("EAS_BUILD_PROFILE") ?: "development"
-def productionApplicationId = "com.emmaline.app"
-def developmentApplicationId = "com.emmaline.app.dev"
-def resolvedApplicationId = appVariant == "production" ? productionApplicationId : developmentApplicationId
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -91,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.emmaline.app.dev'
+    namespace 'com.emmaline.app'
     defaultConfig {
-        applicationId resolvedApplicationId
+        applicationId 'com.emmaline.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -111,9 +107,12 @@ android {
     }
     buildTypes {
         debug {
+            applicationIdSuffix '.dev'
+            resValue "string", "app_name", "Emmaline Dev"
             signingConfig signingConfigs.debug
         }
         release {
+            resValue "string", "app_name", "Emmaline"
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.debug

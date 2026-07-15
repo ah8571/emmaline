@@ -37,8 +37,7 @@
       "distribution": "internal",
       "android": {
         "autoIncrement": "versionCode",
-        "buildType": "apk",
-        "applicationArchivePath": "android/app/build/outputs/apk/release/app-release.apk"
+        "buildType": "apk"
       },
       "env": {
         "APP_VARIANT": "production",

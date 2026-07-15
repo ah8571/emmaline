@@ -11,6 +11,7 @@ const PREFERENCES_KEY = 'emmaline_preferences';
 const AI_DISCLOSURE_ACCEPTED_KEY = 'emmaline_ai_disclosure_accepted_v1';
 const DEFAULT_PREFERENCES = {
   callLanguage: 'en',
+  callVoice: 'marin',
   speechRate: 1,
   callResponseDelayMs: 1600,
   themeMode: 'dark',
@@ -168,6 +169,15 @@ export const saveCallLanguagePreference = async (callLanguage) => {
   return savePreferences({ callLanguage });
 };
 
+export const getCallVoicePreference = async () => {
+  const preferences = await getPreferences();
+  return preferences.callVoice || DEFAULT_PREFERENCES.callVoice;
+};
+
+export const saveCallVoicePreference = async (callVoice) => {
+  return savePreferences({ callVoice: String(callVoice || DEFAULT_PREFERENCES.callVoice) });
+};
+
 export const getSpeechRatePreference = async () => {
   const preferences = await getPreferences();
   const speechRate = Number(preferences.speechRate);
@@ -251,6 +261,8 @@ export default {
   saveAiDisclosureAccepted,
   getCallLanguagePreference,
   saveCallLanguagePreference,
+  getCallVoicePreference,
+  saveCallVoicePreference,
   getSpeechRatePreference,
   saveSpeechRatePreference,
   getCallResponseDelayPreference,

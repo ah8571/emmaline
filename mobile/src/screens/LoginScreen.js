@@ -787,6 +787,13 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
                       >
                         Privacy Policy
                       </Text>
+                      <Text style={styles.inlineLinkDivider}>•</Text>
+                      <Text
+                        style={styles.inlineLinkText}
+                        onPress={() => navigation.navigate('EULA')}
+                      >
+                        EULA
+                      </Text>
                     </View>
                   </View>
                 </TouchableOpacity>

@@ -6,6 +6,7 @@
 import axios from 'axios';
 import appsFlyer from 'react-native-appsflyer';
 import * as Sentry from '@sentry/react-native';
+import Constants from 'expo-constants';
 import * as SecureStorage from '../utils/secureStorage.js';
 import {
   exchangeCodeForSession as exchangeSupabaseOAuthCode,
@@ -21,6 +22,15 @@ import {
 
 // Configuration
 const DEFAULT_API_BASE_URL = 'https://api.emmaline.app/api';
+const DEVELOPMENT_API_BASE_URL = 'http://127.0.0.1:3000/api';
+const appConfigExtra =
+  Constants.expoConfig?.extra ||
+  Constants.manifest2?.extra?.expoClient?.extra ||
+  Constants.manifest?.extra ||
+  {};
+const appVariant = String(appConfigExtra.appVariant || '').trim().toLowerCase();
+const isDevelopmentVariant = appVariant === 'development';
+const isLocalDevelopmentRuntime = __DEV__;
 
 const normalizeApiBaseUrl = (url) => {
   const normalizedUrl = String(url || '').trim();
@@ -46,12 +56,40 @@ const normalizeApiBaseUrl = (url) => {
   }
 };
 
-const API_BASE_URL = normalizeApiBaseUrl(
-  process.env.EXPO_PUBLIC_API_URL ||
-  process.env.REACT_NATIVE_BACKEND_URL ||
-  process.env.REACT_APP_API_URL ||
-  DEFAULT_API_BASE_URL
-);
+const isLoopbackApiUrl = (url) => {
+  const normalizedUrl = String(url || '').trim();
+
+  if (!normalizedUrl) {
+    return false;
+  }
+
+  try {
+    const parsedUrl = new URL(normalizedUrl);
+    return ['127.0.0.1', 'localhost', '10.0.2.2'].includes(parsedUrl.hostname);
+  } catch (error) {
+    return normalizedUrl.includes('127.0.0.1') || normalizedUrl.includes('localhost') || normalizedUrl.includes('10.0.2.2');
+  }
+};
+
+const getConfiguredApiBaseUrl = () => {
+  const configCandidates = [
+    appConfigExtra.apiUrl,
+    process.env.EXPO_PUBLIC_API_URL,
+    process.env.REACT_NATIVE_BACKEND_URL,
+    process.env.REACT_APP_API_URL
+  ].filter(Boolean);
+
+  if (isDevelopmentVariant || isLocalDevelopmentRuntime) {
+    const localOverride = configCandidates.find(isLoopbackApiUrl);
+    return localOverride || DEVELOPMENT_API_BASE_URL;
+  }
+
+  return configCandidates[0] || DEFAULT_API_BASE_URL;
+};
+
+const configuredApiBaseUrl = getConfiguredApiBaseUrl();
+
+const API_BASE_URL = normalizeApiBaseUrl(configuredApiBaseUrl);
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 
 const formatApiError = (error, fallbackMessage) => {
@@ -719,6 +757,29 @@ export const getCallDetail = async (callId) => {
 /**
  * Get a provider-specific voice mode session for in-app audio.
  */
+export const submitVoiceCallCompletion = async ({ durationSeconds, voice, model } = {}) => {
+  try {
+    await addTokenToHeaders();
+    const response = await apiClient.post('/voice/call/complete', {
+      durationSeconds: Math.round(Number(durationSeconds || 0)),
+      voice: String(voice || 'marin'),
+      model: String(model || 'gpt-realtime-2.1')
+    });
+
+    return {
+      success: true,
+      callId: response.data.callId || null,
+      estimatedCostUsd: response.data.estimatedCostUsd || null,
+      billing: response.data.billing || null
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error?.response?.data?.error || error.message
+    };
+  }
+};
+
 export const getVoiceSession = async () => {
   try {
     await addTokenToHeaders();
@@ -752,6 +813,66 @@ export const getVoiceSession = async () => {
  */
 export const getVoiceToken = async () => {
   return getVoiceSession();
+};
+
+export const createVoiceCallConnection = async (offerSdp, options = {}) => {
+  try {
+    const token = await getAccessToken();
+    logApiRequest('post', '/voice/call', {
+      voice: String(options.voice || '').trim() || null,
+      apiBaseUrl: API_BASE_URL,
+      offerLength: typeof offerSdp === 'string' ? offerSdp.length : 0
+    });
+    const response = await fetch(`${API_BASE_URL}/voice/call`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'Content-Type': 'application/sdp',
+        Accept: 'application/sdp',
+        ...(String(options.voice || '').trim() ? { 'X-Emmaline-Voice': String(options.voice || '').trim() } : {})
+      },
+      body: typeof offerSdp === 'string' ? offerSdp : ''
+    });
+
+    const responseText = await response.text();
+
+    if (!response.ok) {
+      let responseData = null;
+
+      try {
+        responseData = responseText ? JSON.parse(responseText) : null;
+      } catch {
+        responseData = null;
+      }
+
+      const requestError = new Error(responseData?.error || response.statusText || 'Voice call setup failed.');
+      requestError.response = {
+        status: response.status,
+        data: responseData || responseText || null
+      };
+      throw requestError;
+    }
+
+    return {
+      success: true,
+      answerSdp: responseText
+    };
+  } catch (error) {
+    logApiFailure('post', '/voice/call', error);
+    const responseData = error.response?.data || {};
+    const detailText = [responseData.error, responseData.details]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    return {
+      success: false,
+      error: detailText || error.message,
+      code: responseData.code || null,
+      details: responseData.details || null,
+      statusCode: error.response?.status || null
+    };
+  }
 };
 
 export const getBillingStatus = async () => {
@@ -1001,6 +1122,53 @@ export const uploadListenModeRecording = async (recordingAsset, languagePreferen
     return {
       success: false,
       error: formatApiError(error, 'Failed to process Listen Mode recording')
+    };
+  }
+};
+
+export const submitVoiceTurn = async (recordingAsset, options = {}) => {
+  try {
+    const token = await getAccessToken();
+
+    if (!token) {
+      return {
+        success: false,
+        error: 'You need to log in again before using Voice Mode.'
+      };
+    }
+
+    const formData = new FormData();
+    formData.append('audio', {
+      uri: recordingAsset.uri,
+      name: recordingAsset.name || 'voice-mode-turn.m4a',
+      type: recordingAsset.mimeType || 'audio/mp4'
+    });
+    formData.append('durationMs', String(recordingAsset.durationMs || 0));
+    formData.append('startedAt', recordingAsset.startedAt || new Date().toISOString());
+    formData.append('endedAt', recordingAsset.endedAt || new Date().toISOString());
+    formData.append('languagePreference', options.languagePreference || 'en');
+    formData.append('conversationHistory', JSON.stringify(Array.isArray(options.conversationHistory) ? options.conversationHistory : []));
+
+    const response = await axios.post(`${API_BASE_URL}/voice/turn`, formData, {
+      timeout: 120000,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+
+    return {
+      success: true,
+      transcript: response.data.transcript || '',
+      assistantText: response.data.assistantText || '',
+      conversationHistory: response.data.conversationHistory || [],
+      audioBase64: response.data.audioBase64 || '',
+      audioMimeType: response.data.audioMimeType || 'audio/mpeg'
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: formatApiError(error, 'Failed to process Voice Mode turn')
     };
   }
 };
@@ -1278,6 +1446,7 @@ export default {
   getCallDetail,
   getVoiceSession,
   getVoiceToken,
+  createVoiceCallConnection,
   endCall,
   getTranscript,
   getCallSummary,

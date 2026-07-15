@@ -25,18 +25,106 @@ const FloatingCallButton = ({
   selectedAudioRoute = null,
   onSelectAudioRoute,
   onToggleMute,
-  bottomInset = 0
+  bottomInset = 0,
+  topInset = 0,
+  callActivityState = 'idle'
 }) => {
   const [scaleAnim] = React.useState(new Animated.Value(1));
+  const [orbScaleAnim] = React.useState(new Animated.Value(1));
+  const [orbGlowAnim] = React.useState(new Animated.Value(0.18));
+  const [spinAnim] = React.useState(new Animated.Value(0));
+  const [isExpanded, setIsExpanded] = React.useState(true);
   const { colors, isDarkMode } = useAppTheme();
   const floatingBottom = Math.max(bottomInset, 12) + 16;
   const statusBottom = floatingBottom + 116;
-  const audioCardBottom = floatingBottom + 80;
   const circleIconColor = isDarkMode ? '#ffffff' : '#111111';
   const controlBackgroundColor = isDarkMode ? colors.surface : colors.surface;
   const controlSize = designTokens.chrome.menuButtonSize;
   const callIconSize = Math.round(controlSize * 0.47);
   const closeIconSize = Math.round(controlSize * 0.56);
+  const overlayTop = Math.max(topInset, 14) + 6;
+  const overlayBottom = floatingBottom + 24;
+  const orbCoreColor = isDarkMode ? '#3b82f6' : '#3b82f6';
+  const orbInnerColor = isDarkMode ? 'rgba(59, 130, 246, 0.45)' : 'rgba(59, 130, 246, 0.32)';
+  const orbMidColor = isDarkMode ? 'rgba(59, 130, 246, 0.20)' : 'rgba(59, 130, 246, 0.12)';
+  const orbOuterColor = isDarkMode ? 'rgba(59, 130, 246, 0.06)' : 'rgba(59, 130, 246, 0.04)';
+
+  const spinInterpolation = spinAnim.interpolate({
+    inputRange: [0, 360],
+    outputRange: ['0deg', '360deg']
+  });
+
+  React.useEffect(() => {
+    if (showCallControls) {
+      setIsExpanded(true);
+    }
+  }, [showCallControls]);
+
+  React.useEffect(() => {
+    if (!showCallControls || !isExpanded) {
+      orbScaleAnim.stopAnimation();
+      orbGlowAnim.stopAnimation();
+      orbScaleAnim.setValue(1);
+      orbGlowAnim.setValue(0.18);
+      return undefined;
+    }
+
+    const pulseTarget = callActivityState === 'speaking'
+      ? 1.2
+      : callActivityState === 'listening'
+        ? 1.14
+        : callActivityState === 'thinking'
+          ? 1.1
+          : 1.06;
+    const glowTarget = callActivityState === 'speaking'
+      ? 0.34
+      : callActivityState === 'listening'
+        ? 0.28
+        : callActivityState === 'thinking'
+          ? 0.24
+          : 0.2;
+    const duration = callActivityState === 'speaking' ? 620 : callActivityState === 'connecting' ? 960 : 760;
+    const orbLoop = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(orbScaleAnim, { toValue: pulseTarget, duration, useNativeDriver: true }),
+          Animated.timing(orbGlowAnim, { toValue: glowTarget, duration, useNativeDriver: true })
+        ]),
+        Animated.parallel([
+          Animated.timing(orbScaleAnim, { toValue: 1, duration, useNativeDriver: true }),
+          Animated.timing(orbGlowAnim, { toValue: 0.18, duration, useNativeDriver: true })
+        ])
+      ])
+    );
+
+    orbLoop.start();
+
+    return () => {
+      orbLoop.stop();
+      orbScaleAnim.stopAnimation();
+      orbGlowAnim.stopAnimation();
+    };
+  }, [callActivityState, isExpanded, orbGlowAnim, orbScaleAnim, showCallControls]);
+
+  React.useEffect(() => {
+    if (!showCallControls || !isExpanded) {
+      return undefined;
+    }
+
+    const spinLoop = Animated.loop(
+      Animated.timing(spinAnim, {
+        toValue: 360,
+        duration: callActivityState === 'speaking' ? 12000 : callActivityState === 'listening' ? 18000 : 28000,
+        useNativeDriver: true
+      })
+    );
+
+    spinLoop.start();
+
+    return () => {
+      spinLoop.stop();
+    };
+  }, [callActivityState, isExpanded, showCallControls, spinAnim]);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -57,51 +145,111 @@ const FloatingCallButton = ({
     onPress();
   };
 
-  const showAudioRoutes = showCallControls && (audioRoutes.length > 0 || Boolean(onToggleMute));
-
   return (
     <>
-      {showAudioRoutes ? (
-        <View style={[styles.audioRouteCard, { bottom: audioCardBottom, backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.callActionRow}>
-            <TouchableOpacity
-              style={[
-                styles.callActionButton,
-                { backgroundColor: colors.surfaceAlt },
-                isMuted && [styles.callActionButtonActive, { backgroundColor: isDarkMode ? '#402128' : '#ffe3e3' }]
-              ]}
-              onPress={() => onToggleMute?.()}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.callActionButtonText, { color: colors.text }, isMuted && styles.callActionButtonTextActive]}>
-                {isMuted ? 'Unmute' : 'Mute'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+      {showCallControls && isExpanded ? (
+        <View style={[styles.liveCallOverlay, { backgroundColor: colors.backdrop }]} pointerEvents="box-none">
+          <View
+            style={[
+              styles.liveCallCard,
+              {
+                top: overlayTop,
+                bottom: overlayBottom,
+                backgroundColor: 'transparent'
+              }
+            ]}
+            pointerEvents="auto"
+          >
+            <View style={styles.liveCallCenter}>
+              <Animated.View
+                style={[
+                  styles.orbOuterRing,
+                  {
+                    backgroundColor: orbOuterColor,
+                    opacity: orbGlowAnim,
+                    transform: [{ scale: orbScaleAnim }]
+                  }
+                ]}
+              />
+              <Animated.View
+                style={[
+                  styles.orbMidRing,
+                  {
+                    backgroundColor: orbMidColor,
+                    opacity: orbGlowAnim,
+                    transform: [
+                      { scale: orbScaleAnim },
+                      { rotate: spinInterpolation }
+                    ]
+                  }
+                ]}
+              />
+              <Animated.View
+                style={[
+                  styles.orbInnerRing,
+                  {
+                    backgroundColor: orbInnerColor,
+                    opacity: orbGlowAnim,
+                    transform: [{ scale: Animated.add(1, Animated.divide(Animated.subtract(orbScaleAnim, 1), 2)) }]
+                  }
+                ]}
+              />
+              <Animated.View
+                style={[
+                  styles.orbCore,
+                  {
+                    backgroundColor: orbCoreColor,
+                    transform: [{ scale: Animated.add(1, Animated.divide(Animated.subtract(orbScaleAnim, 1), 4)) }]
+                  }
+                ]}
+              />
+            </View>
 
-          <Text style={[styles.audioRouteTitle, { color: colors.text }]}>Audio</Text>
-          <View style={styles.audioRouteList}>
-            {audioRoutes.map((route) => {
-              const selected = selectedAudioRoute === route.uuid;
+            <View style={styles.liveCallFooter}>
+              <TouchableOpacity
+                style={[
+                  styles.liveCallPrimaryAction,
+                  { backgroundColor: isMuted ? (isDarkMode ? '#402128' : '#ffe3e3') : colors.surfaceAlt, borderColor: isMuted ? 'transparent' : colors.border }
+                ]}
+                onPress={() => onToggleMute?.()}
+                activeOpacity={0.85}
+              >
+                <Ionicons name={isMuted ? 'mic-off' : 'mic'} size={16} color={isMuted ? '#c92a2a' : colors.text} />
+              </TouchableOpacity>
 
-              return (
-                <TouchableOpacity
-                  key={route.uuid}
-                  style={[
-                    styles.audioRouteChip,
-                    { backgroundColor: colors.surfaceAlt },
-                    selected && [styles.audioRouteChipSelected, { backgroundColor: colors.chipSelectedBg }]
-                  ]}
-                  onPress={() => onSelectAudioRoute?.(route.uuid)}
-                  activeOpacity={0.85}
-                >
-                  <Text style={[styles.audioRouteChipText, { color: colors.mutedText }, selected && { color: colors.chipSelectedText }]}>
-                    {route.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+              {audioRoutes.length > 0 ? (
+                <View style={styles.liveCallRouteRow}>
+                  {audioRoutes.map((route) => {
+                    const selected = selectedAudioRoute === route.uuid;
+
+                    return (
+                      <TouchableOpacity
+                        key={route.uuid}
+                        style={[
+                          styles.audioRouteChip,
+                          { backgroundColor: colors.surfaceAlt },
+                          selected && [styles.audioRouteChipSelected, { backgroundColor: colors.chipSelectedBg }]
+                        ]}
+                        onPress={() => onSelectAudioRoute?.(route.uuid)}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={[styles.audioRouteChipText, { color: colors.mutedText }, selected && { color: colors.chipSelectedText }]}>
+                          {route.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : null}
+            </View>
           </View>
+          <TouchableOpacity
+            style={[styles.liveCallMinimizeButton, { top: overlayBottom + 12, backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => setIsExpanded(false)}
+            activeOpacity={0.82}
+          >
+            <Ionicons name="chevron-down" size={22} color={colors.text} />
+          </TouchableOpacity>
         </View>
       ) : null}
 
@@ -133,12 +281,23 @@ const FloatingCallButton = ({
           {isActiveCall ? (
             <Ionicons name="close" size={closeIconSize} color={circleIconColor} style={styles.endCallIcon} />
           ) : (
-            <Ionicons name="call" size={callIconSize} color={circleIconColor} style={styles.phoneIcon} />
+            <Ionicons name="radio-outline" size={callIconSize} color={circleIconColor} style={styles.phoneIcon} />
           )}
         </TouchableOpacity>
       </Animated.View>
 
-      {statusLabel ? (
+      {showCallControls && !isExpanded ? (
+        <TouchableOpacity
+          style={[styles.expandButton, { bottom: floatingBottom + 74, backgroundColor: colors.surface, borderColor: colors.border }]}
+          onPress={() => setIsExpanded(true)}
+          activeOpacity={0.84}
+        >
+          <Ionicons name="chevron-up" size={18} color={colors.text} />
+          <Text style={[styles.expandButtonText, { color: colors.text }]}>{statusLabel || 'Voice Mode'}</Text>
+        </TouchableOpacity>
+      ) : null}
+
+      {statusLabel && !showCallControls ? (
         <View style={[styles.statusIndicator, { bottom: statusBottom, backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.statusText, { color: colors.text }]}>{statusLabel}</Text>
         </View>
@@ -189,6 +348,119 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5
+  },
+  liveCallOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 950,
+    justifyContent: 'center'
+  },
+  liveCallCard: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    borderRadius: 32,
+    paddingHorizontal: 22,
+    paddingTop: 18,
+    paddingBottom: 22
+  },
+  liveCallMinimizeButton: {
+    position: 'absolute',
+    alignSelf: 'center',
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    elevation: 6
+  },
+  liveCallCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8
+  },
+  orbOuterRing: {
+    position: 'absolute',
+    width: 240,
+    height: 240,
+    borderRadius: 999
+  },
+  orbMidRing: {
+    position: 'absolute',
+    width: 178,
+    height: 178,
+    borderRadius: 999
+  },
+  orbInnerRing: {
+    position: 'absolute',
+    width: 148,
+    height: 148,
+    borderRadius: 999
+  },
+  orbCore: {
+    width: 120,
+    height: 120,
+    borderRadius: 999,
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.32,
+    shadowRadius: 32,
+    elevation: 12
+  },
+  liveCallFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12
+  },
+  liveCallPrimaryAction: {
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  liveCallPrimaryActionActive: {
+    backgroundColor: '#ffe3e3'
+  },
+  liveCallPrimaryActionText: {
+    fontSize: 14,
+    fontWeight: '700'
+  },
+  liveCallRouteRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 8
+  },
+  expandButton: {
+    position: 'absolute',
+    right: 20,
+    zIndex: 998,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 8
+  },
+  expandButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    maxWidth: 130
   },
   statusText: {
     fontSize: 12,

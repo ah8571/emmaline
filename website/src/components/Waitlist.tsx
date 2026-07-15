@@ -5,7 +5,21 @@ import axios from 'axios';
 
 import legalContent from '../../../shared/legalContent.json';
 
-export default function Waitlist() {
+type WaitlistProps = {
+  source?: string;
+  consentSource?: string;
+  submitLabel?: string;
+  successMessage?: string;
+  placeholder?: string;
+};
+
+export default function Waitlist({
+  source = 'landing-page',
+  consentSource = 'landing-page',
+  submitLabel = 'Join Waitlist',
+  successMessage = '✓ Thanks for signing up! Check your email for updates.',
+  placeholder = 'your@email.com'
+}: WaitlistProps) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -24,14 +38,14 @@ export default function Waitlist() {
     setMessage('');
 
     try {
-      const response = await axios.post('/api/newsletter', {
+      await axios.post('/api/newsletter', {
         email,
-        source: 'landing-page',
-        consentSource: 'landing-page',
+        source,
+        consentSource,
         policyVersion: legalContent.policyVersion
       });
 
-      setMessage('✓ Thanks for signing up! Check your email for updates.');
+      setMessage(successMessage);
       setStatus('success');
       setEmail('');
     } catch (error) {
@@ -51,7 +65,7 @@ export default function Waitlist() {
       <div className="flex flex-col gap-3">
         <input
           type="email"
-          placeholder="your@email.com"
+          placeholder={placeholder}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-white/50 focus:bg-white/15 transition"
@@ -62,7 +76,7 @@ export default function Waitlist() {
           disabled={loading}
           className="px-6 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition"
         >
-          {loading ? 'Signing up...' : 'Join Waitlist'}
+          {loading ? 'Signing up...' : submitLabel}
         </button>
         {message && (
           <p className={`text-sm text-center ${status === 'success' ? 'text-green-400' : 'text-red-400'}`}>

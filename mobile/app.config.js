@@ -112,6 +112,10 @@ module.exports = () => {
     filteredPlugins.push('expo-apple-authentication');
   }
 
+  if (!filteredPlugins.includes('@config-plugins/react-native-webrtc')) {
+    filteredPlugins.push('@config-plugins/react-native-webrtc');
+  }
+
   const hasAppsFlyerPlugin = filteredPlugins.some((plugin) => {
     if (Array.isArray(plugin)) {
       return plugin[0] === 'react-native-appsflyer';
@@ -164,6 +168,7 @@ module.exports = () => {
     extra: {
       ...(baseConfig.extra || {}),
       appVariant,
+      apiUrl: normalizeOptionalConfigValue(process.env.EXPO_PUBLIC_API_URL),
       enableLiveCalls: liveCallsEnabled,
       sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || null,
       appsflyerDevKey: process.env.APPSFLYER_DEV_KEY || null,

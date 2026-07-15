@@ -16,6 +16,7 @@ import NoteCard from '../components/NoteCard';
 import { useAppTheme } from '../theme/appTheme.js';
 import { designTokens } from '../theme/designSystem.js';
 import { getNoteTextScalePreference } from '../utils/secureStorage.js';
+import { setOnNotesChanged } from '../services/voiceService.js';
 
 /**
  * NotesScreen
@@ -79,6 +80,17 @@ const NotesScreen = ({ navigation, onAppHeaderScroll }) => {
   useEffect(() => {
     loadTopics();
   }, [loadTopics]);
+
+  useEffect(() => {
+    setOnNotesChanged(() => {
+      loadNotes(selectedTopic, { silent: true });
+      loadTopics();
+    });
+
+    return () => {
+      setOnNotesChanged(null);
+    };
+  }, [loadNotes, loadTopics, selectedTopic]);
 
   useEffect(() => {
     const loadNoteTextScale = async () => {

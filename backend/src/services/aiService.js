@@ -30,24 +30,70 @@ const getOpenAIClient = () => {
 const getChatModel = () => process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini';
 const getSummaryModel = () => process.env.OPENAI_SUMMARY_MODEL || getChatModel();
 
-const isTeacherLanguagePreference = (languagePreference) => {
-  return String(languagePreference || '').toLowerCase().includes('teacher');
+const LANGUAGE_LABELS = {
+  en: 'English',
+  es: 'Spanish',
+  pt: 'Portuguese',
+  fr: 'French',
+  de: 'German',
+  it: 'Italian',
+  zh: 'Mandarin Chinese',
+  hi: 'Hindi',
+  ar: 'Arabic',
+  ja: 'Japanese'
+};
+
+const normalizeLanguagePreference = (languagePreference) => {
+  const value = String(languagePreference || '').trim().toLowerCase();
+
+  if (value.startsWith('es')) {
+    return 'es';
+  }
+
+  if (value.startsWith('pt')) {
+    return 'pt';
+  }
+
+  if (value.startsWith('fr')) {
+    return 'fr';
+  }
+
+  if (value.startsWith('de')) {
+    return 'de';
+  }
+
+  if (value.startsWith('it')) {
+    return 'it';
+  }
+
+  if (value.startsWith('zh')) {
+    return 'zh';
+  }
+
+  if (value.startsWith('hi')) {
+    return 'hi';
+  }
+
+  if (value.startsWith('ar')) {
+    return 'ar';
+  }
+
+  if (value.startsWith('ja')) {
+    return 'ja';
+  }
+
+  return 'en';
 };
 
 const getLanguageInstruction = (languagePreference) => {
-  if (isTeacherLanguagePreference(languagePreference)) {
-    return [
-      'You are in English-Spanish teacher mode for beginners.',
-      'Default to English for explanations and structure, but provide Spanish examples naturally when asked.',
-      'When the user asks how to say something in Spanish, say the Spanish phrase first, then give a short English explanation or translation.',
-      'Keep bilingual replies short, clear, and easy to repeat out loud.',
-      'Prefer simple Spanish phrasing and gentle coaching over long grammar lectures.'
-    ].join(' ');
+  const languageCode = normalizeLanguagePreference(languagePreference);
+  const languageLabel = LANGUAGE_LABELS[languageCode] || 'English';
+
+  if (languageCode === 'en') {
+    return 'Respond in English. If the user briefly switches into another language, handle it naturally and return to English unless they ask to change.';
   }
 
-  return String(languagePreference || '').toLowerCase().startsWith('es')
-    ? 'Respond in Spanish.'
-    : 'Respond in English.';
+  return `Respond primarily in ${languageLabel}. If the user briefly mixes in English, handle it naturally while keeping ${languageLabel} as the main spoken language unless they ask to change.`;
 };
 
 const getNoteCapabilityInstruction = (options = {}) => {
@@ -66,13 +112,12 @@ const getNoteCapabilityInstruction = (options = {}) => {
 };
 
 const getNoteLanguageInstruction = (languagePreference) => {
-  if (isTeacherLanguagePreference(languagePreference)) {
-    return 'Write note content in English by default, but preserve short Spanish examples or vocabulary when they are important to the lesson.';
-  }
+  const languageCode = normalizeLanguagePreference(languagePreference);
+  const languageLabel = LANGUAGE_LABELS[languageCode] || 'English';
 
-  return String(languagePreference || '').toLowerCase().startsWith('es')
-    ? 'Write note content in Spanish.'
-    : 'Write note content in English.';
+  return languageCode === 'en'
+    ? 'Write note content in English.'
+    : `Write note content in ${languageLabel}.`;
 };
 
 const serializeConversationHistory = (conversationHistory = []) => {
@@ -139,11 +184,11 @@ export const generateResponse = async (conversationHistory, options = {}) => {
 };
 
 export const summarizeTranscript = async (fullTranscript, options = {}) => {
-  const summaryLanguageInstruction = isTeacherLanguagePreference(options.languagePreference)
-    ? 'Return the summary, key points, and action items in English by default, while preserving useful Spanish phrases or vocabulary examples from the lesson.'
-    : String(options.languagePreference || '').toLowerCase().startsWith('es')
-      ? 'Return the summary, key points, and action items in Spanish. Preserve the participant\'s Spanish phrasing where it is natural to do so.'
-      : 'Return the summary, key points, and action items in English.';
+  const languageCode = normalizeLanguagePreference(options.languagePreference);
+  const languageLabel = LANGUAGE_LABELS[languageCode] || 'English';
+  const summaryLanguageInstruction = languageCode === 'en'
+    ? 'Return the summary, key points, and action items in English.'
+    : `Return the summary, key points, and action items in ${languageLabel}. Preserve the participant's phrasing where it is natural to do so.`;
 
   const summaryPrompt = `
 Please analyze the following conversation and provide:

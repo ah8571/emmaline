@@ -1,47 +1,39 @@
 import {
-  addUserPrepaidSeconds,
-  getUserBillingProfile,
-  getUserConsumedCallSeconds
+  getUserBillingProfile
 } from './databaseService.js';
 import { getRevenueCatProStatus } from './revenueCatService.js';
+import { getUserCreditStatus } from './creditService.js';
 
-const DEFAULT_FREE_TRIAL_SECONDS = Number(process.env.DEFAULT_FREE_TRIAL_SECONDS || 300);
+// Weekly prepaid tiers (granted on purchase via RevenueCat)
+const WEEKLY_TIER_CONFIG = {
+  'emmaline_pro_weekly_30min': { seconds: 1800, label: '30 min / week' },
+  'emmaline_pro_weekly_60min': { seconds: 3600, label: '60 min / week' }
+};
 
-const normalizeWholeSeconds = (value) => Math.max(0, Math.round(Number(value || 0)));
+export const getWeeklyTierForProduct = (productId) => {
+  return WEEKLY_TIER_CONFIG[productId] || null;
+};
 
 export const getUserVoiceBillingStatus = async (userId) => {
-  const [billingProfile, consumedCallSeconds, revenueCatStatus] = await Promise.all([
-    getUserBillingProfile(userId),
-    getUserConsumedCallSeconds(userId),
-    getRevenueCatProStatus(userId)
+  const [billingProfile, revenueCatStatus, creditStatus] = await Promise.all([
+    getUserBillingProfile(userId).catch(() => ({})),
+    getRevenueCatProStatus(userId).catch(() => ({})),
+    getUserCreditStatus(userId).catch(() => ({}))
   ]);
 
-  const freeTrialSecondsGranted = normalizeWholeSeconds(
-    billingProfile?.free_trial_seconds_granted ?? DEFAULT_FREE_TRIAL_SECONDS
-  );
-  const prepaidSecondsBalance = normalizeWholeSeconds(billingProfile?.prepaid_seconds_balance || 0);
-  const usedCallSeconds = normalizeWholeSeconds(consumedCallSeconds);
-  const remainingFreeTrialSeconds = Math.max(0, freeTrialSecondsGranted - usedCallSeconds);
-  const availableVoiceSeconds = remainingFreeTrialSeconds + prepaidSecondsBalance;
   const hasRevenueCatProAccess = Boolean(revenueCatStatus?.isProActive);
-  const hasMeteredVoiceAccess = availableVoiceSeconds > 0;
-  const hasVoiceAccess = hasRevenueCatProAccess || hasMeteredVoiceAccess;
+  const hasCredits = (creditStatus.creditBalance || 0) > 0;
+  const hasVoiceAccess = hasRevenueCatProAccess || hasCredits;
 
   return {
     billingState: hasRevenueCatProAccess ? 'pro' : billingProfile?.billing_state || 'trial',
-    freeTrialSecondsGranted,
-    prepaidSecondsBalance,
-    usedCallSeconds,
-    remainingFreeTrialSeconds,
-    availableVoiceSeconds,
-    availableVoiceMinutes: Number((availableVoiceSeconds / 60).toFixed(2)),
-    autoRechargeEnabled: Boolean(billingProfile?.auto_recharge_enabled),
-    autoRechargeThresholdSeconds: normalizeWholeSeconds(billingProfile?.auto_recharge_threshold_seconds || 60),
-    autoRechargeAmountSeconds: normalizeWholeSeconds(billingProfile?.auto_recharge_amount_seconds || 300),
     hasVoiceAccess,
-    voiceAccessSource: hasRevenueCatProAccess ? 'subscription' : hasMeteredVoiceAccess ? 'metered' : 'none',
+    voiceAccessSource: hasRevenueCatProAccess ? 'subscription' : hasCredits ? 'credits' : 'none',
     paywallTriggered: !hasVoiceAccess,
-    paywallReason: hasVoiceAccess ? null : 'free_trial_exhausted',
+    paywallReason: hasVoiceAccess ? null : 'out_of_credits',
+    creditBalance: creditStatus.creditBalance || 0,
+    freeCreditsGranted: creditStatus.freeCreditsGranted || 0,
+    monthlyCreditAllocation: creditStatus.monthlyCreditAllocation || 0,
     revenueCat: {
       configured: Boolean(revenueCatStatus?.configured),
       status: revenueCatStatus?.status || 'not_configured',
@@ -57,7 +49,7 @@ export const assertUserCanStartVoiceSession = async (userId) => {
   const billingStatus = await getUserVoiceBillingStatus(userId);
 
   if (!billingStatus.hasVoiceAccess) {
-    const error = new Error('Voice access requires additional minutes');
+    const error = new Error('Voice access requires credits or an active subscription');
     error.code = 'VOICE_PAYWALL_REQUIRED';
     error.statusCode = 402;
     error.billingStatus = billingStatus;
@@ -67,11 +59,41 @@ export const assertUserCanStartVoiceSession = async (userId) => {
   return billingStatus;
 };
 
-export const grantUserPrepaidVoiceSeconds = async (userId, secondsToAdd) => {
-  const updatedProfile = await addUserPrepaidSeconds(userId, secondsToAdd);
+export const grantUserCredits = async (userId, creditsToAdd) => {
+  // Use the credit service to add credits directly
+  const { supabase } = await import('./databaseService.js');
+  const current = await supabase
+    .from('users')
+    .select('credit_balance')
+    .eq('id', userId)
+    .single();
+
+  const currentBalance = Number(current?.data?.credit_balance || 0);
+  const newBalance = currentBalance + Math.max(0, Math.round(Number(creditsToAdd || 0)));
+
+  await supabase
+    .from('users')
+    .update({
+      credit_balance: newBalance,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', userId);
+
+  // Record the transaction
+  await supabase
+    .from('credit_transactions')
+    .insert({
+      user_id: userId,
+      type: 'purchase',
+      credits: Math.round(Number(creditsToAdd || 0)),
+      balance_after: newBalance,
+      source: 'purchase',
+      metadata: { reason: 'revenuecat_purchase_grant' },
+      created_at: new Date().toISOString()
+    });
 
   return {
-    updatedProfile,
+    updatedBalance: newBalance,
     billingStatus: await getUserVoiceBillingStatus(userId)
   };
 };
@@ -79,5 +101,5 @@ export const grantUserPrepaidVoiceSeconds = async (userId, secondsToAdd) => {
 export default {
   getUserVoiceBillingStatus,
   assertUserCanStartVoiceSession,
-  grantUserPrepaidVoiceSeconds
+  grantUserCredits
 };

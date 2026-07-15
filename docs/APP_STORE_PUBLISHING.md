@@ -17,6 +17,7 @@
 - [ ] Confirm the support email address works with a support page (H. Tomar)
 - [ ] Publish a stable Privacy Policy URL
 - [ ] Publish a stable Terms of Use URL
+- [ ] Verify links to Terms of Use, Privacy Policy and EULA are included on the subscription page
 - [ ] Confirm both legal pages are reachable without logging in
 - [x] Confirm the Terms of Use align with the current product behavior and billing model
 - [ ] If using subscriptions now or soon, prepare subscription terms, restore flow, and account-management language
@@ -111,6 +112,7 @@ testerlogin123!?
    - copyright?
 - [ ] Answer export compliance questions accurately
 - [ ] Answer content rights or encryption prompts accurately
+- [ ] If you have an auto-renewable subscription, it needs to include the length of subscription, price, links to privacy policy and EULA and title of subscription
 - [ ] Confirm all store copy is specific, accurate, and non-misleading. Explain what makes app different without promising unsupported outcomes. Avoid vague claims like "best" or implied capabilities that are not consistently true; Confirm the app's value proposition
 - [ ] Complete App Review Information
 - [ ] Add reviewer notes and demo credentials

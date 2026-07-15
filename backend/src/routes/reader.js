@@ -5,10 +5,12 @@ import {
   deleteReaderAudio as deleteReaderAudioRecord,
   listReaderAudio as listReaderAudioRecords,
   updateReaderAudio as updateReaderAudioRecord,
-  saveReaderAudio as saveReaderAudioRecord
+  saveReaderAudio as saveReaderAudioRecord,
+  saveCallCosts
 } from '../services/databaseService.js';
 import { extractReaderTextFromUpload } from '../services/documentReaderService.js';
 import { textToAudio } from '../services/textToSpeechService.js';
+import { consumeCredits } from '../services/creditService.js';
 
 const router = express.Router();
 const MAX_AUDIO_EXPORT_CHARACTERS = 12000;
@@ -205,9 +207,31 @@ router.post('/audio', authMiddleware, async (req, res) => {
   try {
     const audioResponse = await buildReaderAudioResponse(normalizeReaderAudioRequest(req.body));
 
+    // Deduct credits for reader (2/min for natural voice, 0 for basic)
+    const requestData = normalizeReaderAudioRequest(req.body);
+    const creditMode = requestData.provider === 'resemble' || requestData.provider === 'elevenlabs'
+      ? 'reader_natural'
+      : 'reader_basic';
+    const estimatedDurationSeconds = Math.ceil((audioResponse.metadata.characterCount / 900) * 60);
+    let creditResult = null;
+    try {
+      creditResult = await consumeCredits(req.user.userId, creditMode, estimatedDurationSeconds, {
+        provider: requestData.provider,
+        characterCount: audioResponse.metadata.characterCount
+      });
+    } catch (creditError) {
+      console.error('Credit deduction failed for reader audio:', creditError.message);
+    }
+
     return res.status(200).json({
       success: true,
-      ...audioResponse
+      ...audioResponse,
+      credits: creditResult
+        ? {
+            consumed: creditResult.consumed,
+            balanceAfter: creditResult.balanceAfter
+          }
+        : null
     });
   } catch (error) {
     console.error('Reader audio export failed:', error.message);
@@ -219,6 +243,22 @@ router.post('/audio/save', authMiddleware, async (req, res) => {
   try {
     const requestData = normalizeReaderAudioRequest(req.body);
     const audioResponse = await buildReaderAudioResponse(requestData);
+
+    // Deduct credits for reader (2/min for natural voice, 0 for basic)
+    const creditMode = requestData.provider === 'resemble' || requestData.provider === 'elevenlabs'
+      ? 'reader_natural'
+      : 'reader_basic';
+    const estimatedDurationSeconds = Math.ceil((audioResponse.metadata.characterCount / 900) * 60);
+    let creditResult = null;
+    try {
+      creditResult = await consumeCredits(req.user.userId, creditMode, estimatedDurationSeconds, {
+        provider: requestData.provider,
+        characterCount: audioResponse.metadata.characterCount
+      });
+    } catch (creditError) {
+      console.error('Credit deduction failed for saved reader audio:', creditError.message);
+    }
+
     const savedAudio = await saveReaderAudioRecord(req.user.userId, {
       title: requestData.title || 'Reader audio',
       sourceText: requestData.normalizedText,

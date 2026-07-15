@@ -30,16 +30,68 @@ const LANGUAGE_CONFIGS = {
       'reunion', 'proyecto', 'seguimiento', 'accion'
     ]
   },
-  teacher_es_en: {
-    languageCode: 'en-US',
-    alternativeLanguageCodes: ['es-US'],
+  pt: {
+    languageCode: 'pt-BR',
+    alternativeLanguageCodes: [],
     speechContexts: [
-      'reminder', 'note', 'todo', 'schedule', 'call', 'email',
-      'meeting', 'project', 'task', 'follow up', 'action item',
-      'translate', 'translation', 'teacher', 'practice', 'repeat after me',
-      'recordatorio', 'nota', 'tarea', 'agenda', 'llamar', 'correo',
-      'reunion', 'proyecto', 'seguimiento', 'accion', 'traducir', 'traduccion',
-      'profesor', 'practicar', 'repite despues de mi'
+      'lembrete', 'nota', 'tarefa', 'agenda', 'ligar', 'email',
+      'reuniao', 'projeto', 'acompanhamento', 'acao'
+    ]
+  },
+  fr: {
+    languageCode: 'fr-FR',
+    alternativeLanguageCodes: [],
+    speechContexts: [
+      'rappel', 'note', 'tache', 'agenda', 'appel', 'email',
+      'reunion', 'projet', 'suivi', 'action'
+    ]
+  },
+  de: {
+    languageCode: 'de-DE',
+    alternativeLanguageCodes: [],
+    speechContexts: [
+      'erinnerung', 'notiz', 'aufgabe', 'plan', 'anruf', 'e-mail',
+      'besprechung', 'projekt', 'nachverfolgung', 'aktion'
+    ]
+  },
+  it: {
+    languageCode: 'it-IT',
+    alternativeLanguageCodes: [],
+    speechContexts: [
+      'promemoria', 'nota', 'attivita', 'agenda', 'chiamata', 'email',
+      'riunione', 'progetto', 'seguito', 'azione'
+    ]
+  },
+  zh: {
+    languageCode: 'cmn-Hans-CN',
+    alternativeLanguageCodes: [],
+    speechContexts: [
+      'beiwanglu', 'biji', 'renwu', 'rili', 'dianhua', 'youjian',
+      'huiyi', 'xiangmu', 'genjin', 'xingdong'
+    ]
+  },
+  hi: {
+    languageCode: 'hi-IN',
+    alternativeLanguageCodes: [],
+    speechContexts: [
+      'yaad', 'note', 'kaam', 'schedule', 'call', 'email',
+      'meeting', 'project', 'follow up', 'action item'
+    ]
+  },
+  ar: {
+    languageCode: 'ar-XA',
+    alternativeLanguageCodes: [],
+    speechContexts: [
+      'tadhkir', 'mulahaza', 'muhimma', 'jadwal', 'ittisal', 'barid',
+      'ijtima', 'mashru', 'mutabaea', 'ijra'
+    ]
+  },
+  ja: {
+    languageCode: 'ja-JP',
+    alternativeLanguageCodes: [],
+    speechContexts: [
+      'memo', 'noto', 'task', 'schedule', 'call', 'email',
+      'meeting', 'project', 'follow up', 'action item'
     ]
   }
 };
@@ -47,12 +99,40 @@ const LANGUAGE_CONFIGS = {
 export const resolveLanguagePreference = (languagePreference) => {
   const value = String(languagePreference || '').trim().toLowerCase();
 
-  if (value.includes('teacher') || value.includes('bilingual') || value.includes('multilingual')) {
-    return 'teacher_es_en';
-  }
-
   if (value.startsWith('es')) {
     return 'es';
+  }
+
+  if (value.startsWith('pt')) {
+    return 'pt';
+  }
+
+  if (value.startsWith('fr')) {
+    return 'fr';
+  }
+
+  if (value.startsWith('de')) {
+    return 'de';
+  }
+
+  if (value.startsWith('it')) {
+    return 'it';
+  }
+
+  if (value.startsWith('zh')) {
+    return 'zh';
+  }
+
+  if (value.startsWith('hi')) {
+    return 'hi';
+  }
+
+  if (value.startsWith('ar')) {
+    return 'ar';
+  }
+
+  if (value.startsWith('ja')) {
+    return 'ja';
   }
 
   return 'en';
@@ -254,7 +334,7 @@ export const transcribeUploadedAudio = async (file, options = {}) => {
   }
 
   const languagePreference = resolveLanguagePreference(options.languagePreference);
-  const language = languagePreference === 'es' ? 'es' : 'en';
+  const language = languagePreference;
   const audioFile = await toFile(file.buffer, file.originalname || 'listen-mode.m4a', {
     type: file.mimetype || 'audio/mp4'
   });

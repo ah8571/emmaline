@@ -56,6 +56,8 @@ const AIDisclosureScreen = ({ navigation, isChecking = false, onAccept, onLogout
           <Text style={[styles.disclosureLink, { color: colors.accent }]} onPress={() => navigation.navigate('PrivacyPolicy')}>Privacy Policy</Text>
           <Text style={[styles.disclosureLinkDivider, { color: colors.mutedText }]}>•</Text>
           <Text style={[styles.disclosureLink, { color: colors.accent }]} onPress={() => navigation.navigate('TermsOfService')}>Terms of Use</Text>
+          <Text style={[styles.disclosureLinkDivider, { color: colors.mutedText }]}>•</Text>
+          <Text style={[styles.disclosureLink, { color: colors.accent }]} onPress={() => navigation.navigate('EULA')}>EULA</Text>
         </View>
 
         {isChecking ? (
@@ -137,7 +139,7 @@ const NotesStack = ({ onAppHeaderScroll, notesResetToken, stackKey }) => {
 
 const AppHome = ({ onLogout }) => {
   const [uiState, setUiState] = useState({
-    activeScreen: 'transcripts',
+    activeScreen: 'notes',
     menuOpen: false,
     transcriptStackVersion: 0,
     notesStackVersion: 0,
@@ -268,17 +270,17 @@ const AppHome = ({ onLogout }) => {
           >
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => openScreen('transcripts')}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.menuItemText, { color: colors.text }]}>Transcripts</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.menuItem}
               onPress={() => openScreen('notes')}
               activeOpacity={0.8}
             >
               <Text style={[styles.menuItemText, { color: colors.text }]}>Notes</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => openScreen('transcripts')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.menuItemText, { color: colors.text }]}>Transcripts</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.menuItem}
@@ -328,10 +330,10 @@ const AppHome = ({ onLogout }) => {
           }
         ]}
       >
-        {activeScreen === 'transcripts'
-          ? <TranscriptStack stackKey={`transcripts-${transcriptStackVersion}`} onAppHeaderScroll={handleAppHeaderScroll} transcriptResetToken={transcriptResetToken} />
-          : activeScreen === 'notes'
-            ? <NotesStack stackKey={`notes-${notesStackVersion}`} onAppHeaderScroll={handleAppHeaderScroll} notesResetToken={notesResetToken} />
+        {activeScreen === 'notes'
+          ? <NotesStack stackKey={`notes-${notesStackVersion}`} onAppHeaderScroll={handleAppHeaderScroll} notesResetToken={notesResetToken} />
+          : activeScreen === 'transcripts'
+            ? <TranscriptStack stackKey={`transcripts-${transcriptStackVersion}`} onAppHeaderScroll={handleAppHeaderScroll} transcriptResetToken={transcriptResetToken} />
             : activeScreen === 'reader'
               ? <ReaderScreen onAppHeaderScroll={handleAppHeaderScroll} />
               : activeScreen === 'support'
@@ -633,25 +635,12 @@ const AppNavigator = ({ onAuthStateChange }) => {
           <Stack.Screen name="TermsOfService" options={{ headerShown: false }}>
             {() => <LegalDocumentScreen documentKey="termsOfService" />}
           </Stack.Screen>
+          <Stack.Screen name="EULA" options={{ headerShown: false }}>
+            {() => <LegalDocumentScreen documentKey="eula" />}
+          </Stack.Screen>
         </Stack.Navigator>
       ) : (
         <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.background } }}>
-          {!hasAcceptedAiDisclosure ? (
-            <Stack.Screen name="AIDisclosure" options={{ animationEnabled: false }}>
-              {(screenProps) => (
-                <AIDisclosureScreen
-                  {...screenProps}
-                  isChecking={!hasResolvedAiDisclosure}
-                  onAccept={async () => {
-                    await saveAiDisclosureAccepted(true);
-                    setHasAcceptedAiDisclosure(true);
-                    setHasResolvedAiDisclosure(true);
-                  }}
-                  onLogout={handleLogout}
-                />
-              )}
-            </Stack.Screen>
-          ) : (
             <Stack.Screen 
               name="App" 
               options={{
@@ -660,12 +649,14 @@ const AppNavigator = ({ onAuthStateChange }) => {
             >
               {() => <AppHome onLogout={handleLogout} />}
             </Stack.Screen>
-          )}
           <Stack.Screen name="PrivacyPolicy" options={{ headerShown: false }}>
             {() => <LegalDocumentScreen documentKey="privacyPolicy" />}
           </Stack.Screen>
           <Stack.Screen name="TermsOfService" options={{ headerShown: false }}>
             {() => <LegalDocumentScreen documentKey="termsOfService" />}
+          </Stack.Screen>
+          <Stack.Screen name="EULA" options={{ headerShown: false }}>
+            {() => <LegalDocumentScreen documentKey="eula" />}
           </Stack.Screen>
         </Stack.Navigator>
       )}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { getBillingStatus } from '../services/api.js';
 import {
   getRevenueCatCustomerInfo,
@@ -18,10 +19,12 @@ import { designTokens } from '../theme/designSystem.js';
 
 const LIVE_CALLS_ENABLED = false;
 
-const UpgradeScreen = () => {
+const UpgradeScreen = ({ navigation: _navigation }) => {
+  const navigation = useNavigation();
   const { colors } = useAppTheme();
   const isLiveCallAvailable = LIVE_CALLS_ENABLED;
   const [billing, setBilling] = useState(null);
+  const [credits, setCredits] = useState(null);
   const [loading, setLoading] = useState(true);
   const [offeringPackage, setOfferingPackage] = useState(null);
   const [offeringsLoading, setOfferingsLoading] = useState(true);
@@ -35,6 +38,7 @@ const UpgradeScreen = () => {
 
       if (response.success) {
         setBilling(response.billing || null);
+        setCredits(response.credits || null);
       }
 
       setLoading(false);
@@ -120,10 +124,7 @@ const UpgradeScreen = () => {
         <View style={[styles.heroCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.heroEyebrow, { color: colors.accent }]}>Emmaline Pro</Text>
           <Text style={[styles.heroTitle, { color: colors.text }]}>
-            {offeringPackage?.product?.priceString || '$9.99'} per month after your first 5 free minutes
-          </Text>
-          <Text style={[styles.heroDescription, { color: colors.mutedText }]}>
-            Start with 5 free minutes to try the assistant, then continue with a monthly subscription.
+            {offeringPackage?.product?.priceString || '$9.99'} per month
           </Text>
 
           {revenueCatMessage ? (
@@ -151,11 +152,8 @@ const UpgradeScreen = () => {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>What Pro unlocks</Text>
 
             {[
-              'Continue using Emmaline after the free 5-minute trial is used.',
-              isLiveCallAvailable
-                ? 'Use live calls and Listen Mode with one simple monthly plan.'
-                : 'Use Listen Mode and ongoing voice features with one simple monthly plan.',
-              'Keep access to ongoing voice features without juggling one-off top-ups.'
+              '100 credits per month, with unused credits rolling over.',
+              '20 min Voice Mode, 50 min Reader, or 100 min Listen Mode — mix and match.',
             ].map((item) => (
               <View key={item} style={styles.bulletRow}>
                 <Text style={[styles.bulletMark, { color: colors.text }]}>•</Text>
@@ -163,20 +161,81 @@ const UpgradeScreen = () => {
               </View>
             ))}
           </View>
+
+          <View style={[styles.subscriptionDetails, { borderTopColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Subscription details</Text>
+            <Text style={[styles.subscriptionDetail, { color: colors.mutedText }]}>
+              Emmaline Pro · Monthly · {offeringPackage?.product?.priceString || '$9.99'}
+            </Text>
+            <Text style={[styles.subscriptionDetail, { color: colors.mutedText }]}>
+              Auto-renewing subscription. Cancel anytime.
+            </Text>
+            <View style={styles.legalLinks}>
+              <Text
+                style={[styles.legalLink, { color: colors.accent }]}
+                onPress={() => navigation.navigate('PrivacyPolicy')}
+              >
+                Privacy Policy
+              </Text>
+              <Text style={[styles.legalSeparator, { color: colors.mutedText }]}>·</Text>
+              <Text
+                style={[styles.legalLink, { color: colors.accent }]}
+                onPress={() => navigation.navigate('TermsOfService')}
+              >
+                Terms of Use
+              </Text>
+              <Text style={[styles.legalSeparator, { color: colors.mutedText }]}>·</Text>
+              <Text
+                style={[styles.legalLink, { color: colors.accent }]}
+                onPress={() => navigation.navigate('EULA')}
+              >
+                EULA
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Current access</Text>
+        <View style={[styles.usageCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.usageTitle, { color: colors.text }]}>Credit rates</Text>
+          <View style={styles.creditRow}>
+            <Text style={[styles.creditMode, { color: colors.text }]}>Voice Mode</Text>
+            <Text style={[styles.creditRate, { color: colors.accent }]}>5 credits/min</Text>
+          </View>
+          <View style={styles.creditRow}>
+            <Text style={[styles.creditMode, { color: colors.text }]}>Reader — Natural Voice</Text>
+            <Text style={[styles.creditRate, { color: colors.accent }]}>2 credits/min</Text>
+          </View>
+          <View style={styles.creditRow}>
+            <Text style={[styles.creditMode, { color: colors.text }]}>Listen Mode</Text>
+            <Text style={[styles.creditRate, { color: colors.accent }]}>1 credit/min</Text>
+          </View>
+          <View style={styles.creditRow}>
+            <Text style={[styles.creditMode, { color: colors.text }]}>Reader — Basic</Text>
+            <Text style={[styles.creditRate, { color: colors.mutedText }]}>Free</Text>
+          </View>
+        </View>
+      </View>
 
-        <View style={[styles.statusCard, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
-          <Text style={[styles.statusLabel, { color: colors.mutedText }]}>Available minutes</Text>
-          <Text style={[styles.statusValue, { color: colors.text }]}>
-            {loading ? '...' : billing?.voiceAccessSource === 'subscription' ? 'Pro active' : billing ? billing.availableVoiceMinutes.toFixed(2) : 'Unavailable'}
-          </Text>
-          {billing?.voiceAccessSource === 'subscription' ? (
-            <Text style={[styles.statusFootnote, { color: colors.mutedText }]}>Your subscription is currently unlocking voice access.</Text>
-          ) : null}
+      <View style={styles.section}>
+        <View style={[styles.usageCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.usageTitle, { color: colors.text }]}>Your credits</Text>
+          <View style={styles.usageRow}>
+            <View style={styles.usageItem}>
+              <Text style={[styles.usageValue, { color: colors.accent }]}>
+                {credits ? credits.creditBalance : '...'}
+              </Text>
+              <Text style={[styles.usageLabel, { color: colors.mutedText }]}>Available</Text>
+            </View>
+            <View style={[styles.usageDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.usageItem}>
+              <Text style={[styles.usageValue, { color: colors.text }]}>
+                {credits ? `${credits.freeCreditsGranted} free` : '...'}
+              </Text>
+              <Text style={[styles.usageLabel, { color: colors.mutedText }]}>Granted</Text>
+            </View>
+          </View>
         </View>
       </View>
     </ScrollView>
@@ -207,6 +266,84 @@ const styles = StyleSheet.create({
   section: {
     padding: designTokens.spacing.lg,
     gap: designTokens.spacing.md
+  },
+  usageCard: {
+    borderWidth: 1,
+    borderRadius: designTokens.radius.md,
+    padding: designTokens.spacing.lg,
+    gap: designTokens.spacing.md
+  },
+  usageTitle: {
+    fontSize: designTokens.typography.label,
+    fontWeight: '700'
+  },
+  usageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 0
+  },
+  usageItem: {
+    flex: 1,
+    alignItems: 'center'
+  },
+  usageValue: {
+    fontSize: 28,
+    fontWeight: '700'
+  },
+  usageLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginTop: 4
+  },
+  usageDivider: {
+    width: 1,
+    height: 32
+  },
+  modeGrid: {
+    flexDirection: 'row',
+    gap: 10
+  },
+  modeChip: {
+    flex: 1,
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+    gap: 4
+  },
+  modeLabel: {
+    fontSize: 13,
+    fontWeight: '600'
+  },
+  modeValue: {
+    fontSize: 24,
+    fontWeight: '700'
+  },
+  modeHint: {
+    fontSize: 11
+  },
+  creditTable: {
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 8
+  },
+  creditRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10
+  },
+  creditHeader: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase'
+  },
+  creditCell: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600'
   },
   heroCard: {
     borderWidth: 1,
@@ -301,6 +438,43 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: designTokens.typography.body,
     lineHeight: 20
+  },
+  subscriptionDetails: {
+    borderTopWidth: 1,
+    paddingTop: 14,
+    gap: 6
+  },
+  subscriptionDetail: {
+    fontSize: 13,
+    lineHeight: 19
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8
+  },
+  legalLink: {
+    fontSize: 14,
+    fontWeight: '600',
+    textDecorationLine: 'underline'
+  },
+  legalSeparator: {
+    fontSize: 14
+  },
+  creditRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6
+  },
+  creditMode: {
+    fontSize: 14,
+    fontWeight: '500'
+  },
+  creditRate: {
+    fontSize: 14,
+    fontWeight: '700'
   }
 });
 

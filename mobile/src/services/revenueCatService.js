@@ -93,10 +93,22 @@ export const syncRevenueCatAttribution = async () => {
     return false;
   }
 
-  await Purchases.collectDeviceIdentifiers();
+  // collectDeviceIdentifiers sets $gpsAdId which RevenueCat auto-collects —
+  // it may fail with "cannot be modified"; treat as non-fatal.
+  try {
+    await Purchases.collectDeviceIdentifiers();
+  } catch {
+    // Expected: RevenueCat already owns these identifiers.
+  }
 
-  const appsFlyerUID = await getAppsFlyerUID();
-  await Purchases.setAppsflyerID(appsFlyerUID);
+  // setAppsflyerID sets $appsflyerId which can only be set once per user —
+  // it may fail on subsequent calls; treat as non-fatal.
+  try {
+    const appsFlyerUID = await getAppsFlyerUID();
+    await Purchases.setAppsflyerID(appsFlyerUID);
+  } catch {
+    // Expected: AppsFlyer may not be initialized, or the attribute was already set.
+  }
 
   return true;
 };
@@ -120,15 +132,19 @@ const ensureConfigured = async (appUserId = null) => {
     await Purchases.logIn(appUserId);
     currentAppUserId = appUserId;
   } else if (!appUserId && currentAppUserId) {
-    await Purchases.logOut();
+    // Only log out when we're transitioning from an identified user to anonymous.
+    // If the RevenueCat instance is still anonymous (e.g. after a cold start),
+    // calling logOut is a no-op but produces a noisy warning.
+    try {
+      await Purchases.logOut();
+    } catch {
+      // logOut may warn when the current user is already anonymous.
+    }
     currentAppUserId = null;
   }
 
-  try {
-    await syncRevenueCatAttribution();
-  } catch {
-    // Best-effort: AppsFlyer may not be initialized yet during early startup.
-  }
+  // Best-effort attribution sync — individual calls handle their own errors.
+  await syncRevenueCatAttribution();
 };
 
 export const initializeRevenueCat = async (appUserId = null) => {
