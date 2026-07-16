@@ -1,5 +1,6 @@
 import { Audio } from 'expo-av';
 import { Platform } from 'react-native';
+import { Buffer } from 'buffer';
 import * as FileSystem from 'expo-file-system/legacy';
 import InCallManager from 'react-native-incall-manager';
 import { createGrokVoiceSession } from './api.js';
