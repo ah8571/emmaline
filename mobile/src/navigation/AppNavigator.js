@@ -410,6 +410,8 @@ const AppNavigator = ({ onAuthStateChange }) => {
     };
 
     const checkAuthStatus = async () => {
+      if (checkAuthStatus._running) return;
+      checkAuthStatus._running = true;
       try {
         const authenticated = await hasSession();
 
@@ -472,6 +474,8 @@ const AppNavigator = ({ onAuthStateChange }) => {
         setIsAuthenticated(false);
         setUser(null);
         onAuthStateChange?.(false);
+      } finally {
+        checkAuthStatus._running = false;
       }
     };
 
