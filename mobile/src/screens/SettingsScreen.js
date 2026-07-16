@@ -201,8 +201,6 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
     }
   };
 
-  const handleDeleteAccount = () => {
-
   const handleLogout = () => {
     Alert.alert(
       'Log out',
@@ -221,7 +219,7 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
     );
   };
 
-  const handleDeleteAccountContinue = () => {
+  const handleDeleteAccount = () => {
     Alert.alert(
       'Delete account',
       'This will permanently remove your Emmaline account and the account-linked transcripts, notes, and related records stored for that account. This cannot be undone.',
