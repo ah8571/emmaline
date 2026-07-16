@@ -148,10 +148,7 @@ export const startGrokVoiceCall = async ({ voice = DEFAULT_GROK_VOICE, onStatusC
 };
 
 const handleGrokMessage = (msg) => {
-  if (!handleGrokMessage._firstLog) {
-    console.log('[GrokVoice] Server event:', msg.type);
-    handleGrokMessage._firstLog = true;
-  }
+  console.log('[GrokVoice] ←', msg.type);
 
   switch (msg.type) {
     case 'response.output_audio.delta':
