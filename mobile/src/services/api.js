@@ -79,12 +79,18 @@ const getConfiguredApiBaseUrl = () => {
     process.env.REACT_APP_API_URL
   ].filter(Boolean);
 
-  if (isDevelopmentVariant || isLocalDevelopmentRuntime) {
-    const localOverride = configCandidates.find(isLoopbackApiUrl);
-    return localOverride || DEVELOPMENT_API_BASE_URL;
+  // If an explicit API URL is configured (e.g. via EAS build profile), use it.
+  // Only fall back to the local dev URL when running a pure local dev build
+  // with no remote API configured.
+  if (configCandidates.length > 0) {
+    return configCandidates[0];
   }
 
-  return configCandidates[0] || DEFAULT_API_BASE_URL;
+  if (isDevelopmentVariant || isLocalDevelopmentRuntime) {
+    return DEVELOPMENT_API_BASE_URL;
+  }
+
+  return DEFAULT_API_BASE_URL;
 };
 
 const configuredApiBaseUrl = getConfiguredApiBaseUrl();
