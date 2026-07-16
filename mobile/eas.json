@@ -37,7 +37,7 @@
       "distribution": "internal",
       "android": {
         "autoIncrement": "versionCode",
-        "buildType": "apk"
+        "buildType": "app-bundle"
       },
       "env": {
         "APP_VARIANT": "production",
