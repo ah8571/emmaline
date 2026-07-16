@@ -28,6 +28,10 @@ Emmaline uses a **credit system** to unify usage across all AI-powered modes. Us
 
 ### Alternative to real time voice mode:
 
+"Option A" Grok's realtime voice supposedly half price of OpenAI
+
+Deepgram AI? Nova 2.0 Sonic
+
 "Option B" — split STT from the rest of the stack. We'd use:
 
 Deepgram or Google STT for transcription

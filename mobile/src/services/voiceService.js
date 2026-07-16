@@ -455,7 +455,10 @@ export const startVoiceCall = async ({ session = null, params = {}, onStatusChan
     if (Platform.OS === 'ios') {
       try {
         InCallManager.start({ media: 'audio' });
-        InCallManager.setSpeakerphoneOn(true);
+        // Delay speakerphone activation so WebRTC's native audio session is ready
+        setTimeout(() => {
+          InCallManager.setSpeakerphoneOn(true);
+        }, 500);
         selectedAudioRoute = { uuid: 'speaker', type: 'speaker', name: 'Speaker' };
         emitAudioDevices();
       } catch {
