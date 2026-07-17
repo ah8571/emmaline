@@ -19,12 +19,22 @@ let audioBuffers = [];
 let playbackSound = null;
 let responseInProgress = false;
 let micActive = false;
+let activePcmSession = null;
+let playbackQueue = [];
+let playbackActive = false;
+let playbackSegmentIndex = 0;
+let playbackSegmentFlushInProgress = false;
+let responseActiveOnServer = false;
+let ignoreNextTimeoutResponse = false;
 const MIC_CHUNK_MS = 500;
+const GROK_SAMPLE_RATE = 24000;
+const STREAMING_PLAYBACK_SEGMENT_BYTES = 24000;
 
 const muteListeners = new Set();
 const transcriptListeners = new Set();
 
 const DEFAULT_GROK_VOICE = 'eve';
+const DEFAULT_GROK_LANGUAGE_HINT = 'en';
 
 const emitMuteState = () => {
   muteListeners.forEach((l) => l(isMuted));
@@ -34,7 +44,143 @@ const emitTranscript = (text) => {
   transcriptListeners.forEach((l) => l(text));
 };
 
-export const startGrokVoiceCall = async ({ voice = DEFAULT_GROK_VOICE, onStatusChange: statusCb, onTrace: traceCb } = {}) => {
+const normalizeGrokLanguageHint = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+
+  if (normalized.startsWith('es')) return 'es-MX';
+  if (normalized.startsWith('pt')) return 'pt-BR';
+  if (normalized.startsWith('ar')) return 'ar-EG';
+  if (normalized.startsWith('zh')) return 'zh';
+  if (normalized.startsWith('fr')) return 'fr';
+  if (normalized.startsWith('de')) return 'de';
+  if (normalized.startsWith('it')) return 'it';
+  if (normalized.startsWith('ja')) return 'ja';
+  if (normalized.startsWith('hi')) return 'hi';
+
+  return DEFAULT_GROK_LANGUAGE_HINT;
+};
+
+const toArrayBuffer = (buffer) => {
+  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+};
+
+const getBufferedAudioBytes = () => {
+  return audioBuffers.reduce((total, chunk) => total + chunk.length, 0);
+};
+
+const interruptAssistantPlayback = async ({ cancelResponse = false, reason = 'interrupt' } = {}) => {
+  const hadPlayback = playbackActive || playbackQueue.length > 0 || audioBuffers.length > 0 || responseInProgress;
+
+  if (!hadPlayback) {
+    return;
+  }
+
+  console.log('[GrokVoice] Interrupting assistant playback:', {
+    reason,
+    cancelResponse,
+    queuedSegments: playbackQueue.length,
+    bufferedChunks: audioBuffers.length
+  });
+
+  if (cancelResponse && responseActiveOnServer && activeSocket?.readyState === WebSocket.OPEN) {
+    try {
+      activeSocket.send(JSON.stringify({ type: 'response.cancel' }));
+      responseActiveOnServer = false;
+    } catch {}
+  }
+
+  if (playbackSound) {
+    try {
+      playbackSound.setOnPlaybackStatusUpdate(null);
+      await playbackSound.unloadAsync();
+    } catch {}
+    playbackSound = null;
+  }
+
+  audioBuffers = [];
+  playbackQueue = [];
+  playbackActive = false;
+  playbackSegmentFlushInProgress = false;
+  responseInProgress = false;
+};
+
+const queueBufferedAudioSegment = async ({ force = false } = {}) => {
+  if (playbackSegmentFlushInProgress) {
+    return;
+  }
+
+  const pcmBytes = getBufferedAudioBytes();
+
+  if (pcmBytes < 100) {
+    return;
+  }
+
+  if (!force && (pcmBytes < STREAMING_PLAYBACK_SEGMENT_BYTES || playbackQueue.length > 0)) {
+    return;
+  }
+
+  playbackSegmentFlushInProgress = true;
+
+  const pcmBuffer = Buffer.concat(audioBuffers);
+  audioBuffers = [];
+
+  try {
+    const wavPath = GROK_AUDIO_FILE.replace('.pcm', `-${playbackSegmentIndex++}.wav`);
+    const wavBuffer = createWavBuffer(pcmBuffer, GROK_SAMPLE_RATE);
+    await FileSystem.writeAsStringAsync(wavPath, wavBuffer.toString('base64'), {
+      encoding: FileSystem.EncodingType.Base64
+    });
+
+    playbackQueue.push({ uri: wavPath, pcmBytes: pcmBuffer.length });
+    await playNextBufferedSegment();
+  } finally {
+    playbackSegmentFlushInProgress = false;
+  }
+};
+
+const playNextBufferedSegment = async () => {
+  if (playbackActive || playbackQueue.length === 0) {
+    return;
+  }
+
+  playbackActive = true;
+  const nextSegment = playbackQueue.shift();
+
+  try {
+    if (playbackSound) {
+      await playbackSound.unloadAsync().catch(() => {});
+      playbackSound = null;
+    }
+
+    console.log('[GrokVoice] Playing audio segment:', { pcmBytes: nextSegment.pcmBytes, queuedSegments: playbackQueue.length });
+
+    const { sound } = await Audio.Sound.createAsync(
+      { uri: nextSegment.uri },
+      { shouldPlay: true }
+    );
+
+    playbackSound = sound;
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (!status.isLoaded) {
+        return;
+      }
+
+      if (status.didJustFinish) {
+        sound.setOnPlaybackStatusUpdate(null);
+        playbackActive = false;
+        playNextBufferedSegment().catch((error) => {
+          console.error('[GrokVoice] Playback queue error:', error.message);
+        });
+      }
+    });
+  } catch (error) {
+    playbackActive = false;
+    console.error('[GrokVoice] Playback error:', error.message);
+    await playNextBufferedSegment();
+  }
+};
+
+export const startGrokVoiceCall = async ({ voice = DEFAULT_GROK_VOICE, language = DEFAULT_GROK_LANGUAGE_HINT, onStatusChange: statusCb, onTrace: traceCb } = {}) => {
   if (activeCall) {
     return { success: false, error: 'A Grok voice call is already active.' };
   }
@@ -43,7 +189,14 @@ export const startGrokVoiceCall = async ({ voice = DEFAULT_GROK_VOICE, onStatusC
     onStatusChange = statusCb;
     onTrace = traceCb;
     audioBuffers = [];
+    playbackQueue = [];
+    playbackActive = false;
+    playbackSegmentIndex = 0;
+    playbackSegmentFlushInProgress = false;
     responseInProgress = false;
+    responseActiveOnServer = false;
+    ignoreNextTimeoutResponse = false;
+    const languageHint = normalizeGrokLanguageHint(language);
 
     onTrace?.('grok_session_request_started');
 
@@ -63,6 +216,7 @@ export const startGrokVoiceCall = async ({ voice = DEFAULT_GROK_VOICE, onStatusC
     await new Promise((resolve, reject) => {
       const ws = new WebSocket(wsUrl, [wsProtocol]);
       activeSocket = ws;
+      ws.binaryType = 'arraybuffer';
 
       const connectionTimeout = setTimeout(() => {
         reject(new Error('Grok WebSocket connection timed out'));
@@ -80,11 +234,16 @@ export const startGrokVoiceCall = async ({ voice = DEFAULT_GROK_VOICE, onStatusC
       };
 
       ws.onmessage = (event) => {
+        if (typeof event.data !== 'string') {
+          audioBuffers.push(Buffer.from(event.data));
+          return;
+        }
+
         try {
           const msg = JSON.parse(event.data);
           handleGrokMessage(msg);
         } catch {
-          // Binary frame — raw PCM audio
+          // Some runtimes surface binary frames as strings; preserve the previous fallback.
           audioBuffers.push(Buffer.from(event.data, 'base64'));
         }
       };
@@ -105,20 +264,27 @@ export const startGrokVoiceCall = async ({ voice = DEFAULT_GROK_VOICE, onStatusC
         instructions: '',
         turn_detection: {
           type: 'server_vad',
-          silence_duration_ms: 400,
-          prefix_padding_ms: 200
+          threshold: 0.6,
+          silence_duration_ms: 350,
+          prefix_padding_ms: 700
         },
         audio: {
-          input: { format: { type: 'audio/pcm', rate: 24000 }, transport: 'json' },
+          input: {
+            format: { type: 'audio/pcm', rate: GROK_SAMPLE_RATE },
+            transport: 'binary',
+            transcription: { language_hint: languageHint }
+          },
           output: { format: { type: 'audio/pcm', rate: 24000 }, transport: 'json' }
         }
       }
     }));
-    console.log('[GrokVoice] Session configured, waiting for audio');
+    console.log('[GrokVoice] Session configured, waiting for audio', { languageHint });
 
     // Set up audio for playback
     await Audio.setAudioModeAsync({
+      allowsRecordingIOS: true,
       playsInSilentModeIOS: true,
+      playThroughEarpieceAndroid: false,
       staysActiveInBackground: false
     });
 
@@ -135,10 +301,7 @@ export const startGrokVoiceCall = async ({ voice = DEFAULT_GROK_VOICE, onStatusC
       } catch {}
     }
 
-    // Start chunked microphone capture via expo-av
-    startMicCapture().catch((err) => {
-      console.log('[GrokVoice] Mic capture failed:', err.message);
-    });
+    await startMicCapture();
 
     activeCall = true;
     callStartedAtMs = Date.now();
@@ -156,24 +319,49 @@ const handleGrokMessage = (msg) => {
   console.log('[GrokVoice] ←', msg.type);
 
   switch (msg.type) {
+    case 'response.created':
+      if (ignoreNextTimeoutResponse && activeSocket?.readyState === WebSocket.OPEN) {
+        console.log('[GrokVoice] Cancelling timeout-triggered response');
+        ignoreNextTimeoutResponse = false;
+        responseActiveOnServer = true;
+        try {
+          activeSocket.send(JSON.stringify({ type: 'response.cancel' }));
+        } catch {}
+        responseActiveOnServer = false;
+        break;
+      }
+
+      responseActiveOnServer = true;
+      break;
+
     case 'response.output_audio.delta':
       if (msg.delta) {
+        onTrace?.('response.output_audio.delta');
         audioBuffers.push(Buffer.from(msg.delta, 'base64'));
         responseInProgress = true;
+        queueBufferedAudioSegment().catch((error) => {
+          console.error('[GrokVoice] Segment queue error:', error.message);
+        });
       }
       break;
 
     case 'response.audio.done':
     case 'response.output_audio.done':
+      responseActiveOnServer = false;
       if (audioBuffers.length > 0) {
-        playBufferedAudio();
+        queueBufferedAudioSegment({ force: true }).catch((error) => {
+          console.error('[GrokVoice] Final segment queue error:', error.message);
+        });
       }
       break;
 
     case 'response.done':
       if (audioBuffers.length > 0 && !responseInProgress) {
-        playBufferedAudio();
+        queueBufferedAudioSegment({ force: true }).catch((error) => {
+          console.error('[GrokVoice] Response-done queue error:', error.message);
+        });
       }
+      responseActiveOnServer = false;
       responseInProgress = false;
       break;
 
@@ -184,44 +372,44 @@ const handleGrokMessage = (msg) => {
       }
       break;
 
+    case 'input_audio_buffer.speech_started':
+      ignoreNextTimeoutResponse = false;
+      onTrace?.('input_audio_buffer.speech_started');
+      interruptAssistantPlayback({ cancelResponse: true, reason: 'user_speech_started' }).catch((error) => {
+        console.error('[GrokVoice] Interrupt error:', error.message);
+      });
+      break;
+
+    case 'input_audio_buffer.timeout_triggered':
+      ignoreNextTimeoutResponse = true;
+      onTrace?.('input_audio_buffer.timeout_triggered');
+      break;
+
+    case 'input_audio_buffer.speech_stopped':
+      onTrace?.('input_audio_buffer.speech_stopped');
+      break;
+
+    case 'conversation.item.input_audio_transcription.completed': {
+      const transcript = String(msg.transcript || '').trim();
+      if (transcript) {
+        console.log('[GrokVoice] Heard user:', transcript);
+      }
+      break;
+    }
+
+    case 'conversation.item.input_audio_transcription.updated': {
+      const transcript = String(msg.transcript || '').trim();
+      if (transcript) {
+        console.log('[GrokVoice] Hearing user:', transcript);
+      }
+      break;
+    }
+
     case 'error':
+      ignoreNextTimeoutResponse = false;
+      responseActiveOnServer = false;
       console.error('[GrokVoice] Server error:', msg);
       break;
-  }
-};
-
-const playBufferedAudio = async () => {
-  try {
-    const pcmBuffer = Buffer.concat(audioBuffers);
-    audioBuffers = [];
-
-    if (pcmBuffer.length < 100) {
-      console.log('[GrokVoice] Skipping empty audio buffer');
-      return;
-    }
-
-    console.log('[GrokVoice] Playing audio:', { pcmBytes: pcmBuffer.length });
-
-    // Write PCM to temp WAV file for playback
-    const wavPath = GROK_AUDIO_FILE.replace('.pcm', '.wav');
-    const wavBuffer = createWavBuffer(pcmBuffer, 24000);
-    await FileSystem.writeAsStringAsync(wavPath, wavBuffer.toString('base64'), {
-      encoding: FileSystem.EncodingType.Base64
-    });
-
-    // Unload previous sound
-    if (playbackSound) {
-      await playbackSound.unloadAsync().catch(() => {});
-      playbackSound = null;
-    }
-
-    const { sound } = await Audio.Sound.createAsync(
-      { uri: wavPath },
-      { shouldPlay: true }
-    );
-    playbackSound = sound;
-  } catch (error) {
-    console.error('[GrokVoice] Playback error:', error.message);
   }
 };
 
@@ -282,7 +470,13 @@ const cleanupGrokCall = async () => {
   }).catch(() => {});
 
   audioBuffers = [];
+  playbackQueue = [];
+  playbackActive = false;
+  playbackSegmentIndex = 0;
+  playbackSegmentFlushInProgress = false;
   responseInProgress = false;
+  responseActiveOnServer = false;
+  ignoreNextTimeoutResponse = false;
   activeCall = false;
   isMuted = false;
   callStartedAtMs = null;
@@ -292,46 +486,31 @@ const cleanupGrokCall = async () => {
 
 const startMicCapture = async () => {
   micActive = true;
-  let pcmSession = null;
+  startMicCapture._chunkCount = 0;
 
-  // Android: use our custom PcmCapture native module (AudioRecord → real PCM)
+  // Android must use the native PCM path. The expo-av fallback does not produce
+  // the raw PCM16 stream Grok expects on Android.
   if (Platform.OS === 'android') {
-    try {
-      pcmSession = startPcmCapture({
-        sampleRate: 24000,
-        onData: (base64Data) => {
-          if (!micActive || !activeSocket || activeSocket.readyState !== WebSocket.OPEN || isMuted) return;
+    activePcmSession = startPcmCapture({
+      sampleRate: GROK_SAMPLE_RATE,
+      onData: (base64Data) => {
+        if (!micActive || !activeSocket || activeSocket.readyState !== WebSocket.OPEN || isMuted || responseActiveOnServer) return;
 
-          activeSocket.send(JSON.stringify({
-            type: 'input_audio_buffer.append',
-            audio: base64Data
-          }));
+        const pcmBuffer = Buffer.from(base64Data, 'base64');
+        activeSocket.send(toArrayBuffer(pcmBuffer));
 
-          if (!startMicCapture._chunkCount) startMicCapture._chunkCount = 0;
-          startMicCapture._chunkCount++;
-          const buf = Buffer.from(base64Data, 'base64');
-          if (startMicCapture._chunkCount <= 3 || startMicCapture._chunkCount % 50 === 0) {
-            console.log('[GrokVoice] PCM chunk sent:', startMicCapture._chunkCount, { pcmBytes: buf.length });
-          }
-
-          // Force Grok to process audio every ~4 seconds (50 chunks × 80ms)
-          if (startMicCapture._chunkCount % 50 === 0) {
-            activeSocket.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
-            activeSocket.send(JSON.stringify({ type: 'response.create' }));
-            console.log('[GrokVoice] Manual commit + response.create');
-          }
+        startMicCapture._chunkCount++;
+        if (startMicCapture._chunkCount <= 3 || startMicCapture._chunkCount % 50 === 0) {
+          console.log('[GrokVoice] PCM chunk sent:', startMicCapture._chunkCount, { pcmBytes: pcmBuffer.length, transport: 'binary' });
         }
-      });
-      console.log('[GrokVoice] Native PCM capture started (AudioRecord)');
-      return;
-    } catch (err) {
-      console.log('[GrokVoice] Native PCM init failed, falling back:', err.message);
-    }
+      }
+    });
+    console.log('[GrokVoice] Native PCM capture started (AudioRecord)');
+    return;
   }
 
-  // iOS / fallback
+  // iOS capture path
   const RECORDING_CONFIG = {
-    android: { extension: '.wav', outputFormat: 2, audioEncoder: 1, sampleRate: 24000, numberOfChannels: 1 },
     ios: { extension: '.wav', outputFormat: 'lpcm', audioQuality: 127, sampleRate: 24000, numberOfChannels: 1, linearPCMBitDepth: 16, linearPCMIsBigEndian: false, linearPCMIsFloat: false }
   };
 
@@ -362,6 +541,15 @@ const startMicCapture = async () => {
 
 const stopMicCapture = () => {
   micActive = false;
+  startMicCapture._chunkCount = 0;
+
+  if (activePcmSession) {
+    try {
+      activePcmSession.stop();
+    } catch {}
+
+    activePcmSession = null;
+  }
 };
 
 export const sendGrokText = (text) => {

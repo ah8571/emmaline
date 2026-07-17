@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Alert, View, Image, Text, TouchableOpacity, Platform } from 'react-native';
+import { StyleSheet, Alert, View, Text, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
@@ -93,7 +93,6 @@ const AppContent = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [callActivityState, setCallActivityState] = useState('idle');
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [showLaunchSplash, setShowLaunchSplash] = useState(true);
   const [voiceProvider, setVoiceProvider] = useState('openai');
   const [grokTextInput, setGrokTextInput] = useState('');
   const [listenModeState, setListenModeState] = useState('idle');
@@ -230,14 +229,6 @@ const AppContent = () => {
         console.error('[AppsFlyer] init failed', error);
       }
     });
-  }, []);
-
-  useEffect(() => {
-    const splashTimer = setTimeout(() => {
-      setShowLaunchSplash(false);
-    }, 900);
-
-    return () => clearTimeout(splashTimer);
   }, []);
 
   useEffect(() => {
@@ -398,15 +389,6 @@ const AppContent = () => {
         return;
       }
 
-      traceLiveCallStage('voice_session_request_started');
-      const voiceSessionResponse = await getVoiceSession();
-      traceLiveCallStage('voice_session_request_finished', {
-        success: voiceSessionResponse.success,
-        provider: voiceSessionResponse.provider,
-        code: voiceSessionResponse.code,
-        statusCode: voiceSessionResponse.statusCode
-      });
-
       const [callLanguage, callVoice, storedProvider] = await Promise.all([
         getCallLanguagePreference(),
         getCallVoicePreference(),
@@ -421,9 +403,33 @@ const AppContent = () => {
         voiceProvider: storedProvider
       });
 
+      const isGrok = storedProvider === 'grok';
+      let voiceSessionResponse = {
+        success: true,
+        session: null,
+        provider: null,
+        code: null,
+        statusCode: null
+      };
+
+      if (isGrok) {
+        traceLiveCallStage('voice_session_request_bypassed', {
+          provider: 'grok'
+        });
+      } else {
+        traceLiveCallStage('voice_session_request_started');
+        voiceSessionResponse = await getVoiceSession();
+        traceLiveCallStage('voice_session_request_finished', {
+          success: voiceSessionResponse.success,
+          provider: voiceSessionResponse.provider,
+          code: voiceSessionResponse.code,
+          statusCode: voiceSessionResponse.statusCode
+        });
+      }
+
       const canProceedWithoutBootstrapSession = voiceSessionResponse.code === 'VOICE_OPENAI_SESSION_FAILED';
 
-      if ((!voiceSessionResponse.success || !voiceSessionResponse.session) && !canProceedWithoutBootstrapSession) {
+      if (!isGrok && (!voiceSessionResponse.success || !voiceSessionResponse.session) && !canProceedWithoutBootstrapSession) {
         setIsCalling(false);
         setCallStatus('failed');
         setCallActivityState('idle');
@@ -456,19 +462,18 @@ const AppContent = () => {
         return;
       }
 
-      if (canProceedWithoutBootstrapSession) {
+      if (!isGrok && canProceedWithoutBootstrapSession) {
         traceLiveCallStage('voice_session_request_bypassed', {
           code: voiceSessionResponse.code,
           statusCode: voiceSessionResponse.statusCode
         });
       }
 
-      const isGrok = storedProvider === 'grok';
-
       if (isGrok) {
         // Grok WebSocket voice mode
         const grokResponse = await startGrokVoiceCall({
           voice: callVoice || 'eve',
+          language: callLanguage || 'en',
           onStatusChange: (status) => {
             traceLiveCallStage(`grok_provider_status_${status}`);
             syncCallActivityFromStage(`voice_provider_status_${status}`);
@@ -737,17 +742,6 @@ const AppContent = () => {
       return (order[left.type] ?? 99) - (order[right.type] ?? 99);
     });
 
-  if (showLaunchSplash) {
-    return (
-      <AppThemeProvider value={{ isDarkMode, colors, toggleTheme: handleToggleTheme }}>
-        <View style={styles.splashScreen}>
-          <Image source={require('../assets/white-outline-favicon.png')} style={styles.splashIcon} resizeMode="contain" />
-          <Text style={styles.splashLabel}>Emmaline</Text>
-        </View>
-      </AppThemeProvider>
-    );
-  }
-
   return (
     <AppThemeProvider value={{ isDarkMode, colors, toggleTheme: handleToggleTheme }}>
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -906,26 +900,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff'
-  },
-  splashScreen: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    gap: 18,
-    backgroundColor: '#000000'
-  },
-  splashIcon: {
-    width: 136,
-    height: 136,
-    borderRadius: 28,
-    marginBottom: 20
-  },
-  splashLabel: {
-    fontSize: 28,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    color: '#ffffff'
   },
   navigatorContainer: {
     flex: 1,

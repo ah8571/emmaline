@@ -21,8 +21,7 @@ const buildGrokSessionConfig = ({ voice = GROK_REALTIME_VOICE } = {}) => ({
   turn_detection: {
     type: 'server_vad',
     silence_duration_ms: 700,
-    prefix_padding_ms: 300,
-    idle_timeout_ms: 5000
+    prefix_padding_ms: 300
   },
   audio: {
     input: {

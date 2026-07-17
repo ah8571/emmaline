@@ -13,12 +13,16 @@ import com.facebook.react.modules.core.DeviceEventManagerModule;
 
 public class PcmCaptureModule extends ReactContextBaseJavaModule {
 
+    private static final int PCM_BYTES_PER_SAMPLE = 2;
+    private static final int TARGET_CHUNK_MS = 100;
+
     private final ReactApplicationContext reactContext;
     private AudioRecord audioRecord;
     private Thread recordingThread;
     private volatile boolean isRecording = false;
     private int sampleRate = 24000;
     private int bufferSize;
+    private int chunkBytes;
 
     public PcmCaptureModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -37,7 +41,9 @@ public class PcmCaptureModule extends ReactContextBaseJavaModule {
         }
         int channelConfig = AudioFormat.CHANNEL_IN_MONO;
         int audioFormat = AudioFormat.ENCODING_PCM_16BIT;
-        bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat) * 2;
+        int minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat);
+        chunkBytes = Math.max((sampleRate * PCM_BYTES_PER_SAMPLE * TARGET_CHUNK_MS) / 1000, PCM_BYTES_PER_SAMPLE);
+        bufferSize = Math.max(minBufferSize, chunkBytes * 2);
     }
 
     @ReactMethod
@@ -53,18 +59,27 @@ public class PcmCaptureModule extends ReactContextBaseJavaModule {
 
             try {
                 audioRecord = new AudioRecord(
-                    MediaRecorder.AudioSource.MIC,
+                    MediaRecorder.AudioSource.VOICE_RECOGNITION,
                     sampleRate,
                     channelConfig,
                     audioFormat,
                     bufferSize
                 );
+
+                if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
+                    throw new IllegalStateException("AudioRecord failed to initialize");
+                }
+
                 audioRecord.startRecording();
 
-                byte[] buffer = new byte[bufferSize];
+                if (audioRecord.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING) {
+                    throw new IllegalStateException("AudioRecord failed to start recording");
+                }
+
+                byte[] buffer = new byte[chunkBytes];
 
                 while (isRecording) {
-                    int bytesRead = audioRecord.read(buffer, 0, bufferSize);
+                    int bytesRead = audioRecord.read(buffer, 0, buffer.length);
                     if (bytesRead > 0 && isRecording) {
                         byte[] chunk = new byte[bytesRead];
                         System.arraycopy(buffer, 0, chunk, 0, bytesRead);
@@ -91,6 +106,11 @@ public class PcmCaptureModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void stop() {
         isRecording = false;
+
+        if (audioRecord != null) {
+            try { audioRecord.stop(); } catch (Exception ignored) {}
+        }
+
         if (recordingThread != null) {
             try { recordingThread.join(500); } catch (InterruptedException ignored) {}
             recordingThread = null;

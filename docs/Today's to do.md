@@ -6,6 +6,9 @@
 - Work through key words for people to better find the apps (like STT or TTS or how other apps are phrasing it)
 - 30 character new name for apple
 Ali: Reader, Learn Languages (28) 
+Ali: Voice Assistant
+Ali: Multitask with AI
+Ali: Your AI workspace
 
 ## Create promo code workflows for influencers
 
@@ -16,6 +19,10 @@ Ali: Reader, Learn Languages (28)
 ## Perhaps start working on viral dance videos... 
 
 ## Keep working through app upgrades
+
+- transcript summaries
+- podcast tutorial versions
+- Flash cards
 
 how can we make a "Language learning" zone, how could we incorporate flashcards, how can people upload a text for the assistant to read and translate with them in real time
 

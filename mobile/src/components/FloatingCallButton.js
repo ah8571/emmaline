@@ -131,6 +131,30 @@ const FloatingCallButton = ({
     };
   }, [callActivityState, isExpanded, showCallControls, spinAnim]);
 
+  const liveCallPrompt = React.useMemo(() => {
+    if (!showCallControls) {
+      return null;
+    }
+
+    if (callActivityState === 'connecting') {
+      return 'Initiating';
+    }
+
+    if (callActivityState === 'thinking') {
+      return 'Thinking';
+    }
+
+    if (callActivityState === 'listening') {
+      return 'Listening';
+    }
+
+    if (callActivityState === 'speaking') {
+      return 'Speaking';
+    }
+
+    return 'Ready';
+  }, [callActivityState, showCallControls]);
+
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
       toValue: 0.9,
@@ -208,6 +232,12 @@ const FloatingCallButton = ({
                   }
                 ]}
               />
+
+              {liveCallPrompt ? (
+                <View style={styles.liveCallPromptWrap} pointerEvents="none">
+                  <Text style={[styles.liveCallPromptTitle, { color: colors.text }]}>{liveCallPrompt}</Text>
+                </View>
+              ) : null}
             </View>
 
             {voiceProvider === 'grok' ? (
@@ -433,6 +463,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 8
+  },
+  liveCallPromptWrap: {
+    position: 'absolute',
+    top: '50%',
+    left: 0,
+    right: 0,
+    transform: [{ translateY: 102 }],
+    alignItems: 'center',
+    paddingHorizontal: 28
+  },
+  liveCallPromptTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center'
   },
   orbOuterRing: {
     position: 'absolute',

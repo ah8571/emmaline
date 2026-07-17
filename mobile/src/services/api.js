@@ -823,7 +823,7 @@ export const getVoiceToken = async () => {
 
 export const createGrokVoiceSession = async (options = {}) => {
   try {
-    addTokenToHeaders();
+    await addTokenToHeaders();
     const response = await apiClient.post('/voice/grok/session', {
       voice: String(options.voice || 'eve').trim() || 'eve'
     });
