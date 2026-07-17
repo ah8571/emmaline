@@ -19,7 +19,8 @@ let playbackSound = null;
 let responseInProgress = false;
 let micRecording = null;
 let micActive = false;
-const MIC_CHUNK_MS = 250;
+let micBytesSent = 0;
+const MIC_CHUNK_MS = 500;
 
 const muteListeners = new Set();
 const transcriptListeners = new Set();
@@ -105,8 +106,8 @@ export const startGrokVoiceCall = async ({ voice = DEFAULT_GROK_VOICE, onStatusC
         instructions: '',
         turn_detection: {
           type: 'server_vad',
-          silence_duration_ms: 700,
-          prefix_padding_ms: 300
+          silence_duration_ms: 900,
+          prefix_padding_ms: 400
         },
         audio: {
           input: { format: { type: 'audio/pcm', rate: 24000 }, transport: 'json' },
@@ -289,76 +290,108 @@ const cleanupGrokCall = async () => {
 
 const startMicCapture = async () => {
   micActive = true;
+  micBytesSent = 0;
 
-  const sendChunk = async () => {
-    if (!micActive || !activeSocket || activeSocket.readyState !== WebSocket.OPEN) {
-      console.log('[GrokVoice] Mic loop stopped:', { micActive, socketReady: activeSocket?.readyState });
-      return;
-    }
-
+  try {
+    // Single persistent recording — eliminates ~150ms gaps between chunks
+    // that were garbling speech for Grok's server-side VAD.
     const recording = new Audio.Recording();
-    try {
-      await recording.prepareToRecordAsync({
-        android: {
-          extension: '.wav',
-          outputFormat: 2,
-          audioEncoder: 1,
-          sampleRate: 24000,
-          numberOfChannels: 1
-        },
-        ios: {
-          extension: '.wav',
-          outputFormat: 'lpcm',
-          audioQuality: 127,
-          sampleRate: 24000,
-          numberOfChannels: 1,
-          linearPCMBitDepth: 16,
-          linearPCMIsBigEndian: false,
-          linearPCMIsFloat: false
-        }
-      });
-      await recording.startAsync();
+    micRecording = recording;
 
-      // Record for chunk duration
-      await new Promise((r) => setTimeout(r, MIC_CHUNK_MS));
-
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-
-      if (uri && micActive && !isMuted) {
-        const wavBase64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-        const wavBuffer = Buffer.from(wavBase64, 'base64');
-
-        if (wavBuffer.length > 44) {
-          const pcmBuffer = wavBuffer.slice(44);
-          const pcmBase64 = pcmBuffer.toString('base64');
-
-          if (!startMicCapture._chunkCount) startMicCapture._chunkCount = 0;
-          startMicCapture._chunkCount++;
-          if (startMicCapture._chunkCount <= 3) {
-            console.log('[GrokVoice] Mic chunk sent:', startMicCapture._chunkCount, { pcmBytes: pcmBuffer.length });
-          }
-
-          activeSocket.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: pcmBase64 }));
-        }
+    await recording.prepareToRecordAsync({
+      android: {
+        extension: '.wav',
+        outputFormat: 2,
+        audioEncoder: 1,
+        sampleRate: 24000,
+        numberOfChannels: 1
+      },
+      ios: {
+        extension: '.wav',
+        outputFormat: 'lpcm',
+        audioQuality: 127,
+        sampleRate: 24000,
+        numberOfChannels: 1,
+        linearPCMBitDepth: 16,
+        linearPCMIsBigEndian: false,
+        linearPCMIsFloat: false
       }
-    } catch (err) {
-      console.log('[GrokVoice] Chunk error:', err.message);
-    }
+    });
 
-    // Next chunk
-    if (micActive) {
-      setTimeout(sendChunk, 10);
-    } else {
-      console.log('[GrokVoice] Mic loop ending, micActive=false');
-    }
-  };
+    await recording.startAsync();
+    console.log('[GrokVoice] Continuous mic recording started');
 
-  sendChunk();
+    // Poll the growing WAV file to send only new PCM data each interval
+    const pollAndSend = async () => {
+      if (!micActive || !activeSocket || activeSocket.readyState !== WebSocket.OPEN) {
+        console.log('[GrokVoice] Mic poll stopped:', { micActive, socketReady: activeSocket?.readyState });
+        await stopAndFinalizeRecording();
+        return;
+      }
+
+      try {
+        const uri = recording.getURI();
+        if (uri) {
+          const wavBase64 = await FileSystem.readAsStringAsync(uri, {
+            encoding: FileSystem.EncodingType.Base64
+          });
+          const wavBuffer = Buffer.from(wavBase64, 'base64');
+
+          if (wavBuffer.length > 44) {
+            const pcmBuffer = wavBuffer.slice(44);
+            const totalPcmBytes = pcmBuffer.length;
+
+            if (totalPcmBytes > micBytesSent && !isMuted) {
+              const newPcm = pcmBuffer.slice(micBytesSent);
+              micBytesSent = totalPcmBytes;
+
+              const pcmBase64 = newPcm.toString('base64');
+
+              if (!startMicCapture._chunkCount) startMicCapture._chunkCount = 0;
+              startMicCapture._chunkCount++;
+              if (startMicCapture._chunkCount <= 3 || startMicCapture._chunkCount % 20 === 0) {
+                console.log('[GrokVoice] Mic chunk sent:', startMicCapture._chunkCount, {
+                  newBytes: newPcm.length,
+                  totalBytes: totalPcmBytes
+                });
+              }
+
+              activeSocket.send(JSON.stringify({
+                type: 'input_audio_buffer.append',
+                audio: pcmBase64
+              }));
+            }
+          }
+        }
+      } catch (err) {
+        console.log('[GrokVoice] Poll error:', err.message);
+      }
+
+      if (micActive) {
+        setTimeout(pollAndSend, MIC_CHUNK_MS);
+      } else {
+        console.log('[GrokVoice] Mic poll ending');
+        await stopAndFinalizeRecording();
+      }
+    };
+
+    setTimeout(pollAndSend, MIC_CHUNK_MS);
+  } catch (err) {
+    console.log('[GrokVoice] Mic capture failed:', err.message);
+    micActive = false;
+  }
+};
+
+const stopAndFinalizeRecording = async () => {
+  if (micRecording) {
+    try { await micRecording.stopAndUnloadAsync(); } catch {}
+    micRecording = null;
+  }
 };
 
 const stopMicCapture = () => {
   micActive = false;
+  stopAndFinalizeRecording().catch(() => {});
 };
 
 export const sendGrokText = (text) => {
