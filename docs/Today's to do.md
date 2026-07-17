@@ -1,19 +1,13 @@
-## apple fixes
+## Integrate new grok real time voice
 
-Guideline 3.1.1 — Free trial too short: 
+## App Store changes
 
-In App Store Connect → your app → Subscriptions → emmaline_pro_monthly → Subscription Prices → either remove the introductory offer entirely, or set the free trial to at least 3 days. Apple requires minimum 3-day trials for auto-renewable subscriptions.
+- Update name to Ali
+- Work through key words for people to better find the apps (like STT or TTS or how other apps are phrasing it)
+- 30 character new name for apple
 
-App Store metadata: In App Store Connect → App Information, make sure the Privacy Policy URL field is filled in (https://www.emmaline.app/privacy). For Terms of Use, either link to your EULA in the App Description or upload a custom EULA in App Store Connect.
+## Start reaching out to influencers about live streaming with the product
 
-## Google subscription fixes
-
-Thing to check in Google Play Console	Where
-Your Gmail is a licensed tester	Setup → License testing → add email
-Your Gmail is on the closed track	Testing → Closed testing → Testers tab
-You've accepted the invite	Check your email for the opt-in link
-Product emmaline_pro_monthly is active	Monetize → Products → Subscriptions → status
-The "item not found" error is Google Play Billing saying "this user isn't authorized to see this product" — which is the licensed tester gate, not a build issue.
 
 
 
