@@ -1,40 +1,27 @@
-import { Audio } from 'expo-av';
 import { Platform } from 'react-native';
-import { Buffer } from 'buffer';
-import * as FileSystem from 'expo-file-system/legacy';
 import InCallManager from 'react-native-incall-manager';
-import { startPcmCapture } from './pcmCapture.js';
+import {
+  mediaDevices,
+  RTCPeerConnection,
+  RTCSessionDescription
+} from 'react-native-webrtc';
 import { API_BASE_URL } from './api.js';
 
 const INWORLD_PROVIDER = 'inworld-voice';
-const INWORLD_AUDIO_FILE = `${FileSystem.cacheDirectory}inworld-response.pcm`;
-const INWORLD_SAMPLE_RATE = 24000;
-const MIC_CHUNK_MS = 500;
-const STREAMING_PLAYBACK_SEGMENT_BYTES = 24000;
+const DEFAULT_INWORLD_VOICE = 'Clive';
+const DEFAULT_INWORLD_LANGUAGE = 'en-US';
 
-let activeSocket = null;
+let peerConnection = null;
+let dataChannel = null;
+let localStream = null;
 let activeCall = false;
 let isMuted = false;
 let onStatusChange = null;
 let onTrace = null;
 let callStartedAtMs = null;
-let audioBuffers = [];
-let playbackSound = null;
-let responseInProgress = false;
-let micActive = false;
-let activePcmSession = null;
-let playbackQueue = [];
-let playbackActive = false;
-let playbackSegmentIndex = 0;
-let playbackSegmentFlushInProgress = false;
-let responseActiveOnServer = false;
-let ignoreNextTimeoutResponse = false;
 
 const muteListeners = new Set();
 const transcriptListeners = new Set();
-
-const DEFAULT_INWORLD_VOICE = 'Clive';
-const DEFAULT_INWORLD_LANGUAGE = 'en-US';
 
 const emitMuteState = () => {
   muteListeners.forEach((l) => l(isMuted));
@@ -46,7 +33,6 @@ const emitTranscript = (text) => {
 
 const normalizeInworldLanguage = (value) => {
   const normalized = String(value || '').trim().toLowerCase();
-
   if (normalized.startsWith('es')) return 'es-MX';
   if (normalized.startsWith('pt')) return 'pt-BR';
   if (normalized.startsWith('ar')) return 'ar-EG';
@@ -56,146 +42,7 @@ const normalizeInworldLanguage = (value) => {
   if (normalized.startsWith('it')) return 'it-IT';
   if (normalized.startsWith('ja')) return 'ja-JP';
   if (normalized.startsWith('hi')) return 'hi-IN';
-
   return DEFAULT_INWORLD_LANGUAGE;
-};
-
-const toArrayBuffer = (buffer) => {
-  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-};
-
-const getBufferedAudioBytes = () => {
-  return audioBuffers.reduce((total, chunk) => total + chunk.length, 0);
-};
-
-const createWavBuffer = (pcmBuffer, sampleRate) => {
-  const numChannels = 1;
-  const bitsPerSample = 16;
-  const byteRate = sampleRate * numChannels * bitsPerSample / 8;
-  const blockAlign = numChannels * bitsPerSample / 8;
-  const dataSize = pcmBuffer.length;
-  const headerSize = 44;
-  const totalSize = headerSize + dataSize;
-
-  const buffer = Buffer.alloc(totalSize);
-  let offset = 0;
-
-  buffer.write('RIFF', offset); offset += 4;
-  buffer.writeUInt32LE(totalSize - 8, offset); offset += 4;
-  buffer.write('WAVE', offset); offset += 4;
-
-  buffer.write('fmt ', offset); offset += 4;
-  buffer.writeUInt32LE(16, offset); offset += 4;
-  buffer.writeUInt16LE(1, offset); offset += 2;
-  buffer.writeUInt16LE(numChannels, offset); offset += 2;
-  buffer.writeUInt32LE(sampleRate, offset); offset += 4;
-  buffer.writeUInt32LE(byteRate, offset); offset += 4;
-  buffer.writeUInt16LE(blockAlign, offset); offset += 2;
-  buffer.writeUInt16LE(bitsPerSample, offset); offset += 2;
-
-  buffer.write('data', offset); offset += 4;
-  buffer.writeUInt32LE(dataSize, offset); offset += 4;
-  pcmBuffer.copy(buffer, offset);
-
-  return buffer;
-};
-
-const interruptAssistantPlayback = async ({ cancelResponse = false, reason = 'interrupt' } = {}) => {
-  const hadPlayback = playbackActive || playbackQueue.length > 0 || audioBuffers.length > 0 || responseInProgress;
-
-  if (!hadPlayback) return;
-
-  console.log('[InworldVoice] Interrupting assistant playback:', {
-    reason,
-    cancelResponse,
-    queuedSegments: playbackQueue.length,
-    bufferedChunks: audioBuffers.length
-  });
-
-  if (cancelResponse && responseActiveOnServer && activeSocket?.readyState === WebSocket.OPEN) {
-    try {
-      activeSocket.send(JSON.stringify({ type: 'response.cancel' }));
-      responseActiveOnServer = false;
-    } catch {}
-  }
-
-  if (playbackSound) {
-    try {
-      playbackSound.setOnPlaybackStatusUpdate(null);
-      await playbackSound.unloadAsync();
-    } catch {}
-    playbackSound = null;
-  }
-
-  audioBuffers = [];
-  playbackQueue = [];
-  playbackActive = false;
-  playbackSegmentFlushInProgress = false;
-  responseInProgress = false;
-};
-
-const queueBufferedAudioSegment = async ({ force = false } = {}) => {
-  if (playbackSegmentFlushInProgress) return;
-
-  const pcmBytes = getBufferedAudioBytes();
-
-  if (pcmBytes < 100) return;
-  if (!force && (pcmBytes < STREAMING_PLAYBACK_SEGMENT_BYTES || playbackQueue.length > 0)) return;
-
-  playbackSegmentFlushInProgress = true;
-
-  const pcmBuffer = Buffer.concat(audioBuffers);
-  audioBuffers = [];
-
-  try {
-    const wavPath = INWORLD_AUDIO_FILE.replace('.pcm', `-${playbackSegmentIndex++}.wav`);
-    const wavBuffer = createWavBuffer(pcmBuffer, INWORLD_SAMPLE_RATE);
-    await FileSystem.writeAsStringAsync(wavPath, wavBuffer.toString('base64'), {
-      encoding: FileSystem.EncodingType.Base64
-    });
-
-    playbackQueue.push({ uri: wavPath, pcmBytes: pcmBuffer.length });
-    await playNextBufferedSegment();
-  } finally {
-    playbackSegmentFlushInProgress = false;
-  }
-};
-
-const playNextBufferedSegment = async () => {
-  if (playbackActive || playbackQueue.length === 0) return;
-  playbackActive = true;
-
-  const nextSegment = playbackQueue.shift();
-
-  try {
-    const { sound } = await Audio.Sound.createAsync(
-      { uri: nextSegment.uri },
-      { shouldPlay: false }
-    );
-
-    if (playbackSound) {
-      await playbackSound.unloadAsync().catch(() => {});
-    }
-    playbackSound = sound;
-    await playbackSound.playAsync();
-
-    console.log('[InworldVoice] Playing audio segment:', { pcmBytes: nextSegment.pcmBytes, queuedSegments: playbackQueue.length });
-
-    playbackSound.setOnPlaybackStatusUpdate((status) => {
-      if (!status.isLoaded) return;
-      if (status.didJustFinish) {
-        playbackSound.setOnPlaybackStatusUpdate(null);
-        playbackActive = false;
-        playNextBufferedSegment().catch((err) => {
-          console.error('[InworldVoice] Playback queue error:', err.message);
-        });
-      }
-    });
-  } catch (error) {
-    playbackActive = false;
-    console.error('[InworldVoice] Playback error:', error.message);
-    await playNextBufferedSegment();
-  }
 };
 
 export const startInworldVoiceCall = async ({
@@ -212,120 +59,165 @@ export const startInworldVoiceCall = async ({
   try {
     onStatusChange = statusCb;
     onTrace = traceCb;
-    audioBuffers = [];
-    playbackQueue = [];
-    playbackActive = false;
-    playbackSegmentIndex = 0;
-    playbackSegmentFlushInProgress = false;
-    responseInProgress = false;
-    responseActiveOnServer = false;
-    ignoreNextTimeoutResponse = false;
     const languageHint = normalizeInworldLanguage(language);
 
-    onTrace?.('inworld_session_request_started');
+    onTrace?.('inworld_rtc_config_fetching');
 
-    // Connect through our backend WebSocket proxy (backend handles JWT + Inworld auth)
-    // In dev, always use localhost regardless of EXPO_PUBLIC_API_URL
-    const backendWsUrl = __DEV__
-      ? 'ws://127.0.0.1:3000/api/ws/inworld'
-      : API_BASE_URL.replace(/^http/, 'ws') + '/ws/inworld';
+    // Fetch ICE servers + API credentials from our backend
+    const configUrl = __DEV__
+      ? 'http://127.0.0.1:3000/api/voice/inworld/rtc-config'
+      : `${API_BASE_URL}/voice/inworld/rtc-config`;
 
-    onTrace?.('inworld_websocket_connecting');
+    const configRes = await fetch(configUrl);
+    const configData = await configRes.json();
 
-    await new Promise((resolve, reject) => {
-      const ws = new WebSocket(backendWsUrl);
-      activeSocket = ws;
-      ws.binaryType = 'arraybuffer';
+    if (!configData.success || !configData.config) {
+      throw new Error(configData.error || 'Unable to fetch Inworld RTC config.');
+    }
 
-      const connectionTimeout = setTimeout(() => {
-        reject(new Error('Inworld WebSocket connection timed out'));
-      }, 15000);
+    const { apiKey, iceServers, callUrl } = configData.config;
 
-      ws.onopen = () => {
-        clearTimeout(connectionTimeout);
-        onTrace?.('inworld_websocket_connected');
-        resolve();
-      };
+    onTrace?.('inworld_rtc_config_fetched');
 
-      ws.onerror = () => {
-        clearTimeout(connectionTimeout);
-        reject(new Error('Inworld WebSocket connection failed. Check API key and network.'));
-      };
+    // Get microphone stream
+    const stream = await mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        sampleRate: 24000,
+        channelCount: 1
+      }
+    });
+    localStream = stream;
 
-      ws.onmessage = (event) => {
-        if (typeof event.data !== 'string') {
-          audioBuffers.push(Buffer.from(event.data));
-          return;
+    // Create peer connection with ICE servers
+    peerConnection = new RTCPeerConnection({
+      iceServers: iceServers?.length ? iceServers : [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+
+    // Create data channel for JSON events (same schema as WebSocket)
+    dataChannel = peerConnection.createDataChannel('oai-events', { ordered: true });
+
+    // Add microphone track
+    stream.getAudioTracks().forEach(track => {
+      peerConnection.addTrack(track, stream);
+    });
+
+    // Handle remote audio track (delivered via RTP, handled natively by WebRTC)
+    peerConnection.ontrack = (_event) => {
+      onTrace?.('inworld_remote_track_received');
+    };
+
+    dataChannel.onopen = () => {
+      onTrace?.('inworld_datachannel_open');
+
+      const llmModel = modelId || 'openai/gpt-4o-mini';
+
+      dataChannel.send(JSON.stringify({
+        type: 'session.update',
+        session: {
+          type: 'realtime',
+          model: llmModel,
+          instructions: '',
+          output_modalities: ['audio', 'text'],
+          audio: {
+            input: {
+              turn_detection: {
+                type: 'semantic_vad',
+                eagerness: 'medium',
+                create_response: true,
+                interrupt_response: true
+              }
+            },
+            output: {
+              voice,
+              model: 'inworld-tts-2'
+            }
+          },
+          providerData: {
+            stt: {
+              voice_profile: false,
+              language_hints: [languageHint],
+              end_of_turn_confidence_threshold: 0.7,
+              min_end_of_turn_silence: 200,
+              max_turn_silence: 5000,
+              vad_threshold: 0.5
+            },
+            tts: {
+              segmenter_strategy: 'sentence',
+              language: languageHint
+            }
+          }
         }
+      }));
 
-        try {
-          const msg = JSON.parse(event.data);
-          handleInworldMessage(msg);
-        } catch {
-          audioBuffers.push(Buffer.from(event.data, 'base64'));
-        }
-      };
+      console.log('[InworldVoice] WebRTC session configured:', { voice, model: llmModel, language: languageHint });
+    };
 
-      ws.onclose = (event) => {
-        console.log('[InworldVoice] WebSocket closed:', event.code, event.reason);
+    dataChannel.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        handleInworldMessage(msg);
+      } catch {}
+    };
+
+    peerConnection.oniceconnectionstatechange = () => {
+      const state = peerConnection?.iceConnectionState;
+      console.log('[InworldVoice] ICE state:', state);
+      if (state === 'failed' || state === 'disconnected') {
         if (activeCall) {
           onStatusChange?.('ended');
           cleanupInworldCall();
         }
-      };
-    });
-
-    // Configure session — Inworld uses OpenAI-compatible protocol
-    const llmModel = modelId || 'openai/gpt-4o-mini';
-    activeSocket.send(JSON.stringify({
-      type: 'session.update',
-      session: {
-        type: 'realtime',
-        model: llmModel,
-        instructions: '',
-        output_modalities: ['audio', 'text'],
-        audio: {
-          input: {
-            format: { type: 'audio/pcm', rate: INWORLD_SAMPLE_RATE },
-            turn_detection: {
-              type: 'semantic_vad',
-              eagerness: 'medium',
-              create_response: true,
-              interrupt_response: true
-            }
-          },
-          output: {
-            voice,
-            model: 'inworld-tts-2',
-            format: { type: 'audio/pcm', rate: INWORLD_SAMPLE_RATE }
-          }
-        },
-        providerData: {
-          stt: {
-            voice_profile: false,
-            language_hints: [languageHint],
-            end_of_turn_confidence_threshold: 0.7,
-            min_end_of_turn_silence: 200,
-            max_turn_silence: 5000,
-            vad_threshold: 0.5
-          },
-          tts: {
-            segmenter_strategy: 'sentence',
-            language: languageHint
-          }
-        }
       }
-    }));
-    console.log('[InworldVoice] Session configured:', { voice, model: llmModel, language: languageHint });
+    };
 
-    // Set up audio for playback
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: true,
-      playsInSilentModeIOS: true,
-      playThroughEarpieceAndroid: false,
-      staysActiveInBackground: false
+    // Create and exchange SDP
+    const offer = await peerConnection.createOffer({ offerToReceiveAudio: true });
+    await peerConnection.setLocalDescription(offer);
+
+    // Wait for ICE gathering to complete
+    await new Promise((resolve) => {
+      if (peerConnection.iceGatheringState === 'complete') { resolve(); return; }
+      let timeout;
+      peerConnection.onicegatheringstatechange = () => {
+        if (peerConnection.iceGatheringState === 'complete') {
+          clearTimeout(timeout);
+          resolve();
+        }
+      };
+      peerConnection.onicecandidate = () => {
+        clearTimeout(timeout);
+        timeout = setTimeout(resolve, 1000);
+      };
+      timeout = setTimeout(resolve, 3000);
     });
 
+    onTrace?.('inworld_sdp_exchange_started');
+
+    const sdpRes = await fetch(callUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/sdp',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: peerConnection.localDescription.sdp
+    });
+
+    if (!sdpRes.ok) {
+      const errText = await sdpRes.text();
+      throw new Error(`Inworld SDP exchange failed (${sdpRes.status}): ${errText}`);
+    }
+
+    const answerSdp = await sdpRes.text();
+    await peerConnection.setRemoteDescription(new RTCSessionDescription({
+      type: 'answer',
+      sdp: answerSdp
+    }));
+
+    onTrace?.('inworld_sdp_exchange_finished');
+
+    // Set up audio routing
     if (Platform.OS === 'ios') {
       try {
         InCallManager.start({ media: 'audio' });
@@ -337,8 +229,6 @@ export const startInworldVoiceCall = async ({
         InCallManager.setSpeakerphoneOn(true);
       } catch {}
     }
-
-    await startInworldMicCapture();
 
     activeCall = true;
     callStartedAtMs = Date.now();
@@ -358,52 +248,11 @@ const handleInworldMessage = (msg) => {
       console.log('[InworldVoice] ← session.created');
       break;
 
-    case 'session.updated':
-      console.log('[InworldVoice] ← session.updated');
-      break;
-
-    case 'response.created':
-      if (ignoreNextTimeoutResponse && activeSocket?.readyState === WebSocket.OPEN) {
-        console.log('[InworldVoice] Cancelling timeout-triggered response');
-        ignoreNextTimeoutResponse = false;
-        responseActiveOnServer = true;
-        try {
-          activeSocket.send(JSON.stringify({ type: 'response.cancel' }));
-        } catch {}
-        responseActiveOnServer = false;
-        break;
-      }
-      responseActiveOnServer = true;
-      break;
-
     case 'response.output_audio.delta':
-      if (msg.delta) {
-        onTrace?.('response.output_audio.delta');
-        audioBuffers.push(Buffer.from(msg.delta, 'base64'));
-        responseInProgress = true;
-        queueBufferedAudioSegment().catch((error) => {
-          console.error('[InworldVoice] Segment queue error:', error.message);
-        });
-      }
+      // Audio flows via RTP, not data channel — ignore
       break;
 
     case 'response.output_audio.done':
-      responseActiveOnServer = false;
-      if (audioBuffers.length > 0) {
-        queueBufferedAudioSegment({ force: true }).catch((error) => {
-          console.error('[InworldVoice] Final segment queue error:', error.message);
-        });
-      }
-      break;
-
-    case 'response.done':
-      if (audioBuffers.length > 0 && !responseInProgress) {
-        queueBufferedAudioSegment({ force: true }).catch((error) => {
-          console.error('[InworldVoice] Response-done queue error:', error.message);
-        });
-      }
-      responseActiveOnServer = false;
-      responseInProgress = false;
       break;
 
     case 'response.output_audio_transcript.done':
@@ -411,23 +260,6 @@ const handleInworldMessage = (msg) => {
       if (msg.transcript) {
         emitTranscript(msg.transcript);
       }
-      break;
-
-    case 'input_audio_buffer.speech_started':
-      ignoreNextTimeoutResponse = false;
-      onTrace?.('input_audio_buffer.speech_started');
-      interruptAssistantPlayback({ cancelResponse: true, reason: 'user_speech_started' }).catch((error) => {
-        console.error('[InworldVoice] Interrupt error:', error.message);
-      });
-      break;
-
-    case 'input_audio_buffer.timeout_triggered':
-      ignoreNextTimeoutResponse = true;
-      onTrace?.('input_audio_buffer.timeout_triggered');
-      break;
-
-    case 'input_audio_buffer.speech_stopped':
-      onTrace?.('input_audio_buffer.speech_stopped');
       break;
 
     case 'conversation.item.input_audio_transcription.completed': {
@@ -438,131 +270,44 @@ const handleInworldMessage = (msg) => {
       break;
     }
 
-    case 'conversation.item.input_audio_transcription.delta': {
-      const transcript = String(msg.delta || '').trim();
-      if (transcript) {
-        console.log('[InworldVoice] Hearing user:', transcript);
-      }
+    case 'input_audio_buffer.speech_started':
+      onTrace?.('input_audio_buffer.speech_started');
       break;
-    }
+
+    case 'input_audio_buffer.speech_stopped':
+      onTrace?.('input_audio_buffer.speech_stopped');
+      break;
+
+    case 'response.done':
+      break;
 
     case 'error':
-      ignoreNextTimeoutResponse = false;
-      responseActiveOnServer = false;
       console.error('[InworldVoice] Server error:', msg);
       break;
   }
 };
 
-const startInworldMicCapture = async () => {
-  micActive = true;
-  startInworldMicCapture._chunkCount = 0;
-
-  if (Platform.OS === 'android') {
-    activePcmSession = startPcmCapture({
-      sampleRate: INWORLD_SAMPLE_RATE,
-      onData: (base64Data) => {
-        if (!micActive || !activeSocket || activeSocket.readyState !== WebSocket.OPEN || isMuted || responseActiveOnServer) return;
-
-        // Inworld uses JSON base64, same as Grok
-        activeSocket.send(JSON.stringify({
-          type: 'input_audio_buffer.append',
-          audio: base64Data
-        }));
-
-        startInworldMicCapture._chunkCount++;
-        if (startInworldMicCapture._chunkCount <= 3 || startInworldMicCapture._chunkCount % 50 === 0) {
-          console.log('[InworldVoice] PCM chunk sent:', startInworldMicCapture._chunkCount);
-        }
-      }
-    });
-    console.log('[InworldVoice] Native PCM capture started (AudioRecord @ 24kHz)');
-    return;
-  }
-
-  // iOS capture path
-  const RECORDING_CONFIG = {
-    ios: {
-      extension: '.wav',
-      outputFormat: 'lpcm',
-      audioQuality: 127,
-      sampleRate: INWORLD_SAMPLE_RATE,
-      numberOfChannels: 1,
-      linearPCMBitDepth: 16,
-      linearPCMIsBigEndian: false,
-      linearPCMIsFloat: false
-    }
-  };
-
-  const sendChunk = async () => {
-    if (!micActive || !activeSocket || activeSocket.readyState !== WebSocket.OPEN) return;
-
-    const recording = new Audio.Recording();
-    try {
-      await recording.prepareToRecordAsync(RECORDING_CONFIG);
-      await recording.startAsync();
-      await new Promise((r) => setTimeout(r, MIC_CHUNK_MS));
-      await recording.stopAndUnloadAsync();
-
-      const uri = recording.getURI();
-      if (uri && micActive && !isMuted && activeSocket?.readyState === WebSocket.OPEN) {
-        const wavBase64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-        const wavBuffer = Buffer.from(wavBase64, 'base64');
-        if (wavBuffer.length > 44) {
-          activeSocket.send(JSON.stringify({
-            type: 'input_audio_buffer.append',
-            audio: wavBuffer.slice(44).toString('base64')
-          }));
-        }
-      }
-    } catch (err) {}
-    if (micActive) setTimeout(sendChunk, 1);
-  };
-
-  sendChunk();
-};
-
-const stopInworldMicCapture = () => {
-  micActive = false;
-  startInworldMicCapture._chunkCount = 0;
-
-  if (activePcmSession) {
-    try {
-      activePcmSession.stop();
-    } catch {}
-    activePcmSession = null;
-  }
-};
-
 const cleanupInworldCall = async () => {
-  stopInworldMicCapture();
-
-  if (playbackSound) {
-    try { await playbackSound.unloadAsync(); } catch {}
-    playbackSound = null;
+  if (localStream) {
+    localStream.getTracks().forEach(track => {
+      track.stop();
+      track.release?.();
+    });
+    localStream = null;
   }
 
-  if (activeSocket) {
-    try { activeSocket.close(); } catch {}
-    activeSocket = null;
+  if (dataChannel) {
+    try { dataChannel.close(); } catch {}
+    dataChannel = null;
+  }
+
+  if (peerConnection) {
+    try { peerConnection.close(); } catch {}
+    peerConnection = null;
   }
 
   try { InCallManager.stop(); } catch {}
 
-  await Audio.setAudioModeAsync({
-    allowsRecordingIOS: false,
-    playsInSilentModeIOS: true,
-    staysActiveInBackground: false
-  }).catch(() => {});
-
-  audioBuffers = [];
-  playbackQueue = [];
-  playbackActive = false;
-  playbackSegmentIndex = 0;
-  playbackSegmentFlushInProgress = false;
-  responseInProgress = false;
-  responseActiveOnServer = false;
-  ignoreNextTimeoutResponse = false;
   activeCall = false;
   isMuted = false;
   callStartedAtMs = null;
@@ -571,9 +316,9 @@ const cleanupInworldCall = async () => {
 };
 
 export const sendInworldText = (text) => {
-  if (!activeSocket || activeSocket.readyState !== WebSocket.OPEN) return;
+  if (!dataChannel || dataChannel.readyState !== 'open') return;
 
-  activeSocket.send(JSON.stringify({
+  dataChannel.send(JSON.stringify({
     type: 'conversation.item.create',
     item: {
       type: 'message',
@@ -582,7 +327,7 @@ export const sendInworldText = (text) => {
     }
   }));
 
-  activeSocket.send(JSON.stringify({ type: 'response.create' }));
+  dataChannel.send(JSON.stringify({ type: 'response.create' }));
 };
 
 export const endInworldVoiceCall = async () => {
@@ -595,6 +340,11 @@ export const getInworldMuteState = () => isMuted;
 
 export const setInworldMuted = (muted) => {
   isMuted = muted;
+  if (localStream) {
+    localStream.getAudioTracks().forEach(track => {
+      track.enabled = !muted;
+    });
+  }
   emitMuteState();
 };
 
@@ -610,12 +360,8 @@ export const subscribeToInworldTranscript = (listener) => {
 };
 
 export const ensureInworldMicrophonePermission = async () => {
-  try {
-    const permission = await Audio.requestPermissionsAsync();
-    return { success: permission.granted, error: permission.granted ? null : 'Microphone permission denied' };
-  } catch (error) {
-    return { success: false, error: error?.message || 'Unable to request microphone permission' };
-  }
+  const { ensureMicrophonePermission } = require('./voiceService.js');
+  return ensureMicrophonePermission();
 };
 
 export default {

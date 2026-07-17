@@ -8,7 +8,7 @@ const INWORLD_HOST = process.env.INWORLD_HOST || 'api.inworld.ai';
 const INWORLD_ENGINE_HOST = process.env.INWORLD_ENGINE_HOST || 'api-engine.inworld.ai';
 const INWORLD_WS_BASE = `wss://${INWORLD_HOST}/api/v1/realtime/session`;
 
-const resolveApiKey = () => {
+export const resolveApiKey = () => {
   const basic = String(INWORLD_API_KEY).trim();
   if (!basic) {
     throw new Error('INWORLD_API_KEY is not configured.');
