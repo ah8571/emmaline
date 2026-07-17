@@ -859,6 +859,27 @@ export const createGeminiVoiceSession = async (options = {}) => {
   }
 };
 
+export const createInworldVoiceSession = async (options = {}) => {
+  try {
+    await addTokenToHeaders();
+    const response = await apiClient.post('/voice/inworld/session', {
+      model: String(options.model || '').trim() || null,
+      voice: String(options.voice || 'Clive').trim() || 'Clive',
+      language: String(options.language || 'en-US').trim() || 'en-US'
+    });
+
+    return {
+      success: true,
+      ...response.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: formatApiError(error, 'Unable to start Inworld voice session.')
+    };
+  }
+};
+
 export const createVoiceCallConnection = async (offerSdp, options = {}) => {
   try {
     const token = await getAccessToken();

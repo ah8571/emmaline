@@ -46,6 +46,16 @@ import {
   subscribeToGeminiTranscript
 } from './services/geminiVoiceService.js';
 import {
+  endInworldVoiceCall,
+  getInworldCallActive,
+  getInworldMuteState,
+  sendInworldText,
+  setInworldMuted,
+  startInworldVoiceCall,
+  subscribeToInworldMute,
+  subscribeToInworldTranscript
+} from './services/inworldVoiceService.js';
+import {
   getCallLanguagePreference,
   getCallVoicePreference,
   getVoiceProviderPreference,
@@ -106,6 +116,7 @@ const AppContent = () => {
   const [voiceProvider, setVoiceProvider] = useState('openai');
   const [grokTextInput, setGrokTextInput] = useState('');
   const [geminiTextInput, setGeminiTextInput] = useState('');
+  const [inworldTextInput, setInworldTextInput] = useState('');
   const [listenModeState, setListenModeState] = useState('idle');
   const [showModePicker, setShowModePicker] = useState(false);
   const [shouldPreferSpeaker, setShouldPreferSpeaker] = useState(false);
@@ -345,7 +356,7 @@ const AppContent = () => {
   }, [audioDevices, isCalling, selectedAudioDevice, shouldPreferSpeaker]);
 
   const stopLiveCall = async () => {
-    const endFn = voiceProvider === 'grok' ? endGrokVoiceCall : voiceProvider === 'gemini' ? endGeminiVoiceCall : endVoiceCall;
+    const endFn = voiceProvider === 'grok' ? endGrokVoiceCall : voiceProvider === 'gemini' ? endGeminiVoiceCall : voiceProvider === 'inworld' ? endInworldVoiceCall : endVoiceCall;
     const endResponse = await endFn();
 
     if (!endResponse.success) {
@@ -416,6 +427,7 @@ const AppContent = () => {
 
       const isGrok = storedProvider === 'grok';
       const isGemini = storedProvider === 'gemini';
+      const isInworld = storedProvider === 'inworld';
       let voiceSessionResponse = {
         success: true,
         session: null,
@@ -432,6 +444,10 @@ const AppContent = () => {
         traceLiveCallStage('voice_session_request_bypassed', {
           provider: 'gemini'
         });
+      } else if (isInworld) {
+        traceLiveCallStage('voice_session_request_bypassed', {
+          provider: 'inworld'
+        });
       } else {
         traceLiveCallStage('voice_session_request_started');
         voiceSessionResponse = await getVoiceSession();
@@ -445,7 +461,7 @@ const AppContent = () => {
 
       const canProceedWithoutBootstrapSession = voiceSessionResponse.code === 'VOICE_OPENAI_SESSION_FAILED';
 
-      if (!isGrok && !isGemini && (!voiceSessionResponse.success || !voiceSessionResponse.session) && !canProceedWithoutBootstrapSession) {
+      if (!isGrok && !isGemini && !isInworld && (!voiceSessionResponse.success || !voiceSessionResponse.session) && !canProceedWithoutBootstrapSession) {
         setIsCalling(false);
         setCallStatus('failed');
         setCallActivityState('idle');
@@ -478,11 +494,50 @@ const AppContent = () => {
         return;
       }
 
-      if (!isGrok && !isGemini && canProceedWithoutBootstrapSession) {
+      if (!isGrok && !isGemini && !isInworld && canProceedWithoutBootstrapSession) {
         traceLiveCallStage('voice_session_request_bypassed', {
           code: voiceSessionResponse.code,
           statusCode: voiceSessionResponse.statusCode
         });
+      }
+
+      if (isInworld) {
+        // Inworld WebSocket voice mode (OpenAI-compatible protocol)
+        const inworldResponse = await startInworldVoiceCall({
+          voice: callVoice || 'Clive',
+          language: callLanguage || 'en',
+          onStatusChange: (status) => {
+            traceLiveCallStage(`inworld_provider_status_${status}`);
+            syncCallActivityFromStage(`voice_provider_status_${status}`);
+            setCallStatus(status);
+
+            if (status === 'live') {
+              setIsCalling(true);
+              return;
+            }
+
+            if (status === 'ended' || status === 'failed') {
+              setIsCalling(false);
+              setCallActivityState('idle');
+              setShouldPreferSpeaker(false);
+              resetLiveCallTrace();
+            }
+          },
+          onTrace: (stage, details) => {
+            traceLiveCallStage(stage, details);
+            syncCallActivityFromStage(stage);
+          }
+        });
+
+        if (!inworldResponse.success) {
+          setIsCalling(false);
+          setCallStatus('failed');
+          setCallActivityState('idle');
+          setShouldPreferSpeaker(false);
+          resetLiveCallTrace();
+          Alert.alert('Inworld call failed', inworldResponse.error || 'Unable to start Inworld voice mode.');
+        }
+        return;
       }
 
       if (isGemini) {
@@ -742,6 +797,11 @@ const AppContent = () => {
       return;
     }
 
+    if (voiceProvider === 'inworld') {
+      setInworldMuted(!getInworldMuteState());
+      return;
+    }
+
     const response = await toggleMute();
 
     if (!response.success) {
@@ -765,11 +825,21 @@ const AppContent = () => {
     setGeminiTextInput('');
   };
 
+  const handleInworldSendText = () => {
+    const text = inworldTextInput.trim();
+    if (!text || !getInworldCallActive()) return;
+
+    sendInworldText(text);
+    setInworldTextInput('');
+  };
+
   const handleEndCall = async () => {
     if (voiceProvider === 'grok') {
       await endGrokVoiceCall();
     } else if (voiceProvider === 'gemini') {
       await endGeminiVoiceCall();
+    } else if (voiceProvider === 'inworld') {
+      await endInworldVoiceCall();
     } else {
       await endVoiceCall();
     }
@@ -871,6 +941,9 @@ const AppContent = () => {
             geminiTextInput={geminiTextInput}
             onGeminiTextChange={setGeminiTextInput}
             onGeminiSendText={handleGeminiSendText}
+            inworldTextInput={inworldTextInput}
+            onInworldTextChange={setInworldTextInput}
+            onInworldSendText={handleInworldSendText}
             bottomInset={appBottomRailHeight}
             topInset={insets.top}
           />
@@ -940,6 +1013,16 @@ const AppContent = () => {
                         activeOpacity={0.85}
                       >
                         <Text style={[styles.providerChipText, { color: voiceProvider === 'gemini' ? colors.chipSelectedText : colors.mutedText }]}>Gemini</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.providerChip, voiceProvider === 'inworld' && { backgroundColor: colors.chipSelectedBg }]}
+                        onPress={() => {
+                          setVoiceProvider('inworld');
+                          saveVoiceProviderPreference('inworld');
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={[styles.providerChipText, { color: voiceProvider === 'inworld' ? colors.chipSelectedText : colors.mutedText }]}>Inworld</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
