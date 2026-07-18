@@ -5,8 +5,10 @@ import { deleteAccount, getBillingStatus } from '../services/api.js';
 import {
   getCallLanguagePreference,
   getCallVoicePreference,
+  getInworldVoicePreference,
   saveCallLanguagePreference,
   saveCallVoicePreference,
+  saveInworldVoicePreference,
 } from '../utils/secureStorage.js';
 import { useAppTheme } from '../theme/appTheme.js';
 
@@ -14,52 +16,47 @@ const LANGUAGE_OPTIONS = [
   {
     value: 'en',
     title: 'English',
-    description: 'Use English as the primary language. You can still mix in Spanish during the call.'
+    description: 'Use English as the primary language.'
   },
   {
     value: 'es',
     title: 'Spanish',
-    description: 'Use Spanish as the primary language. You can still mix in English during the call.'
-  },
-  {
-    value: 'pt',
-    title: 'Portuguese',
-    description: 'Use Portuguese as the primary language, while still handling mixed-language moments naturally.'
-  },
-  {
-    value: 'fr',
-    title: 'French',
-    description: 'Use French as the primary language, while still handling mixed-language moments naturally.'
-  },
-  {
-    value: 'de',
-    title: 'German',
-    description: 'Use German as the primary language, while still handling mixed-language moments naturally.'
-  },
-  {
-    value: 'it',
-    title: 'Italian',
-    description: 'Use Italian as the primary language, while still handling mixed-language moments naturally.'
-  },
-  {
-    value: 'zh',
-    title: 'Mandarin Chinese',
-    description: 'Use Mandarin Chinese as the primary language, while still handling mixed-language moments naturally.'
-  },
-  {
-    value: 'hi',
-    title: 'Hindi',
-    description: 'Use Hindi as the primary language, while still handling mixed-language moments naturally.'
+    description: 'Use Spanish as the primary language.'
   },
   {
     value: 'ar',
     title: 'Arabic',
-    description: 'Use Arabic as the primary language, while still handling mixed-language moments naturally.'
+    description: 'Use Arabic as the primary language.'
+  },
+  {
+    value: 'de',
+    title: 'German',
+    description: 'Use German as the primary language.'
   },
   {
     value: 'ja',
     title: 'Japanese',
-    description: 'Use Japanese as the primary language, while still handling mixed-language moments naturally.'
+    description: 'Use Japanese as the primary language.'
+  },
+  {
+    value: 'ko',
+    title: 'Korean',
+    description: 'Use Korean as the primary language.'
+  },
+  {
+    value: 'pt',
+    title: 'Portuguese',
+    description: 'Use Portuguese as the primary language.'
+  },
+  {
+    value: 'ru',
+    title: 'Russian',
+    description: 'Use Russian as the primary language.'
+  },
+  {
+    value: 'zh',
+    title: 'Mandarin Chinese',
+    description: 'Use Mandarin Chinese as the primary language.'
   }
 ];
 
@@ -117,6 +114,19 @@ const VOICE_OPTIONS = [
   }
 ];
 
+const INWORLD_VOICE_OPTIONS = [
+  {
+    value: 'Sarah',
+    title: 'Sarah',
+    description: 'Female US English voice. Supports 8 languages including Spanish, Arabic, Japanese, and more.'
+  },
+  {
+    value: 'Jason',
+    title: 'Jason',
+    description: 'Male US English voice. Same 8-language support as Sarah.'
+  }
+];
+
 
 const areRatesEqual = (left, right) => Math.abs(Number(left) - Number(right)) < 0.001;
 const areDelayValuesEqual = (left, right) => Number(left) === Number(right);
@@ -124,6 +134,7 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
   const { colors, isDarkMode, toggleTheme } = useAppTheme();
   const [callLanguage, setCallLanguage] = useState('en');
   const [callVoice, setCallVoice] = useState('marin');
+  const [inworldVoice, setInworldVoice] = useState('Sarah');
   const [billingSummary, setBillingSummary] = useState({
     loading: true,
     availableVoiceMinutes: 0,
@@ -137,13 +148,15 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
 
   useEffect(() => {
     const loadPreferences = async () => {
-      const [savedLanguage, savedVoice] = await Promise.all([
+      const [savedLanguage, savedVoice, savedInworldVoice] = await Promise.all([
         getCallLanguagePreference(),
-        getCallVoicePreference()
+        getCallVoicePreference(),
+        getInworldVoicePreference()
       ]);
 
       setCallLanguage(savedLanguage || 'en');
       setCallVoice(savedVoice || 'marin');
+      setInworldVoice(savedInworldVoice || 'Sarah');
     };
 
     loadPreferences();
@@ -190,6 +203,16 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
     requestAnimationFrame(() => {
       scrollViewRef.current?.scrollTo({ y: scrollOffsetRef.current, animated: false });
     });
+  };
+
+  const handleSelectVoice = async (value) => {
+    setCallVoice(value);
+    await saveCallVoicePreference(value);
+  };
+
+  const handleSelectInworldVoice = async (value) => {
+    setInworldVoice(value);
+    await saveInworldVoicePreference(value);
   };
 
   const handleSelectLanguage = async (value) => {
@@ -355,6 +378,38 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
                 selected && [styles.optionCardSelected, { borderColor: colors.accent, backgroundColor: colors.surfaceAlt }]
               ]}
               onPress={() => handleSelectVoice(option.value)}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.radio, { borderColor: colors.mutedText }, selected && [styles.radioSelected, { borderColor: colors.accent }]]}>
+                {selected ? <View style={[styles.radioInner, { backgroundColor: colors.accent }]} /> : null}
+              </View>
+              <View style={styles.optionContent}>
+                <Text style={[styles.optionTitle, { color: colors.text }]}>{option.title}</Text>
+                <Text style={[styles.optionDescription, { color: colors.mutedText }]}>{option.description}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Inworld Voice</Text>
+        <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>Choose which voice Inworld should use when speaking back. Sarah and Jason both support 8 languages.</Text>
+
+        <Text style={[styles.providerSubheader, { color: colors.mutedText }]}>Inworld Voices</Text>
+
+        {INWORLD_VOICE_OPTIONS.map((option) => {
+          const selected = inworldVoice === option.value;
+
+          return (
+            <TouchableOpacity
+              key={option.value}
+              style={[
+                styles.optionCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                selected && [styles.optionCardSelected, { borderColor: colors.accent, backgroundColor: colors.surfaceAlt }]
+              ]}
+              onPress={() => handleSelectInworldVoice(option.value)}
               activeOpacity={0.85}
             >
               <View style={[styles.radio, { borderColor: colors.mutedText }, selected && [styles.radioSelected, { borderColor: colors.accent }]]}>

@@ -61,6 +61,7 @@ import {
 import {
   getCallLanguagePreference,
   getCallVoicePreference,
+  getInworldVoicePreference,
   getVoiceProviderPreference,
   saveVoiceProviderPreference,
   getThemeModePreference,
@@ -419,10 +420,11 @@ const AppContent = () => {
         return;
       }
 
-      const [callLanguage, callVoice, storedProvider] = await Promise.all([
+      const [callLanguage, callVoice, storedProvider, inworldVoice] = await Promise.all([
         getCallLanguagePreference(),
         getCallVoicePreference(),
-        getVoiceProviderPreference()
+        getVoiceProviderPreference(),
+        getInworldVoicePreference()
       ]);
 
       setVoiceProvider(storedProvider);
@@ -510,9 +512,9 @@ const AppContent = () => {
       }
 
       if (isInworld) {
-        // Inworld WebSocket voice mode (OpenAI-compatible protocol)
+        // Inworld WebRTC voice mode
         const inworldResponse = await startInworldVoiceCall({
-          voice: callVoice || 'Clive',
+          voice: inworldVoice || 'Sarah',
           language: callLanguage || 'en',
           onStatusChange: (status) => {
             traceLiveCallStage(`inworld_provider_status_${status}`);
