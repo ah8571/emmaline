@@ -6,6 +6,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: '*',
       allow: '/',
     },
-    sitemap: 'https://emmaline.app/sitemap.xml',
+    sitemap: 'https://alihelp.tech/sitemap.xml',
   };
 }

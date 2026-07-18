@@ -187,7 +187,7 @@ export const sendWelcomeEmail = async (email) => {
   const resend = getResendClient();
   const from = process.env.RESEND_FROM_EMAIL;
 
-  const subject = 'You are on the Emmaline waitlist ✨';
+  const subject = 'You are on the Ali waitlist ✨';
   const html = `
     <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h1 style="color:#111;">You’re in.</h1>

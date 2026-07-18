@@ -8,7 +8,7 @@ const blogLinks = [
     label: 'Best AI Phone Assistants',
   },
   {
-    href: '/compare/chatgpt-voice-vs-emmaline',
+    href: '/compare/chatgpt-voice-vs-ali',
     label: 'ChatGPT Voice vs Emmaline',
   },
   {

@@ -1,4 +1,4 @@
-# Emmaline Mobile App - Screen Guide
+# Ali Mobile App - Screen Guide
 
 ## Updated App Flow
 

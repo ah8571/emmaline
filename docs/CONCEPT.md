@@ -6,6 +6,8 @@ App Name: Emmaline: Your AI Assistant -> Multitask with AI -> Your AI Workspace
 
 Emmaline can transcribe, take notes, read document, teach you a language
 
+Emphasizing / focusing on open source LLM provider capabilities
+
 Emmaline is a hands-free, voice-first AI assistant for real-time conversations, instant answers, note taking, transcriptions, reading documents out loud with more features to come. The first version centers on the in-app voice experience, with future room to expand into calling and texting capabilities when those channels are ready to be productized.
 
 
@@ -80,9 +82,8 @@ check to allow people 16 and over and any related privacy policy notice
 
 ### Phase 1 Publish Blockers
 
-changing interior to 'voice mode' rather than an actual phone so that interior can be used internationally without being an expense
 
-Interesting design features (ex. Coconote)
+Design: add sign up flow / consider 'drawing' a kind of icon figure that is the kind of 'app avatar' of an ali that orients users through the app
 
 Verify email architecture works:
 the backend still needs these env vars:
@@ -133,6 +134,8 @@ SUPPORT_EMAIL_TO
 ## Phase 2: OpenClaw Integration + Enhanced Privacy
 
 ### Phase 2 Goal
+
+Easier than hermes or openclaw: you just sign in to the providers when you want to route things to them
 
 Extend the MVP into a more capable assistant without losing the core voice-and-notes workflow.
 

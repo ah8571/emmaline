@@ -1,4 +1,4 @@
-# Emmaline - AI Phone Call Assistant for Multitasking
+# Ali - AI Voice Assistant
 
 Monorepo for a hands-free AI assistant accessible via phone call. Users can speak with an AI while multitasking, with automatic transcription, summarization, and note-taking.
 

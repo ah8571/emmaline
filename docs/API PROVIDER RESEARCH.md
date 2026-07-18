@@ -96,7 +96,7 @@ Compare providers on:
 
 ## Product Mapping
 
-### A. In-app Voice Mode
+### In-app Voice Mode
 Rename product thinking from live call to voice mode.
 
 Recommended evaluation order:
@@ -110,7 +110,7 @@ Recommended evaluation order:
 8. Phonic Speech-to-speech (Listed on livekit)
 9. Ultravox Realtime (open-source)
 
-### B. Natural Voices (TTS)
+### Natural Voices (TTS)
 Recommended evaluation order:
 1. ElevenLabs
 Alternatives to Elevanlabs
@@ -123,16 +123,56 @@ Alternatives to Elevanlabs
 7. Deepgram AI
 4. Nova 2.0 Sonic
 
+low cost models
+Deepgram .015 per 1,000 characters
+
+Self hosted
+Kokoro-82M with budget friendly runpod gpu could lead to sub .01 compute costs
+StyleTTS 2
+ChatTTS
+XTTS v2 by Coqui
+
+### LLM Summaries
+
+Gemini 1.5 Flash
+
+Self hosted
+LLama 3.1 8B (deepinfra, openrouter) -
+
+
+
+
 ### Multi-lingual assistance
 2. Elevanlabs [supposedly?]
 
 
-### C. Real-Time Transcription
+### STT Real-Time Transcription
 Recommended evaluation order:
 1. Google
 2. Deepgram
 3. AssemblyAI
 4. Soniox
+
+low cost models 
+Deepgram nova-2 (.0043 per minute)
+Groq's Whisper
+Assembly (.0025 per minute)
+Gladia (.0033 per minute) - has in built speaker identification / summarization
+
+On Device
+Use iOS SFSpeechRecognizer
+Android SpeechRecognizer
+
+Faster Whisper Large-v3 / Insanely Fast Whisper (.2 per hour of transcription potentially) - open-source
+- model on a rented GPU server (using providers like RunPod, Mystic or Vast.ai) [runpod charges per second of use]
+
+
+### Load testing
+
+Utilize an open-source tool like Locust or K6 to simulate hundreds of virtual users hitting your RunPod endpoints simultaneously. Run two distinct scenarios:The Spike Test: Send 100 simultaneous transcription requests to observe how quickly RunPod spins up new GPU instances (cold-start handling).
+
+Implement Concurrent Execution limits
+By default, a serverless container processes one request at a time. If 5 users hit your endpoint, RunPod boots up 5 separate GPUs, increasing your costs.The Fix: Use Python frameworks like Asyncio or vLLM to configure your backend container to handle multiple lightweight TTS requests (e.g., 3 to 5 tasks) concurrently on a single GPU.
 
 ## Twilio Positioning
 

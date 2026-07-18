@@ -990,7 +990,7 @@ const AppContent = () => {
                     <View style={styles.modePickerOptionHeader}>
                       <Text style={[styles.modePickerOptionTitle, { color: colors.text }]}>Voice Mode</Text>
                     </View>
-                    <Text style={[styles.modePickerOptionDescription, { color: colors.mutedText }]}>Talk to Emmaline live in a full-screen voice conversation. Saved transcripts are currently available in Listen Mode.</Text>
+                    <Text style={[styles.modePickerOptionDescription, { color: colors.mutedText }]}>Talk to Ali live in a full-screen voice conversation. Saved transcripts are currently available in Listen Mode.</Text>
                   </TouchableOpacity>
 
                   <View style={[styles.providerToggleRow, { borderTopColor: colors.border }]}>

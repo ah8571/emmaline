@@ -42,7 +42,7 @@ const AIDisclosureScreen = ({ navigation, isChecking = false, onAccept, onLogout
       <View style={[styles.disclosureCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[styles.disclosureEyebrow, { color: colors.mutedText }]}>Privacy disclosure</Text>
         <Text style={[styles.disclosureTitle, { color: colors.text }]}>AI processing permission</Text>
-        <Text style={[styles.disclosureBody, { color: colors.mutedText }]}>Before Emmaline processes AI features, we need your permission.</Text>
+        <Text style={[styles.disclosureBody, { color: colors.mutedText }]}>Before Ali processes AI features, we need your permission.</Text>
         <Text style={[styles.disclosureBody, { color: colors.mutedText }]}>When you use voice mode, Listen Mode, notes, or Reader, Emmaline may send the audio, transcripts, note text, pasted text, or uploaded documents you choose to share to OpenAI, Google Cloud, or Resemble so they can generate transcripts, summaries, spoken audio, or AI responses.</Text>
 
         <TouchableOpacity style={styles.disclosureCheckboxRow} onPress={() => setHasCheckedConsent((current) => !current)} activeOpacity={0.85}>

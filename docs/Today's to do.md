@@ -5,26 +5,103 @@
 - Update name to Ali
 - Work through key words for people to better find the apps (like STT or TTS or how other apps are phrasing it)
 - 30 character new name for apple
-Ali: Reader, Learn Languages (28) 
-Ali: AI Voice Assistant <-
+Ali: Reader, Transcribe, Learn (30) 
+Ali: AI Voice Assistant 
 Ali: Multitask with AI
 Ali: Your AI workspace
 
+new website: alihelp.tech
+email: support@alihelp.tech
+
+[x] App display name — changed in app.json, update App Store Connect / Play Console listing. The bundle ID stays com.emmaline.app.
+[x] In-app branding — replaced "Emmaline" → "Ali" across mobile, backend, website (20+ files)
+[x] Backend references — email templates, support emails, greeting messages all updated
+[x] Legal content — mobile + shared legalContent.json updated with Ali branding + alihelp.tech email
+[x] Website — header, footer, SEO metadata, sitemap, robots all updated to alihelp.tech
+
+
+[ ] Website — emmaline.app would ideally redirect to ali.app (if you can get it). You'd update the Next.js site branding. Keep the old domain as a redirect.
+[ ] Supabase — the project URL (xyz.supabase.co) doesn't contain the app name, so no change needed. But any email templates, auth pages, or branded elements would need updating.
+[ ] RevenueCat — app identifier stays the same (bundle ID), so no migration. Just update the app name in their dashboard.
+
+
+[x] Email — support@emmaline.app → support@ali.app means new domain, new email setup, forwarding from the old address.
+[ ] Digital Ocean — droplet/app names are cosmetic, easy to rename. But if you use emmaline in any DNS/hostname config, those need updating.
+[ ] App Store review — a name change on an existing app is usually fine, but Apple occasionally flags dramatic rebrands. Having the same bundle ID helps.
+[ ] GitHub — repo can be renamed, GitHub redirects automatically.
+[ ] API endpoints — api.emmaline.app would need to change or be aliased. If you keep the old domain as an alias, no mobile code changes needed.
+
+## Remodeling the subscription method 
+
+to go to web for payments (ie to get payment for the app asap) along with incorporating privacy oriented skan conventions. 
+
+## Weekly allotments 
+See notes below for updating
+
 ## Create promo code workflows for influencers
 
-## SKAN w/ Apple set up
+## Appflyer integration w privacy (SKAN and android privacy box)
+
+
+## Consider weaving in less than .01 cent api providers
+
+Self-hosted providers
+Faster Whisper Large-v3 / Insanely Fast Whisper (.2 per hour of transcription potentially) - open-source
+- model on a rented GPU server (using providers like RunPod, Mystic or Vast.ai) [runpod charges per second of use]
+Self hosted
+Kokoro-82M with budget friendly runpod gpu could lead to sub .01 compute costs
+StyleTTS 2
+ChatTTS
+XTTS v2 by Coqui
+
+Need to keep interstitial api costs lower than .01 ad payout
+
+For cheaper model work, try to rope in the basic functionality for those who like to use transcribe, reader stuff for free
+
+Use for:
+Transcription
+TTS reading (Apple has built in AVSpeechSynthesizer)
+Don't use for real time voice
+
+Ad-rewarded feature:
+"Ad-Triggered Actions: Instead of random pop-ups, use a Rewarded Interstitial ad format. Require the user to watch a 5-second video specifically to "unlock" a long transcription or article read-aloud. Users accept ads much better when it directly grants them a feature."
+
+Ad framework
+Because a 1-hour file costs $0.013 to process, a single standard pop-up ad ($0.010) leaves you at a slight loss. To make this profitable, you must adapt your ad strategy for long-form content.Instead of one random pop-up, you use two strategic ad placements:The 
+- Entry Ad: A standard interstitial pop-up when they hit "Transcribe".
+- The Processing Ad: While the server spends 90 seconds transcribing the file, you display a native video ad or a rewarded countdown on the processing screen.
+
+Higher paying ad types
+- playable game ads (eCpm 15 to 30)
+- 15 second ads lead to about 2.5c per watch
+
+User uploads a 1-hour file 
+   │
+   ├──> [Ad #1: Interstitial Pop-up] ──────> Earns you: +$0.010
+   │
+   ├──> [90-Second Server Processing Screen]
+   │    └──> Displays a 15s Video Ad ───────> Earns you: +$0.020
+   │
+   └──> Final Transcription Delivered 
+
+
+
+
+
+
+# Tomorrow
+
+
 
 ## Start reaching out to influencers 
 
-## Perhaps start working on viral dance videos... 
+## perhaps just take a day to create dancing cat/ animal videos....
 
 ## Keep working through app upgrades
 
-- transcript summaries
-- podcast tutorial versions
 - Flash cards
+- Document upload
 
-how can we make a "Language learning" zone, how could we incorporate flashcards, how can people upload a text for the assistant to read and translate with them in real time
 
 
 ## AppsFlyer:
@@ -46,21 +123,12 @@ Next: if you paste TikTok (and optionally Meta) SKAN IDs I will create an EAS se
 
 Note: installs are measured by SKAN postbacks; in-app appsFlyer.logEvent(...) provides the events Conversion Studio maps to conversion values for ROAS later.
 
-## Provider keys:
-Gemini live: https://ai.google.dev/gemini-api/docs/live-api
-
 ## Affiliate draft inputs:
 1 creator slug/name to use as the first real landing page
 rough promo code format you want, even if temporary
 optional headline/testimonial copy for that creator page
 
-## Testing readiness
 
-one fresh iPhone test build after the AppsFlyer/SKAN values are in
-
-##
-
-Remodeling the subscription method to go to web for payments (ie to get payment for the app asap) along with incorporating privacy oriented skan conventions. 
 
 ## Weekly allotments 
 

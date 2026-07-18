@@ -2,7 +2,7 @@ import '../globals.css'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://emmaline.app'),
+  metadataBase: new URL('https://alihelp.tech'),
   title: 'Voice Assistant For Real Conversations | Emmaline',
   description: 'Emmaline is a voice-first assistant for natural conversations, instant answers, and thoughtful note-taking.',
   alternates: {

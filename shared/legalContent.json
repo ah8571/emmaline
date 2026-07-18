@@ -1,18 +1,18 @@
 {
   "policyVersion": "2026-06-21",
   "termsVersion": "2026-06-21",
-  "supportEmail": "support@emmaline.app",
+  "supportEmail": "support@alihelp.tech",
   "consentText": {
-    "required": "I agree to the Terms of Use and Privacy Policy, including Emmaline's handling of call audio, transcripts, notes, uploaded documents, and AI processing.",
-    "marketing": "I agree to receive the educational newsletter and product updates from Emmaline. I can unsubscribe at any time."
+    "required": "I agree to the Terms of Use and Privacy Policy, including Ali's handling of call audio, transcripts, notes, uploaded documents, and AI processing.",
+    "marketing": "I agree to receive the educational newsletter and product updates from Ali. I can unsubscribe at any time."
   },
   "privacyPolicy": {
     "title": "Privacy Policy",
     "lastUpdated": "2026-06-21",
     "intro": [
-      "Emmaline is a product of Planting Moon LLC, located at 5830 E 2nd St, Ste 7000 #35119, Casper, Wyoming 82609.",
-      "This Privacy Policy explains how Emmaline collects, uses, stores, and shares information when you use the Emmaline mobile app, website, and related services.",
-      "Emmaline is a voice-first AI assistant. That means some of the information you share with us may include voice audio, transcripts, notes, uploaded documents, and support messages."
+      "Ali is a product of Planting Moon LLC, located at 5830 E 2nd St, Ste 7000 #35119, Casper, Wyoming 82609.",
+      "This Privacy Policy explains how Ali collects, uses, stores, and shares information when you use the Ali mobile app, website, and related services.",
+      "Ali is a voice-first AI assistant. That means some of the information you share with us may include voice audio, transcripts, notes, uploaded documents, and support messages."
     ],
     "sections": [
       {
@@ -24,7 +24,7 @@
         "bullets": [
           "Account information such as email address and authentication details",
           "Call audio, call timestamps, phone assignment metadata, transcripts, summaries, and note content",
-          "Reader uploads and pasted text you ask Emmaline to read or process",
+          "Reader uploads and pasted text you ask Ali to read or process",
           "Support form submissions, deletion requests, and consent records",
           "Device and request metadata needed for security, fraud prevention, and service operations"
         ]
@@ -58,8 +58,8 @@
       {
         "title": "Third-Party Services",
         "body": [
-          "We use third-party infrastructure providers to operate Emmaline. These providers process data on our behalf to deliver specific parts of the service.",
-          "Your use of Emmaline may involve the services listed below depending on which features you use."
+          "We use third-party infrastructure providers to operate Ali. These providers process data on our behalf to deliver specific parts of the service.",
+          "Your use of Ali may involve the services listed below depending on which features you use."
         ],
         "bullets": [
           "Twilio for voice calling and phone infrastructure",
@@ -89,7 +89,7 @@
         ],
         "bullets": [
           "Access and review your account information in the app",
-          "Request support, deletion, or account-data help at support@emmaline.app",
+          "Request support, deletion, or account-data help at support@alihelp.tech",
           "Unsubscribe from marketing emails at any time",
           "Request account-data access or export support through our support channel"
         ]
@@ -97,14 +97,14 @@
       {
         "title": "Children's Privacy",
         "body": [
-          "Emmaline is not directed to children under 13, and we do not knowingly collect personal information from children under 13.",
-          "If you believe a child under 13 has provided personal information to Emmaline, contact support@emmaline.app so we can investigate and remove the information if appropriate."
+          "Ali is not directed to children under 13, and we do not knowingly collect personal information from children under 13.",
+          "If you believe a child under 13 has provided personal information to Ali, contact support@alihelp.tech so we can investigate and remove the information if appropriate."
         ]
       },
       {
         "title": "Contact Us",
         "body": [
-          "For privacy questions, deletion requests, export requests, or support, contact support@emmaline.app."
+          "For privacy questions, deletion requests, export requests, or support, contact support@alihelp.tech."
         ]
       }
     ]
@@ -113,29 +113,29 @@
     "title": "Terms of Use",
     "lastUpdated": "2026-06-21",
     "intro": [
-      "Emmaline is a product of Planting Moon LLC, located at 5830 E 2nd St, Ste 7000 #35119, Casper, Wyoming 82609.",
-      "These Terms of Use govern your access to and use of the Emmaline app, website, and related services.",
-      "By creating an account or using Emmaline, you agree to these Terms of Use and our Privacy Policy."
+      "Ali is a product of Planting Moon LLC, located at 5830 E 2nd St, Ste 7000 #35119, Casper, Wyoming 82609.",
+      "These Terms of Use govern your access to and use of the Ali app, website, and related services.",
+      "By creating an account or using Ali, you agree to these Terms of Use and our Privacy Policy."
     ],
     "sections": [
       {
         "title": "Eligibility and Accounts",
         "body": [
           "You are responsible for the accuracy of your account information and for maintaining the confidentiality of your login credentials.",
-          "You may not use Emmaline in violation of law, to infringe the rights of others, or to submit harmful, fraudulent, or abusive content."
+          "You may not use Ali in violation of law, to infringe the rights of others, or to submit harmful, fraudulent, or abusive content."
         ]
       },
       {
         "title": "Service Description",
         "body": [
-          "Emmaline offers voice-assisted AI features including calling, transcription, summaries, notes, reader tools, and related account services.",
+          "Ali offers voice-assisted AI features including calling, transcription, summaries, notes, reader tools, and related account services.",
           "Some outputs are generated by AI systems and may be incomplete, inaccurate, or unsuitable for high-risk decisions. You are responsible for reviewing and using outputs appropriately."
         ]
       },
       {
         "title": "Acceptable Use",
         "body": [
-          "You agree not to misuse Emmaline, interfere with the service, reverse engineer restricted components, attempt unauthorized access, or use the service to violate the privacy or rights of others."
+          "You agree not to misuse Ali, interfere with the service, reverse engineer restricted components, attempt unauthorized access, or use the service to violate the privacy or rights of others."
         ],
         "bullets": [
           "Do not use the service for unlawful harassment, fraud, or abuse",
@@ -146,7 +146,7 @@
       {
         "title": "Subscriptions and Billing",
         "body": [
-          "If Emmaline offers paid subscriptions, those subscriptions may be purchased through the Apple App Store, Google Play, or subscription infrastructure providers that support our app billing operations.",
+          "If Ali offers paid subscriptions, those subscriptions may be purchased through the Apple App Store, Google Play, or subscription infrastructure providers that support our app billing operations.",
           "Subscriptions renew automatically unless canceled before the renewal date. You can manage or cancel subscriptions through the platform where you purchased them. If restore purchases is available in the app, you should use it when changing devices or reinstalling the app."
         ],
         "bullets": [
@@ -159,28 +159,28 @@
       {
         "title": "Account Management and Deletion",
         "body": [
-          "You may request deletion of your Emmaline account through the in-app settings flow or by contacting support@emmaline.app.",
+          "You may request deletion of your Ali account through the in-app settings flow or by contacting support@alihelp.tech.",
           "Deleting your account may permanently remove access to transcripts, notes, reader history, and related data linked to the account."
         ]
       },
       {
         "title": "Intellectual Property",
         "body": [
-          "Emmaline and its service materials are owned by us or our licensors. Except for the rights granted to you to use the service, we reserve all rights not expressly granted."
+          "Ali and its service materials are owned by us or our licensors. Except for the rights granted to you to use the service, we reserve all rights not expressly granted."
         ]
       },
       {
         "title": "Disclaimers and Liability",
         "body": [
-          "Emmaline is provided on an as-is and as-available basis. To the maximum extent permitted by law, we disclaim warranties not expressly stated in these terms.",
-          "To the maximum extent permitted by law, Emmaline will not be liable for indirect, incidental, special, consequential, or punitive damages, or for decisions made based on AI-generated outputs."
+          "Ali is provided on an as-is and as-available basis. To the maximum extent permitted by law, we disclaim warranties not expressly stated in these terms.",
+          "To the maximum extent permitted by law, Ali will not be liable for indirect, incidental, special, consequential, or punitive damages, or for decisions made based on AI-generated outputs."
         ]
       },
       {
         "title": "Changes and Contact",
         "body": [
           "We may update these Terms of Use from time to time. If we make material changes, we may update the effective date and provide notice where required.",
-          "For terms, billing, support, or deletion questions, contact support@emmaline.app."
+          "For terms, billing, support, or deletion questions, contact support@alihelp.tech."
         ]
       }
     ]
@@ -189,7 +189,7 @@
     "title": "End User License Agreement",
     "lastUpdated": "2026-07-14",
     "intro": [
-      "This End User License Agreement (\"EULA\") is a binding agreement between you (\"you\" or \"End User\") and Planting Moon LLC, a Wyoming limited liability company located at 5830 E 2nd St, Ste 7000 #35119, Casper, Wyoming 82609 (\"Company,\" \"we,\" \"us,\" or \"our\"), governing your use of the Emmaline mobile application and any related documentation (collectively, the \"App\").",
+      "This End User License Agreement (\"EULA\") is a binding agreement between you (\"you\" or \"End User\") and Planting Moon LLC, a Wyoming limited liability company located at 5830 E 2nd St, Ste 7000 #35119, Casper, Wyoming 82609 (\"Company,\" \"we,\" \"us,\" or \"our\"), governing your use of the Ali mobile application and any related documentation (collectively, the \"App\").",
       "By downloading, installing, or using the App, you agree to be bound by the terms of this EULA. If you do not agree to this EULA, do not download, install, or use the App."
     ],
     "sections": [
@@ -220,7 +220,7 @@
         "body": [
           "The App is licensed, not sold, to you. The Company and its licensors own and retain all right, title, and interest in and to the App, including all copyrights, patents, trademarks, trade secrets, and other intellectual property rights therein.",
           "This EULA does not grant you any ownership rights in the App. All rights not expressly granted to you in this EULA are reserved by the Company and its licensors.",
-          "The name \"Emmaline,\" the Emmaline logo, and all related names, logos, product and service names, designs, and slogans are trademarks of the Company or its affiliates. You may not use such marks without the prior written permission of the Company."
+          "The name \"Ali,\" the Ali logo, and all related names, logos, product and service names, designs, and slogans are trademarks of the Company or its affiliates. You may not use such marks without the prior written permission of the Company."
         ]
       },
       {
@@ -271,7 +271,7 @@
         "title": "Governing Law and Dispute Resolution",
         "body": [
           "This EULA shall be governed by and construed in accordance with the laws of the State of Wyoming, without regard to its conflict of law principles.",
-          "Any dispute arising out of or relating to this EULA shall first be attempted to be resolved informally by contacting us at support@emmaline.app. If the dispute cannot be resolved informally within thirty (30) days, either party may pursue resolution through binding arbitration in Casper, Wyoming, or through small claims court if the claim qualifies.",
+          "Any dispute arising out of or relating to this EULA shall first be attempted to be resolved informally by contacting us at support@alihelp.tech. If the dispute cannot be resolved informally within thirty (30) days, either party may pursue resolution through binding arbitration in Casper, Wyoming, or through small claims court if the claim qualifies.",
           "You agree that any dispute resolution proceedings will be conducted only on an individual basis and not in a class, consolidated, or representative action."
         ]
       },
@@ -303,7 +303,7 @@
         "body": [
           "If any provision of this EULA is held to be invalid or unenforceable, the remaining provisions shall continue in full force and effect.",
           "The Company's failure to enforce any right or provision of this EULA shall not constitute a waiver of such right or provision.",
-          "This EULA, together with our Privacy Policy and Terms of Use (available within the App and at www.emmaline.app), constitutes the entire agreement between you and the Company regarding your use of the App and supersedes all prior agreements and understandings.",
+          "This EULA, together with our Privacy Policy and Terms of Use (available within the App and at alihelp.tech), constitutes the entire agreement between you and the Company regarding your use of the App and supersedes all prior agreements and understandings.",
           "The Company may update this EULA from time to time. Material changes will be communicated through the App or by email. Your continued use of the App after the effective date of any changes constitutes your acceptance of the updated EULA."
         ]
       },
@@ -311,7 +311,7 @@
         "title": "Contact Information",
         "body": [
           "For questions about this EULA, or to report a violation, contact us at:",
-          "Email: support@emmaline.app",
+          "Email: support@alihelp.tech",
           "Address: Planting Moon LLC, 5830 E 2nd St, Ste 7000 #35119, Casper, Wyoming 82609"
         ]
       }

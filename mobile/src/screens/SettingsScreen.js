@@ -194,7 +194,7 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
   const handleLogout = () => {
     Alert.alert(
       'Log out',
-      'Log out of Emmaline on this device?',
+      'Log out of Ali on this device?',
       [
         {
           text: 'Cancel',
@@ -329,7 +329,7 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Voice Mode voice</Text>
-        <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>Choose which OpenAI realtime voice Emmaline should use when speaking back.</Text>
+        <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>Choose which OpenAI realtime voice Ali should use when speaking back.</Text>
 
         <Text style={[styles.providerSubheader, { color: colors.mutedText }]}>OpenAI Voices</Text>
 
@@ -401,7 +401,7 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
           activeOpacity={0.85}
         >
           <Text style={[styles.linkCardTitle, { color: colors.text }]}>Support</Text>
-          <Text style={[styles.linkCardDescription, { color: colors.mutedText }]}>Send a request to support@emmaline.app from inside the app.</Text>
+          <Text style={[styles.linkCardDescription, { color: colors.mutedText }]}>Send a request to support@alihelp.tech from inside the app.</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -410,7 +410,7 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
           activeOpacity={0.85}
         >
           <Text style={[styles.linkCardTitle, { color: colors.text }]}>Privacy Policy</Text>
-          <Text style={[styles.linkCardDescription, { color: colors.mutedText }]}>Review how Emmaline handles voice, transcript, support, and account data.</Text>
+          <Text style={[styles.linkCardDescription, { color: colors.mutedText }]}>Review how Ali handles voice, transcript, support, and account data.</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

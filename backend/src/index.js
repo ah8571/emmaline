@@ -136,7 +136,7 @@ app.get('/', (req, res) => {
   const websocketProtocol = forwardedProto === 'https' ? 'wss' : 'ws';
 
   res.status(200).json({
-    message: 'Emmaline AI Phone Call Buddy - Backend API',
+    message: 'Ali AI Assistant - Backend API',
     version: '0.1.0',
     endpoints: {
       health: '/health',

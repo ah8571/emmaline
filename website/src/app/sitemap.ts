@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 
 import { consumerCompetitorSlugs } from '@/lib/consumerCompetitors';
 
-const baseUrl = 'https://emmaline.app';
+const baseUrl = 'https://alihelp.tech';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes: MetadataRoute.Sitemap = [

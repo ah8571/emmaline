@@ -154,7 +154,7 @@ const CallDetailScreen = ({ route, navigation, onAppHeaderScroll, transcriptRese
             call.messages.map((message) => (
               <View key={message.id || `${message.sequenceNumber}-${message.speaker}`} style={styles.messageRow}>
                 <Text style={[styles.messageSpeaker, { color: colors.text }]}>
-                  {message.speaker === 'assistant' ? 'Emmaline' : message.speaker === 'system' ? 'System' : 'You'}
+                  {message.speaker === 'assistant' ? 'Ali' : message.speaker === 'system' ? 'System' : 'You'}
                 </Text>
                 <Text style={[styles.transcriptText, { color: colors.mutedText }]}>{message.text}</Text>
               </View>

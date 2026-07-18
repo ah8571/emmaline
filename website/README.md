@@ -1,4 +1,4 @@
-# Emmaline Landing Page
+# Ali Landing Page
 
 Minimal, black-background landing page for the Emmaline AI Phone Call Buddy app.
 
