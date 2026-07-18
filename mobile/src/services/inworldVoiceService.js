@@ -100,7 +100,7 @@ const normalizeInworldLanguage = (value) => {
 };
 
 // Voice-language mapping (used for validation)
-const INWORLD_VOICES = ['Sarah', 'Jason', 'Roy Mustang'];
+const INWORLD_VOICES = ['Sarah', 'Jason', 'community-b72meov8bd46'];
 
 const normalizeInworldVoice = (openAiVoice) => {
   // Inworld voices are different from OpenAI. Map common choices or default to Clive.

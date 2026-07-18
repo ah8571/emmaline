@@ -93,7 +93,7 @@ const INWORLD_VOICE_OPTIONS = [
     languages: ['en', 'es', 'ar', 'de', 'it', 'ja', 'ko', 'pt', 'ru', 'zh']
   },
   {
-    value: 'Roy Mustang',
+    value: 'community-b72meov8bd46',
     title: 'Roy Mustang',
     description: 'Male voice. Speaks English and Italian.',
     languages: ['en', 'it']
