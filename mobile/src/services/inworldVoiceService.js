@@ -101,7 +101,7 @@ const normalizeInworldLanguage = (value) => {
 };
 
 // Voice-language mapping (used for validation)
-const INWORLD_VOICES = ['Sarah', 'Jason', 'community-b72meov8bd46'];
+const INWORLD_VOICES = ['Sarah', 'community-b72meov8bd46'];
 
 const normalizeInworldVoice = (openAiVoice) => {
   // Inworld voices are different from OpenAI. Map common choices or default to Clive.
@@ -520,12 +520,10 @@ export const selectInworldAudioDevice = async (deviceUuid) => {
   try {
     if (deviceUuid === 'speaker') {
       InCallManager.setSpeakerphoneOn(true);
-    } else if (deviceUuid === 'bluetooth') {
-      InCallManager.setSpeakerphoneOn(false);
-      InCallManager.setForceBluetooth(true);
     } else {
+      // Phone and Bluetooth both use speakerphone off.
+      // InCallManager auto-routes to Bluetooth when a BT device is connected.
       InCallManager.setSpeakerphoneOn(false);
-      InCallManager.setForceBluetooth(false);
     }
   } catch {}
 

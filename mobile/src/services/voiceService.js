@@ -669,15 +669,8 @@ export const selectAudioDevice = async (deviceUuid) => {
 
   try {
     if (Platform.OS === 'ios') {
-      if (nextRoute.type === 'speaker') {
-        InCallManager.setSpeakerphoneOn(true);
-      } else if (nextRoute.type === 'bluetooth') {
-        InCallManager.setSpeakerphoneOn(false);
-        InCallManager.setForceBluetooth(true);
-      } else {
-        InCallManager.setSpeakerphoneOn(false);
-        InCallManager.setForceBluetooth(false);
-      }
+      // Speaker on = speaker, off = InCallManager auto-routes to BT/earpiece
+      InCallManager.setSpeakerphoneOn(nextRoute.type === 'speaker');
     }
 
     await Audio.setAudioModeAsync({

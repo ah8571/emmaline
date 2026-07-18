@@ -83,13 +83,7 @@ const INWORLD_VOICE_OPTIONS = [
   {
     value: 'Sarah',
     title: 'Sarah',
-    description: 'Female US English. Speaks 10 languages.',
-    languages: ['en', 'es', 'ar', 'de', 'it', 'ja', 'ko', 'pt', 'ru', 'zh']
-  },
-  {
-    value: 'Jason',
-    title: 'Jason',
-    description: 'Male US English. Speaks 10 languages.',
+    description: 'Female US English. Speaks 10 languages with natural accents.',
     languages: ['en', 'es', 'ar', 'de', 'it', 'ja', 'ko', 'pt', 'ru', 'zh']
   },
   {
