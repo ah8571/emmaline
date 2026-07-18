@@ -8,8 +8,12 @@ import {
 import { API_BASE_URL, createNote, getNote, getNotes, updateNote } from './api.js';
 
 const INWORLD_PROVIDER = 'inworld-voice';
-const DEFAULT_INWORLD_VOICE = 'Clive';
+const DEFAULT_INWORLD_VOICE = 'Sarah';
+const DEFAULT_TTS_MODEL = 'inworld-tts-1.5-mini'; // cheapest option at ~$5/1M chars
 const DEFAULT_INWORLD_LANGUAGE = 'en-US';
+
+// Sarah voice supports: English, Arabic, German, Spanish, Japanese, Korean, Portuguese, Russian, Chinese
+const SARAH_LANGUAGES = ['en', 'ar', 'de', 'es', 'ja', 'ko', 'pt', 'ru', 'zh'];
 
 const NOTE_TOOLS = [
   {
@@ -81,19 +85,21 @@ const emitTranscript = (text) => {
 
 const normalizeInworldLanguage = (value) => {
   const normalized = String(value || '').trim().toLowerCase();
-  if (normalized.startsWith('es')) return 'es-MX';
-  if (normalized.startsWith('pt')) return 'pt-BR';
-  if (normalized.startsWith('ar')) return 'ar-EG';
-  if (normalized.startsWith('zh')) return 'zh-CN';
-  if (normalized.startsWith('fr')) return 'fr-FR';
-  if (normalized.startsWith('de')) return 'de-DE';
-  if (normalized.startsWith('it')) return 'it-IT';
-  if (normalized.startsWith('ja')) return 'ja-JP';
-  if (normalized.startsWith('hi')) return 'hi-IN';
+
+  // Map to Sarah's 8 supported languages (plus English)
+  if (normalized.startsWith('ar')) return 'ar';
+  if (normalized.startsWith('de')) return 'de';
+  if (normalized.startsWith('es')) return 'es';
+  if (normalized.startsWith('ja')) return 'ja';
+  if (normalized.startsWith('ko')) return 'ko';
+  if (normalized.startsWith('pt')) return 'pt';
+  if (normalized.startsWith('ru')) return 'ru';
+  if (normalized.startsWith('zh')) return 'zh';
+
   return DEFAULT_INWORLD_LANGUAGE;
 };
 
-const INWORLD_VOICES = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Aoede', 'Clive', 'Liam', 'Sarah'];
+const INWORLD_VOICES = ['Sarah', 'Jason', 'Hana', 'Blake', 'Mark', 'Hades', 'Reed', 'Levi', 'Luna', 'Victor', 'Puck', 'Charon', 'Kore', 'Fenrir', 'Aoede', 'Clive', 'Liam'];
 
 const normalizeInworldVoice = (openAiVoice) => {
   // Inworld voices are different from OpenAI. Map common choices or default to Clive.
@@ -189,7 +195,7 @@ export const startInworldVoiceCall = async ({
             },
             output: {
               voice: inworldVoice,
-              model: 'inworld-tts-2'
+              model: DEFAULT_TTS_MODEL
             }
           },
           tools: NOTE_TOOLS,
