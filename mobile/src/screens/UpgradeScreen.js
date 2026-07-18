@@ -140,12 +140,12 @@ const UpgradeScreen = ({ navigation: _navigation }) => {
             activeOpacity={0.85}
           >
             <Text style={[styles.upgradeButtonText, { color: colors.surface }]}>
-              Upgrade on alihelp.tech
+              Upgrade
             </Text>
           </TouchableOpacity>
 
           <Text style={[styles.manageLink, { color: colors.mutedText }]}>
-            Manage your subscription at alihelp.tech
+            Manage subscription above
           </Text>
 
           <View style={styles.inlineBenefitsBlock}>
