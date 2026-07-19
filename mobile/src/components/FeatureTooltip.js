@@ -26,15 +26,17 @@ const FeatureTooltip = ({ visible, onDismiss }) => {
   return (
     <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onDismiss}>
       <Animated.View style={[styles.content, { opacity }]}>
-        {/* Arrow pointing down-right to the FAB */}
+        {/* Curvy arrow pointing down-right to the FAB */}
         <Animated.View style={[styles.arrowWrap, { transform: [{ scale: pulse }] }]}>
-          <Ionicons name="arrow-down" size={48} color="#ffffff" style={styles.arrow} />
+          <Ionicons name="chevron-down" size={28} color="#ffffff" style={styles.arrow1} />
+          <Ionicons name="chevron-down" size={28} color="#ffffff" style={styles.arrow2} />
+          <Ionicons name="arrow-down" size={36} color="#ffffff" style={styles.arrow3} />
         </Animated.View>
 
         <View style={styles.card}>
-          <Text style={styles.title}>Start here</Text>
+          <Text style={styles.title}>Tap to start</Text>
           <Text style={styles.body}>
-            Tap the microphone button to start a live voice conversation or record your thoughts. Ali listens and responds in real time.
+            Start a live voice conversation or record and transcribe your thoughts. Ali listens and responds in real time.
           </Text>
           <TouchableOpacity style={styles.dismissButton} onPress={onDismiss}>
             <Text style={styles.dismissText}>Got it</Text>
@@ -59,11 +61,26 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end'
   },
   arrowWrap: {
-    marginRight: 28,
-    marginBottom: -4
+    marginRight: 22,
+    marginBottom: -8,
+    flexDirection: 'column',
+    alignItems: 'flex-end'
   },
-  arrow: {
-    transform: [{ rotate: '315deg' }]
+  arrow1: {
+    transform: [{ rotate: '315deg' }],
+    marginRight: 18,
+    marginBottom: -12,
+    opacity: 0.5
+  },
+  arrow2: {
+    transform: [{ rotate: '315deg' }],
+    marginRight: 12,
+    marginBottom: -10,
+    opacity: 0.7
+  },
+  arrow3: {
+    transform: [{ rotate: '315deg' }],
+    marginRight: 4
   },
   card: {
     backgroundColor: '#1a1a2e',

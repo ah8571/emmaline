@@ -6,24 +6,19 @@ const { width } = Dimensions.get('window');
 
 const SLIDES = [
   {
-    icon: 'mic-circle',
-    title: 'Talk It Out',
-    description: 'Start a voice conversation or record your thoughts. Ali listens, responds, and captures what matters — all hands-free.'
-  },
-  {
     icon: 'document-text',
     title: 'Notes & Reader',
-    description: 'Create and organize notes during calls. Use the built-in Reader to have your notes read back to you — completely free.'
+    description: 'Create and organize notes during voice calls. Use the built-in Reader to have your notes read back to you — completely free.'
   },
   {
     icon: 'language',
-    title: 'Natural Voices & Bilingual Tutor',
-    description: 'Unlock premium natural-sounding voices and a bilingual tutor that switches between English and your target language with a native accent.'
+    title: 'Voice Conversations & Language Learning',
+    description: 'Talk to Ali in natural voices. Switch between English and your target language with a native accent. Practice conversations like a real tutor.'
   },
   {
     icon: 'sparkles',
     title: 'Credits & Transcription',
-    description: 'Pro subscribers get monthly credits for Live Voice Mode and AI transcription of your recordings. Free users get starter credits to try everything.'
+    description: 'Pro subscribers get monthly credits for Live Voice Mode and AI transcription of recordings. Free starter credits let you try everything first.'
   }
 ];
 
