@@ -7,6 +7,10 @@ type CreatorPageProps = {
   };
 };
 
+export function generateStaticParams() {
+  return [{ slug: 'placeholder' }];
+}
+
 const formatCreatorName = (slug: string) => {
   const normalizedSlug = String(slug || '').trim();
 

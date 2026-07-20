@@ -61,24 +61,6 @@ services:
       - path: /api
         preserve_path_prefix: true
 
-  # Landing Page Website Service
-  - name: website
-    github:
-      repo: ah8571/ali
-      branch: main
-    source_dir: website
-    build_command: npm ci && npm run build
-    run_command: npm start
-    http_port: 3000
-    envs:
-      - key: NODE_ENV
-        value: production
-      - key: BACKEND_URL
-        value: https://api.alihelp.tech
-    routes:
-      - path: /
-        preserve_path_prefix: true
-
 # Database (optional - remove if using Supabase only)
 databases: []
 

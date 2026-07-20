@@ -29,7 +29,7 @@ function SubscribeForm() {
 
     // Redirect through backend to Stripe checkout with promo code
     const params = new URLSearchParams({ tier, code: promoCode.trim() });
-    window.location.href = `https://api.emmaline.app/api/subscribe/subscribe?${params.toString()}`;
+    window.location.href = `https://api.alihelp.tech/api/subscribe/subscribe?${params.toString()}`;
   };
 
   return (
