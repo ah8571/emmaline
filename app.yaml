@@ -3,7 +3,7 @@ services:
   # Backend API Service
   - name: backend
     github:
-      repo: ah8571/ali
+      repo: ah8571/emmaline
       branch: main
     source_dir: backend
     build_command: npm ci

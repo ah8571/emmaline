@@ -24,8 +24,7 @@ email: support@alihelp.tech
 [ ] Google auth page
 [ ] Supabase — auth pages, or branded elements would need updating.
 [ ] RevenueCat — app identifier stays the same (bundle ID), so no migration. Just update the app name in their dashboard.
-[x] Email — support@emmaline.app → support@ali.app means new domain, new email setup, forwarding from the old address.
-[ ] Resend configuration
+[x] Email — support@emmaline.app → support@ali.app 
 [ ] Digital Ocean — droplet/app names are cosmetic, easy to rename. But if you use emmaline in any DNS/hostname config, those need updating.
 [ ] App Store review — a name change on an existing app is usually fine, but Apple occasionally flags dramatic rebrands. Having the same bundle ID helps.
 [ ] GitHub — repo can be renamed, GitHub redirects automatically.
