@@ -45,8 +45,16 @@ emmaline_supabase_session etc. — storage keys (reset on re-login)
 [ ] Set the env vars in DO: STRIPE_PRICE_WEEKLY, STRIPE_PRICE_MONTHLY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
 [ ] Create the webhook endpoint in Stripe: https://api.oov.digital/api/stripe/webhook (events: checkout.session.completed, customer.subscription.updated, customer.subscription.deleted)
 
-
 to go to web for payments (ie to get payment for the app asap) along with incorporating privacy oriented skan conventions.
+
+Stripe Webhook
+Stripe Dashboard → Developers → Webhooks → Add endpoint:
+
+Field	Value
+URL	https://api.oov.digital/api/stripe/webhook
+Events	checkout.session.completed, customer.subscription.updated, customer.subscription.deleted
+API version	2025-06-30.basil (matches code)
+Copy the whsec_... signing secret → set as STRIPE_WEBHOOK_SECRET env var in DO.
 
 Env Var	Where
 STRIPE_SECRET_KEY	Dashboard → API Keys → sk_live_...

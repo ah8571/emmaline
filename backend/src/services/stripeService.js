@@ -4,7 +4,7 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 
 const stripe = STRIPE_SECRET_KEY
-  ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2025-06-30.basil' })
+  ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2026-06-24.dahlia' })
   : null;
 
 // Tier configuration — matches Stripe price IDs
