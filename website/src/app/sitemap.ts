@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 
 import { consumerCompetitorSlugs } from '@/lib/consumerCompetitors';
 
-const baseUrl = 'https://alihelp.tech';
+const baseUrl = 'https://oov.digital';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -21,7 +21,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ];
 
   const comparisonRoutes: MetadataRoute.Sitemap = consumerCompetitorSlugs.map((slug) => ({
-    url: `${baseUrl}/compare/${slug}-vs-ali`,
+    url: `${baseUrl}/compare/${slug}-vs-oov`,
     lastModified: new Date(),
     changeFrequency: 'monthly',
     priority: 0.8,

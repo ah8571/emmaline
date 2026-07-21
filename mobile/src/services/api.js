@@ -1,5 +1,5 @@
 /**
- * API client service for ali mobile app
+ * API client service for oov mobile app
  * Handles all HTTP requests to the backend with automatic token management
  */
 
@@ -21,7 +21,7 @@ import {
 } from './supabaseAuth.js';
 
 // Configuration
-const DEFAULT_API_BASE_URL = 'https://api.alihelp.tech/api';
+const DEFAULT_API_BASE_URL = 'https://api.oov.digital/api';
 const DEVELOPMENT_API_BASE_URL = 'http://127.0.0.1:3000/api';
 const appConfigExtra =
   Constants.expoConfig?.extra ||
@@ -42,17 +42,17 @@ const normalizeApiBaseUrl = (url) => {
   try {
     const parsedUrl = new URL(normalizedUrl);
 
-    if (parsedUrl.hostname === 'api.alihelp.tech') {
-      parsedUrl.hostname = 'api.alihelp.tech';
-    } else if (parsedUrl.hostname === 'alihelp.tech') {
-      parsedUrl.hostname = 'alihelp.tech';
+    if (parsedUrl.hostname === 'api.oov.digital') {
+      parsedUrl.hostname = 'api.oov.digital';
+    } else if (parsedUrl.hostname === 'oov.digital') {
+      parsedUrl.hostname = 'oov.digital';
     }
 
     parsedUrl.pathname = parsedUrl.pathname.replace(/\/+$/, '') || '/api';
 
     return parsedUrl.toString().replace(/\/+$/, '');
   } catch (error) {
-    return normalizedUrl.replace('api.alihelp.tech', 'api.alihelp.tech').replace('alihelp.tech', 'alihelp.tech').replace(/\/+$/, '');
+    return normalizedUrl.replace('api.oov.digital', 'api.oov.digital').replace('oov.digital', 'oov.digital').replace(/\/+$/, '');
   }
 };
 
@@ -454,7 +454,7 @@ export const loginWithSocialProvider = async ({
           success: false,
           requiresProfileCompletion: true,
           profileSetup: await getPendingProfileSetup({ provider, email, fullName }),
-          error: mode === 'create' ? 'Finish creating your ali account to continue.' : null
+          error: mode === 'create' ? 'Finish creating your oov account to continue.' : null
         };
       }
 
@@ -496,7 +496,7 @@ export const loginWithSocialProvider = async ({
         success: false,
         requiresProfileCompletion: true,
         profileSetup: await getPendingProfileSetup({ provider, email, fullName }),
-        error: 'Finish creating your ali account to continue.'
+        error: 'Finish creating your oov account to continue.'
       };
     }
 
@@ -894,7 +894,7 @@ export const createVoiceCallConnection = async (offerSdp, options = {}) => {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         'Content-Type': 'application/sdp',
         Accept: 'application/sdp',
-        ...(String(options.voice || '').trim() ? { 'X-Ali-Voice': String(options.voice || '').trim() } : {})
+        ...(String(options.voice || '').trim() ? { 'X-Oov-Voice': String(options.voice || '').trim() } : {})
       },
       body: typeof offerSdp === 'string' ? offerSdp : ''
     });

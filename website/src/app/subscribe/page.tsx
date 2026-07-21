@@ -29,13 +29,13 @@ function SubscribeForm() {
 
     // Redirect through backend to Stripe checkout with promo code
     const params = new URLSearchParams({ tier, code: promoCode.trim() });
-    window.location.href = `https://api.alihelp.tech/api/subscribe/subscribe?${params.toString()}`;
+    window.location.href = `https://api.oov.digital/api/subscribe/subscribe?${params.toString()}`;
   };
 
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-6 py-24">
       <div className="max-w-md w-full text-center">
-        <h1 className="text-4xl font-bold mb-2">Subscribe to ali</h1>
+        <h1 className="text-4xl font-bold mb-2">Subscribe to oov</h1>
         <p className="text-white/50 mb-10">Enter your promo code to get started.</p>
 
         {/* Tier toggle */}

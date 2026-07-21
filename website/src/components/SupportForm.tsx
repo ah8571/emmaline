@@ -33,7 +33,7 @@ export default function SupportForm() {
     setFeedback('');
 
     try {
-      const response = await fetch('https://api.alihelp.tech/api/support/requests', {
+      const response = await fetch('https://api.oov.digital/api/support/requests', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

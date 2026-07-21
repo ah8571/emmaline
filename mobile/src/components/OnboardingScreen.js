@@ -13,7 +13,7 @@ const SLIDES = [
   {
     icon: 'language',
     title: 'Voice Conversations & Language Learning',
-    description: 'Talk to Ali in natural voices. Switch between English and your target language with a native accent. Practice conversations like a real tutor.'
+    description: 'Talk to oov in natural voices. Switch between English and your target language with a native accent. Practice conversations like a real tutor.'
   },
   {
     icon: 'sparkles',

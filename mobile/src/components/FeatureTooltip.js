@@ -36,7 +36,7 @@ const FeatureTooltip = ({ visible, onDismiss }) => {
         <View style={styles.card}>
           <Text style={styles.title}>Tap to start</Text>
           <Text style={styles.body}>
-            Start a live voice conversation or record and transcribe your thoughts. Ali listens and responds in real time.
+            Start a live voice conversation or record and transcribe your thoughts. oov listens and responds in real time.
           </Text>
           <TouchableOpacity style={styles.dismissButton} onPress={onDismiss}>
             <Text style={styles.dismissText}>Got it</Text>

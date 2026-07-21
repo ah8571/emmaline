@@ -11,13 +11,13 @@ const stripe = STRIPE_SECRET_KEY
 export const STRIPE_TIERS = {
   ali_weekly: {
     priceId: process.env.STRIPE_PRICE_WEEKLY || '',
-    label: 'Ali Weekly',
+    label: 'oov Weekly',
     credits: 100,
     period: 'week'
   },
   ali_monthly: {
     priceId: process.env.STRIPE_PRICE_MONTHLY || '',
-    label: 'Ali Monthly',
+    label: 'oov Monthly',
     credits: 500,
     period: 'month'
   }
@@ -51,8 +51,8 @@ export const createStripeCheckout = async (userId, email, tierKey, successUrl, c
     customer_email: email,
     client_reference_id: userId,
     metadata: { userId, tier: tierKey, promoCode: promoCode || '' },
-    success_url: successUrl || 'https://alihelp.tech/subscribe/success',
-    cancel_url: cancelUrl || 'https://alihelp.tech/subscribe',
+    success_url: successUrl || 'https://oov.digital/subscribe/success',
+    cancel_url: cancelUrl || 'https://oov.digital/subscribe',
     allow_promotion_codes: true
   };
 

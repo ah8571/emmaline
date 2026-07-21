@@ -88,15 +88,15 @@ router.get('/subscribe', async (req, res) => {
     const { tier, code, email } = req.query || {};
 
     if (!tier || !STRIPE_TIERS[tier]) {
-      return res.redirect('https://alihelp.tech/subscribe?error=invalid_tier');
+      return res.redirect('https://oov.digital/subscribe?error=invalid_tier');
     }
 
     const result = await createStripeCheckout(
       `web_${Date.now()}`,
       email || null,
       tier,
-      'https://alihelp.tech/subscribe/success',
-      'https://alihelp.tech/subscribe',
+      'https://oov.digital/subscribe/success',
+      'https://oov.digital/subscribe',
       code || null
     );
 
@@ -104,10 +104,10 @@ router.get('/subscribe', async (req, res) => {
       return res.redirect(result.checkoutUrl);
     }
 
-    return res.redirect('https://alihelp.tech/subscribe?error=checkout_failed');
+    return res.redirect('https://oov.digital/subscribe?error=checkout_failed');
   } catch (error) {
     console.error('[Stripe] Subscribe redirect error:', error.message);
-    return res.redirect('https://alihelp.tech/subscribe?error=unavailable');
+    return res.redirect('https://oov.digital/subscribe?error=unavailable');
   }
 });
 

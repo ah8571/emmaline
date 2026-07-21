@@ -1,7 +1,7 @@
 {
-  "name": "emmaline-shared",
+  "name": "oov-shared",
   "version": "0.1.0",
-  "description": "Shared types, constants, and utilities for Emmaline",
+  "description": "Shared types, constants, and utilities for Oov",
   "main": "index.js",
   "type": "module",
   "scripts": {

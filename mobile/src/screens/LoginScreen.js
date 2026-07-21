@@ -35,7 +35,7 @@ const checkForSession = async () => {
   }
 };
 const REQUIRED_CONSENT_LABEL = legalContent?.consentText?.required
-  || 'I agree to the Terms of Use and Privacy Policy, including Ali sharing the content I choose to submit with AI service providers to generate responses, transcripts, summaries, and speech.';
+  || 'I agree to the Terms of Use and Privacy Policy, including oov sharing the content I choose to submit with AI service providers to generate responses, transcripts, summaries, and speech.';
 
 const withTimeout = (promise, timeoutMs, timeoutMessage) => {
   return new Promise((resolve, reject) => {
@@ -225,7 +225,7 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
     setError('');
 
     if (provider === 'apple') {
-      updateAppleAuthDebug('Apple credential received. Finishing the ali session with Supabase and the backend.', 'info');
+      updateAppleAuthDebug('Apple credential received. Finishing the oov session with Supabase and the backend.', 'info');
     }
 
     logAuthFlow('completeSocialLogin:start', {
@@ -248,7 +248,7 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
           privacyAccepted: acceptedRequiredTerms
         }),
         SOCIAL_LOGIN_TIMEOUT_MS,
-        `${formatProviderLabel(provider)} sign-in timed out before ali could finish the session.`
+        `${formatProviderLabel(provider)} sign-in timed out before oov could finish the session.`
       );
 
       logAuthFlow('completeSocialLogin:response', {
@@ -283,7 +283,7 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
         }
 
         if (provider === 'apple') {
-          updateAppleAuthDebug(`Apple Sign In reached ali, but the app rejected the session: ${response.error || 'Unknown social-login response.'}`, 'error');
+          updateAppleAuthDebug(`Apple Sign In reached oov, but the app rejected the session: ${response.error || 'Unknown social-login response.'}`, 'error');
         }
 
         Sentry.captureMessage(response.error || `${provider} sign-in failed`, {
@@ -304,7 +304,7 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
       }
 
       if (provider === 'apple') {
-        updateAppleAuthDebug('Apple Sign In finished successfully and the ali session is ready.', 'info');
+        updateAppleAuthDebug('Apple Sign In finished successfully and the oov session is ready.', 'info');
       }
 
       onLoginSuccess(response.user);
@@ -327,7 +327,7 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
       if (provider === 'apple') {
         updateAppleAuthDebug(
           [
-            'Apple Sign In failed while ali was finishing the session.',
+            'Apple Sign In failed while oov was finishing the session.',
             `Reason: ${err?.message || 'Unknown error.'}`,
             `Error name: ${err?.name || 'Unknown'}`
           ].join('\n'),
@@ -552,7 +552,7 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
         return;
       }
 
-      updateAppleAuthDebug('Apple credential looks valid. ali is now creating the app session.', 'info');
+      updateAppleAuthDebug('Apple credential looks valid. oov is now creating the app session.', 'info');
 
       await completeSocialLogin({
         provider: 'apple',
@@ -564,7 +564,7 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
       if (err?.code === 'ERR_REQUEST_CANCELED' || err?.code === 'ERR_CANCELED') {
         const cancelDetails = formatAppleAuthErrorDetails(err);
 
-        Sentry.captureMessage('Apple Sign In canceled before ali could create the session.', {
+        Sentry.captureMessage('Apple Sign In canceled before oov could create the session.', {
           level: 'warning',
           tags: {
             area: 'apple_auth_cancel'
@@ -581,7 +581,7 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
 
         updateAppleAuthDebug(
           [
-            'Apple Sign In was canceled before ali could create the session.',
+            'Apple Sign In was canceled before oov could create the session.',
             cancelDetails
           ].join('\n'),
           'info'
@@ -600,7 +600,7 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
         }
       });
       const detailedError = [
-        'Apple Sign In failed before ali could finish the login.',
+        'Apple Sign In failed before oov could finish the login.',
         `Reason: ${err?.message || 'Unknown error.'}`,
         err?.code ? `Code: ${err.code}` : null
       ].filter(Boolean).join('\n');
@@ -625,7 +625,7 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
 
   const handleCompletePendingProfileSetup = async () => {
     if (!acceptedRequiredTerms) {
-      setError('You must agree before ali can send your content to AI service providers.');
+      setError('You must agree before oov can send your content to AI service providers.');
       return;
     }
 
@@ -682,7 +682,7 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
         bounces={false}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>ali</Text>
+          <Text style={styles.title}>oov</Text>
           <Text style={styles.subtitle}>Voice Assistant</Text>
         </View>
 
@@ -764,7 +764,7 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
               <View style={styles.pendingSetupNotice}>
                 <Text style={styles.pendingSetupTitle}>One more step</Text>
                 <Text style={styles.pendingSetupText}>
-                  Your {formatProviderLabel(activePendingProfileSetup?.provider)} sign-in worked. Confirm your consent preferences to finish creating your ali account.
+                  Your {formatProviderLabel(activePendingProfileSetup?.provider)} sign-in worked. Confirm your consent preferences to finish creating your oov account.
                 </Text>
               </View>
 
@@ -825,7 +825,7 @@ const LoginScreen = ({ navigation, onLoginSuccess, pendingProfileSetup = null })
                 <View style={[styles.checkbox, marketingOptIn && styles.checkboxChecked]}>
                   {marketingOptIn ? <Ionicons name="checkmark" size={16} color="#050607" /> : null}
                 </View>
-                <Text style={styles.checkboxText}>Optional: email me the educational newsletter and product updates from ali.</Text>
+                <Text style={styles.checkboxText}>Optional: email me the educational newsletter and product updates from oov.</Text>
               </TouchableOpacity>
             </View>
           ) : null}

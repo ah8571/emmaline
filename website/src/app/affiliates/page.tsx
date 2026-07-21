@@ -14,9 +14,9 @@ export default function AffiliatesPage() {
     <main className="min-h-screen bg-black text-white">
       {/* Hero */}
       <section className="text-center px-6 py-24 max-w-2xl mx-auto">
-        <h1 className="text-5xl font-bold mb-4">ali Affiliate Program</h1>
+        <h1 className="text-5xl font-bold mb-4">oov Affiliate Program</h1>
         <p className="text-white/50 text-lg mb-10">
-          Share ali with your audience. They get a free trial, you earn when they stay.
+          Share oov with your audience. They get a free trial, you earn when they stay.
         </p>
         <a href="#apply" className="inline-block bg-white text-black font-semibold rounded-xl px-8 py-4 hover:bg-white/90 transition">
           Apply Now
@@ -28,7 +28,7 @@ export default function AffiliatesPage() {
         <div className="grid md:grid-cols-3 gap-8 mb-20">
           {[
             { step: '1', title: 'Apply', desc: 'Fill out the form below. We review applications within 48 hours and send you a unique promo code.' },
-            { step: '2', title: 'Share', desc: 'Share your link — alihelp.tech/subscribe — and tell your audience to use your promo code.' },
+            { step: '2', title: 'Share', desc: 'Share your link — oov.digital/subscribe — and tell your audience to use your promo code.' },
             { step: '3', title: 'Earn', desc: 'When someone subscribes using your code, they get a free trial and you earn a commission.' }
           ].map((item) => (
             <div key={item.step} className="bg-white/5 border border-white/10 rounded-xl p-6 text-center">

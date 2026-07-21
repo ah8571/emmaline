@@ -187,11 +187,11 @@ export const sendWelcomeEmail = async (email) => {
   const resend = getResendClient();
   const from = process.env.RESEND_FROM_EMAIL;
 
-  const subject = 'You are on the Ali waitlist ✨';
+  const subject = 'You are on the oov waitlist ✨';
   const html = `
     <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h1 style="color:#111;">You’re in.</h1>
-      <p>Thanks for joining the ali waitlist.</p>
+      <p>Thanks for joining the oov waitlist.</p>
       <p>We’ll email you as soon as the MVP is live and ready to download.</p>
       <p style="color:#666; font-size: 14px;">If you did not request this, you can ignore this message.</p>
     </div>

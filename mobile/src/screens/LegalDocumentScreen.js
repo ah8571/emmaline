@@ -55,7 +55,7 @@ const LegalDocumentScreen = ({ documentKey = 'privacyPolicy' }) => {
       ) : null}
 
       <View style={[styles.heroCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-        <Text style={[styles.eyebrow, { color: colors.mutedText }]}>Ali legal</Text>
+        <Text style={[styles.eyebrow, { color: colors.mutedText }]}>oov legal</Text>
         <Text style={[styles.title, { color: colors.text }]}>{document.title}</Text>
         <Text style={[styles.meta, { color: colors.mutedText }]}>Last updated {document.lastUpdated}</Text>
       </View>

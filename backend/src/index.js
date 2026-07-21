@@ -143,7 +143,7 @@ app.get('/', (req, res) => {
   const websocketProtocol = forwardedProto === 'https' ? 'wss' : 'ws';
 
   res.status(200).json({
-    message: 'Ali AI Assistant - Backend API',
+    message: 'oov AI Assistant - Backend API',
     version: '0.1.0',
     endpoints: {
       health: '/health',
@@ -173,7 +173,7 @@ server.listen(PORT, () => {
   const googleCloudStatus = getGoogleCloudConfigStatus();
   const supabaseDebug = getSupabaseDebugInfo();
 
-  console.log(`🚀 ali backend running on port ${PORT}`);
+  console.log(`🚀 oov backend running on port ${PORT}`);
   websocketRoutes.forEach(({ path }) => {
     console.log(`📡 WebSocket server listening at wss://localhost:${PORT}${path}`);
   });

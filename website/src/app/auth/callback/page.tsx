@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_CALLBACK_URL = 'ali://auth/callback';
+const APP_CALLBACK_URL = 'oov://auth/callback';
 
 const buildAppRedirectUrl = () => {
   const params = new URLSearchParams(window.location.search);
@@ -49,10 +49,10 @@ export default function AuthCallbackPage() {
         href={appRedirectUrl}
         className="hidden min-h-11 items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-medium text-black transition hover:bg-white/90"
       >
-        Open ali
+        Open oov
       </a>
       <noscript>
-        <a href={appRedirectUrl}>Open ali</a>
+        <a href={appRedirectUrl}>Open oov</a>
       </noscript>
     </main>
   );

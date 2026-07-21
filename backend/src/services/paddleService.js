@@ -11,13 +11,13 @@ const PADDLE_API_BASE = PADDLE_ENV === 'sandbox'
 export const PADDLE_TIERS = {
   ali_weekly: {
     priceId: process.env.PADDLE_PRICE_WEEKLY || '',
-    label: 'Ali Weekly',
+    label: 'oov Weekly',
     credits: 100,
     period: 'week'
   },
   ali_monthly: {
     priceId: process.env.PADDLE_PRICE_MONTHLY || '',
-    label: 'Ali Monthly',
+    label: 'oov Monthly',
     credits: 500,
     period: 'month'
   }

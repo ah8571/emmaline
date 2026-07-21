@@ -88,7 +88,7 @@ const UpgradeScreen = ({ navigation: _navigation }) => {
   };
 
   const handleWebUpgrade = (tier) => {
-    Linking.openURL(`https://alihelp.tech/subscribe?tier=${tier}`);
+    Linking.openURL(`https://oov.digital/subscribe?tier=${tier}`);
   };
     if (!offeringPackage) {
       Alert.alert('Subscription unavailable', revenueCatMessage || 'No subscription package is ready in this build yet.');
@@ -104,7 +104,7 @@ const UpgradeScreen = ({ navigation: _navigation }) => {
       Alert.alert(
         proActive ? 'Subscription active' : 'Purchase complete',
         proActive
-          ? 'Your Ali Pro subscription is active on this account.'
+          ? 'Your oov Pro subscription is active on this account.'
           : 'The purchase completed, but the pro entitlement is not active yet. Check the RevenueCat product and entitlement mapping.'
       );
     } catch (error) {

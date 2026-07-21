@@ -42,14 +42,14 @@ const AIDisclosureScreen = ({ navigation, isChecking = false, onAccept, onLogout
       <View style={[styles.disclosureCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[styles.disclosureEyebrow, { color: colors.mutedText }]}>Privacy disclosure</Text>
         <Text style={[styles.disclosureTitle, { color: colors.text }]}>AI processing permission</Text>
-        <Text style={[styles.disclosureBody, { color: colors.mutedText }]}>Before Ali processes AI features, we need your permission.</Text>
-        <Text style={[styles.disclosureBody, { color: colors.mutedText }]}>When you use voice mode, Listen Mode, notes, or Reader, ali may send the audio, transcripts, note text, pasted text, or uploaded documents you choose to share to OpenAI, Google Cloud, or Resemble so they can generate transcripts, summaries, spoken audio, or AI responses.</Text>
+        <Text style={[styles.disclosureBody, { color: colors.mutedText }]}>Before oov processes AI features, we need your permission.</Text>
+        <Text style={[styles.disclosureBody, { color: colors.mutedText }]}>When you use voice mode, Listen Mode, notes, or Reader, oov may send the audio, transcripts, note text, pasted text, or uploaded documents you choose to share to OpenAI, Google Cloud, or Resemble so they can generate transcripts, summaries, spoken audio, or AI responses.</Text>
 
         <TouchableOpacity style={styles.disclosureCheckboxRow} onPress={() => setHasCheckedConsent((current) => !current)} activeOpacity={0.85}>
           <View style={[styles.disclosureCheckbox, hasCheckedConsent && styles.disclosureCheckboxChecked, { borderColor: colors.border }]}>
             {hasCheckedConsent ? <Text style={styles.disclosureCheckboxMark}>✓</Text> : null}
           </View>
-          <Text style={[styles.disclosureCheckboxText, { color: colors.text }]}>I allow ali to send the content I choose to submit to these AI providers to power AI features.</Text>
+          <Text style={[styles.disclosureCheckboxText, { color: colors.text }]}>I allow oov to send the content I choose to submit to these AI providers to power AI features.</Text>
         </TouchableOpacity>
 
         <View style={styles.disclosureLinksRow}>
@@ -189,7 +189,7 @@ const AppHome = ({ onLogout }) => {
     }));
     Alert.alert(
       'Log out',
-      'Log out of ali on this device?',
+      'Log out of oov on this device?',
       [
         {
           text: 'Cancel',

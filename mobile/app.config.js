@@ -135,8 +135,8 @@ module.exports = () => {
 
   const config = {
     ...baseConfig,
-    name: getAppDisplayName(baseConfig.name || 'ali', appVariant),
-    scheme: baseConfig.scheme || 'ali',
+    name: getAppDisplayName(baseConfig.name || 'oov', appVariant),
+    scheme: baseConfig.scheme || 'oov',
     plugins: filteredPlugins,
     ios: {
       // Numeric App Store ID for this app. Can be overridden with env `EXPO_IOS_APP_ID` or `EXPO_APPLE_APP_ID`.

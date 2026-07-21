@@ -194,7 +194,7 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
   const handleLogout = () => {
     Alert.alert(
       'Log out',
-      'Log out of Ali on this device?',
+      'Log out of oov on this device?',
       [
         {
           text: 'Cancel',
@@ -212,7 +212,7 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
   const handleDeleteAccount = () => {
     Alert.alert(
       'Delete account',
-      'This will permanently remove your ali account and the account-linked transcripts, notes, and related records stored for that account. This cannot be undone.',
+      'This will permanently remove your oov account and the account-linked transcripts, notes, and related records stored for that account. This cannot be undone.',
       [
         {
           text: 'Cancel',
@@ -229,7 +229,7 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
               return;
             }
 
-            Alert.alert('Account deleted', 'Your ali account has been removed.');
+            Alert.alert('Account deleted', 'Your oov account has been removed.');
             onAccountDeleted?.();
           }
         }
@@ -279,7 +279,7 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
           <View style={styles.infoCardCopy}>
             <Text style={[styles.infoCardTitle, { color: colors.text }]}>Voice access</Text>
             <Text style={[styles.infoCardDescription, { color: colors.mutedText }]}>
-              {billingSummary.isProActive ? 'ali Pro is active on this account.' : 'Free trial included, then monthly subscription for continued access.'}
+              {billingSummary.isProActive ? 'oov Pro is active on this account.' : 'Free trial included, then monthly subscription for continued access.'}
             </Text>
             <Text style={[styles.billingFootnote, { color: colors.mutedText }]}>
               {billingSummary.loading
@@ -298,7 +298,7 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Call language</Text>
         <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>
-          Choose the primary language ali should expect on live voice calls. Users can still mix languages, but this sets the dedicated assistant language. Listen Mode is still the place for saved transcripts.
+          Choose the primary language oov should expect on live voice calls. Users can still mix languages, but this sets the dedicated assistant language. Listen Mode is still the place for saved transcripts.
         </Text>
 
         {LANGUAGE_OPTIONS.map((option) => {
@@ -329,7 +329,7 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Voice Mode voice</Text>
-        <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>Choose which OpenAI realtime voice Ali should use when speaking back.</Text>
+        <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>Choose which OpenAI realtime voice oov should use when speaking back.</Text>
 
         <Text style={[styles.providerSubheader, { color: colors.mutedText }]}>OpenAI Voices</Text>
 
@@ -401,7 +401,7 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
           activeOpacity={0.85}
         >
           <Text style={[styles.linkCardTitle, { color: colors.text }]}>Support</Text>
-          <Text style={[styles.linkCardDescription, { color: colors.mutedText }]}>Send a request to support@alihelp.tech from inside the app.</Text>
+          <Text style={[styles.linkCardDescription, { color: colors.mutedText }]}>Send a request to support@oov.digital from inside the app.</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -410,7 +410,7 @@ const SettingsScreen = ({ onLogout, onOpenUpgrade, onOpenScreen, onAccountDelete
           activeOpacity={0.85}
         >
           <Text style={[styles.linkCardTitle, { color: colors.text }]}>Privacy Policy</Text>
-          <Text style={[styles.linkCardDescription, { color: colors.mutedText }]}>Review how Ali handles voice, transcript, support, and account data.</Text>
+          <Text style={[styles.linkCardDescription, { color: colors.mutedText }]}>Review how oov handles voice, transcript, support, and account data.</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

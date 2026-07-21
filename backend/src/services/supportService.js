@@ -117,7 +117,7 @@ export const sendSupportRequestEmail = async ({
     from,
     to,
     replyTo: email,
-    subject: `[Ali Support] ${subject}`,
+    subject: `[oov Support] ${subject}`,
     text: [
       `Request ID: ${requestId || 'n/a'}`,
       `Name: ${name || 'Not provided'}`,
@@ -131,7 +131,7 @@ export const sendSupportRequestEmail = async ({
     ].join('\n'),
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
-        <h2>Ali support request</h2>
+        <h2>oov support request</h2>
         <p><strong>Request ID:</strong> ${requestId || 'n/a'}</p>
         <p><strong>Name:</strong> ${name || 'Not provided'}</p>
         <p><strong>Email:</strong> ${email}</p>
@@ -168,7 +168,7 @@ export const sendSupportConfirmationEmail = async ({
   const response = await resend.emails.send({
     from,
     to: email,
-    subject: 'Support request submitted for Ali',
+    subject: 'Support request submitted for oov',
     text: [
       `Hi ${displayName},`,
       '',
@@ -178,7 +178,7 @@ export const sendSupportConfirmationEmail = async ({
       '',
       'We will reply by email with updates.',
       '',
-      'Ali Support'
+      'oov Support'
     ].join('\n'),
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #111827;">
@@ -188,7 +188,7 @@ export const sendSupportConfirmationEmail = async ({
         <p><strong>Subject:</strong> ${subject}</p>
         <p><strong>Request ID:</strong> ${requestId || 'n/a'}</p>
         <p>We will reply by email with updates.</p>
-        <p style="margin-top: 24px;">Ali Support</p>
+        <p style="margin-top: 24px;">oov Support</p>
       </div>
     `
   });

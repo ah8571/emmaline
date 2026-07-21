@@ -19,7 +19,7 @@ export default function Home() {
           {/* Brand */}
           <div className="space-y-2">
             <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
-              ali — Voice AI for Real Conversations
+              oov — Voice AI for Real Conversations
             </h1>
             <p className="text-white/60 text-lg md:text-xl">
               A voice-first assistant for asking questions, practicing languages, and thinking out loud naturally.

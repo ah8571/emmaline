@@ -114,7 +114,7 @@ const handleCreateVoiceCall = async (req, res) => {
     await assertUserCanStartVoiceSession(userId);
 
     const offerSdp = typeof req.body === 'string' ? req.body : '';
-    const requestedVoice = normalizeRealtimeVoice(req.headers['x-ali-voice']);
+    const requestedVoice = normalizeRealtimeVoice(req.headers['x-oov-voice']);
 
     if (!offerSdp.trim()) {
       return res.status(400).json({

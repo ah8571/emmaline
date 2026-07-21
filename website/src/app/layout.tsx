@@ -2,9 +2,9 @@ import '../globals.css'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://alihelp.tech'),
-  title: 'Voice Assistant For Real Conversations | ali',
-  description: 'ali is a voice-first assistant for natural conversations, instant answers, and thoughtful note-taking.',
+  metadataBase: new URL('https://oov.digital'),
+  title: 'Voice Assistant For Real Conversations | oov',
+  description: 'oov is a voice-first assistant for natural conversations, instant answers, and thoughtful note-taking.',
   alternates: {
     canonical: '/',
   },
@@ -14,10 +14,10 @@ export const metadata: Metadata = {
     shortcut: '/black outline favicon.png'
   },
   openGraph: {
-    title: 'Voice Assistant For Real Conversations | ali',
-    description: 'ali is a voice-first assistant for natural conversations, instant answers, and thoughtful note-taking.',
+    title: 'Voice Assistant For Real Conversations | oov',
+    description: 'oov is a voice-first assistant for natural conversations, instant answers, and thoughtful note-taking.',
     type: 'website',
-    url: 'https://alihelp.tech',
+    url: 'https://oov.digital',
   },
 }
 

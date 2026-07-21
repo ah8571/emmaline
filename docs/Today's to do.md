@@ -5,29 +5,35 @@
 - Update name to Ali
 - Work through key words for people to better find the apps (like STT or TTS or how other apps are phrasing it)
 - 30 character new name for apple
+Emmaline: Free Reader, Transcriber
 Ali: Reader Transcriber Tutor <- (30) 
 Ali: AI Voice Assistant <-
 Later
 Ali: Multitask with AI
 Ali: Your AI workspace
 
-[x] App display name — changed in app.json, 
-[x] In-app branding — replaced "Emmaline" → "Ali" across mobile, backend, website (20+ files)
-[x] Legal content — mobile + shared legalContent.json updated with Ali branding + alihelp.tech email
-[x] Website — header, footer, SEO metadata, sitemap, robots all updated to alihelp.tech
-[x] Google auth page [google is verifying]
-[x] Email — support@emmaline.app → support@ali.app 
-[x] GitHub — repo can be renamed, GitHub redirects automatically.
-[x] Digital Ocean — droplet/app names are cosmetic, easy to rename. But if you use emmaline in any DNS/hostname config, those need updating.
+consider grabbing oov.tools
+oov.digital
+
+[ ] In-app branding — replaced "Emmaline" → "Ali" across mobile, backend, website (20+ files)
+[ ] Legal content — mobile + shared legalContent.json updated with Ali branding + alihelp.tech email
+[ ] Website — header, footer, SEO metadata, sitemap, robots all updated to alihelp.tech
+[ ] cloudflare / networking
+[ ] Google auth page
+[ ] Email — support@emmaline.app → support@
+[ ] GitHub — repo can be renamed, GitHub redirects automatically.
+[ ] supabase auth urls
 [ ] add env variables in digital ocean
-[ ] update App Store Connect / Play Console listing. The bundle ID stays com.emmaline.app.
-[ ] RevenueCat — app identifier stays the same (bundle ID), so no migration. Just update the app name in their dashboard.
-[ ] emmaline.app redirect to alihelp.tech
+[ ] Digital Ocean — droplet/app names are cosmetic, easy to rename. But if you use emmaline in any DNS/hostname config, those need updating.
 [ ] API endpoints — api.emmaline.app would need to change or be aliased. If you keep the old domain as an alias, no mobile code changes needed.
+[ ] App display name — changed in app.json?
+[ ] unsubscribe from emmaline.app 
 [ ] App Store review — a name change on an existing app is usually fine, but Apple occasionally flags dramatic rebrands. Having the same bundle ID helps.
 [ ] logins - several apps use support@emmaline.app, need to document [resemble.ai, ]
 
 ## Remodeling the subscription method 
+
+[ ] update subscription info (bundle stays the same); The product IDs emmaline_pro_monthly, emmaline_pro_weekly_30min, etc. appear in: App Store Connect / Play Console; You create new products, old ones keep serving existing subs; RevenueCat, Mirrors the store products, Auto-import from stores, then update offerings; Code (billingService.js, revenueCatService.js). Maps product ID → credits to grant	~4 lines to update
 
 to go to web for payments (ie to get payment for the app asap) along with incorporating privacy oriented skan conventions.
 
@@ -40,7 +46,7 @@ STRIPE_PRICE_MONTHLY	Product "Ali Monthly" → price_...
 ## Weekly allotments 
 See notes below for updating
 
-## Create promo code workflows for influencers
+## Create promo code workflows for influencers / sign up with affiliate networks
 
 ## Appflyer integration w privacy (SKAN and android privacy box)
 
