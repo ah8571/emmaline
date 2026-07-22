@@ -56,25 +56,8 @@ export const createStripeCheckout = async (userId, email, tierKey, successUrl, c
     allow_promotion_codes: true
   };
 
-  // If a specific promo code was provided, apply it as a discount
-  if (promoCode) {
-    try {
-      // Look up the coupon in Stripe
-      const coupons = await stripe.coupons.list({ limit: 1 });
-      const matchingCode = await stripe.promotionCodes.list({
-        code: promoCode,
-        active: true,
-        limit: 1
-      });
-
-      if (matchingCode.data.length > 0) {
-        sessionConfig.discounts = [{ coupon: matchingCode.data[0].coupon.id }];
-      }
-    } catch (err) {
-      console.warn('[Stripe] Could not apply promo code:', promoCode, err.message);
-      // Continue without discount — user can enter it on Stripe's checkout page
-    }
-  }
+  // Preserve promo code in metadata so webhook can grant bonus credits
+  // The actual discount is handled by Stripe's own promotion code input on the checkout page
 
   const session = await stripe.checkout.sessions.create(sessionConfig);
 

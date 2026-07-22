@@ -39,31 +39,16 @@ emmaline_supabase_session etc. — storage keys (reset on re-login)
 
 ## Remodeling the subscription method 
 
-[ ] update subscription info (bundle stays the same); The product IDs emmaline_pro_monthly, emmaline_pro_weekly_30min, etc. appear in: App Store Connect / Play Console; You create new products, old ones keep serving existing subs; 
-[ ] RevenueCat, Mirrors the store products, Auto-import from stores, then update offerings; Code (billingService.js, revenueCatService.js). Maps product ID → credits to grant	~4 lines to update
-[ ] Rename products in Stripe: "Ali Weekly" → "Oov Weekly", "Ali Monthly" → "Oov Monthly". The tier keys in code are still ali_weekly / ali_monthly — those are internal identifiers, but the display labels are already "oov Weekly" / "oov Monthly".
-[ ] Set the env vars in DO: STRIPE_PRICE_WEEKLY, STRIPE_PRICE_MONTHLY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
-[ ] Create the webhook endpoint in Stripe: https://api.oov.digital/api/stripe/webhook (events: checkout.session.completed, customer.subscription.updated, customer.subscription.deleted)
+[ ] update subscription info The product IDs emmaline_pro_monthly, create IAP's for each; 
+[ ] RevenueCat → Products → the new products should auto-import within a few minutes after step 1
+[ ] RevenueCat → Offerings → add the two weekly products as packages in your existing offering (alongside the monthly one)
+[ ] RevenueCat → Entitlements → attach both to the pro entitlement (same as the monthly product)
+[ ] Then the webhook I added at /api/billing/revenuecat-webhook will detect purchases of those product IDs and grant the corresponding seconds automatically.
+[x] Rename products in Stripe: "Ali Weekly" → "Oov Weekly", "Ali Monthly" → "Oov Monthly". The tier keys in code are still ali_weekly / ali_monthly — those are internal identifiers, but the display labels are already "oov Weekly" / "oov Monthly".
+[x] Set the env vars in DO: STRIPE_PRICE_WEEKLY, STRIPE_PRICE_MONTHLY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+[x] Create the webhook endpoint in Stripe: https://api.oov.digital/api/stripe/webhook (events: checkout.session.completed, customer.subscription.updated, customer.subscription.deleted)
 
-to go to web for payments (ie to get payment for the app asap) along with incorporating privacy oriented skan conventions.
-
-Stripe Webhook
-Stripe Dashboard → Developers → Webhooks → Add endpoint:
-
-Field	Value
-URL	https://api.oov.digital/api/stripe/webhook
-Events	checkout.session.completed, customer.subscription.updated, customer.subscription.deleted
-API version	2025-06-30.basil (matches code)
-Copy the whsec_... signing secret → set as STRIPE_WEBHOOK_SECRET env var in DO.
-
-Env Var	Where
-STRIPE_SECRET_KEY	Dashboard → API Keys → sk_live_...
-STRIPE_WEBHOOK_SECRET	Dashboard → Webhooks → whsec_...
-STRIPE_PRICE_WEEKLY	Product "Ali Weekly" → price_...
-STRIPE_PRICE_MONTHLY	Product "Ali Monthly" → price_...
-
-## Weekly allotments 
-See notes below for updating
+*Z;J"9Ms">.@8MJ
 
 ## Create promo code workflows for influencers / sign up with affiliate networks
 
@@ -160,52 +145,4 @@ Note: installs are measured by SKAN postbacks; in-app appsFlyer.logEvent(...) pr
 1 creator slug/name to use as the first real landing page
 rough promo code format you want, even if temporary
 optional headline/testimonial copy for that creator page
-
-
-
-## Weekly allotments 
-
-Google Play Console → Monetize → Subscriptions → create emmaline_pro_weekly_30min and emmaline_pro_weekly_60min
-
-RevenueCat → Products → the new products should auto-import within a few minutes after step 1
-
-RevenueCat → Offerings → add the two weekly products as packages in your existing offering (alongside the monthly one)
-
-RevenueCat → Entitlements → attach both to the pro entitlement (same as the monthly product)
-
-Then the webhook I added at /api/billing/revenuecat-webhook will detect purchases of those product IDs and grant the corresponding seconds automatically.
-
-Same flow for App Store Connect when you get to iOS, just with different product IDs if you want platform-specific pricing.
-
-Free trial reduced from 300s (5 min) → 120s (2 min) in billingService.js
-Migration created to update the database default
-Weekly tier config defined: emmaline_pro_weekly_30min → 1800s, emmaline_pro_weekly_60min → 3600s
-What you need to do in RevenueCat:
-
-Create two new products: emmaline_pro_weekly_30min ($10) and emmaline_pro_weekly_60min ($15)
-Create corresponding Google Play subscription products
-Attach them to the pro entitlement
-Add them to your offering alongside the monthly product
-What I still need to add:
-A RevenueCat webhook that grants prepaid_seconds_balance when a purchase is confirmed. Without this, RevenueCat manages the entitlement but the backend doesn't know to add minutes to the user's balance. Let me add that now.
-
-Summary of what's done:
-
-Free trial: 300s → 120s (2 min) — both in code and migration ready to apply.
-
-Weekly tiers defined:
-
-Product ID	Price	Minutes
-emmaline_pro_weekly_30min	$10/week	30 min
-emmaline_pro_weekly_60min	$15/week	60 min
-RevenueCat webhook: POST /api/billing/revenuecat-webhook — when RevenueCat sends an INITIAL_PURCHASE or RENEWAL event for one of the weekly products, the backend auto-grants the corresponding prepaid seconds.
-
-What you need to do:
-
-Run the migration: 20260714_reduce_free_trial_seconds.sql against your Supabase DB
-In RevenueCat dashboard, create the two weekly products and link them to Google Play subscriptions
-In RevenueCat → Integrations → add a webhook pointing to https://api.emmaline.app/api/billing/revenuecat-webhook
-Keep the existing emmaline_pro_monthly for the monthly Pro tier
-
----
 
