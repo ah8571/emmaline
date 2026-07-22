@@ -309,6 +309,6 @@ export default {
   getNoteTextScalePreference,
   saveNoteTextScalePreference,
   getOnboardingComplete,
-  saveOnboardingComplete
+  saveOnboardingComplete,
   logout
 };
