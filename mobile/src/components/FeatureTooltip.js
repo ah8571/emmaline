@@ -27,9 +27,8 @@ const FeatureTooltip = ({ visible, onDismiss }) => {
     <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onDismiss}>
       <Animated.View style={[styles.content, { opacity }]}>
         <View style={styles.card}>
-          <Text style={styles.title}>Tap to start</Text>
           <Text style={styles.body}>
-            Start a live voice conversation or record and transcribe your thoughts. oov listens and responds in real time.
+            Start a live voice conversation or record and transcribe. oov listens and responds in real time.
           </Text>
           <TouchableOpacity style={styles.dismissButton} onPress={onDismiss}>
             <Text style={styles.dismissText}>Got it</Text>
@@ -97,10 +96,12 @@ const styles = StyleSheet.create({
     marginBottom: 8
   },
   body: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 16
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 22,
+    marginBottom: 16,
+    textAlign: 'center',
   },
   dismissButton: {
     backgroundColor: '#ffffff',
