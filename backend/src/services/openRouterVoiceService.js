@@ -21,7 +21,7 @@ const getHeaders = () => ({
 export const OPENROUTER_TTS_MODELS = {
   kokoro: {
     id: 'hexgrad/kokoro-82m',
-    label: 'Kokoro (Free TTS)',
+    label: 'Free (Kokoro)',
     price: '$0.62/M chars',
     languages: ['en', 'es', 'fr', 'hi', 'it', 'ja', 'pt', 'zh'],
     voices: 54,
@@ -29,22 +29,11 @@ export const OPENROUTER_TTS_MODELS = {
 };
 
 export const OPENROUTER_STT_MODELS = {
-  qwen: {
-    id: 'qwen/qwen3-asr-flash-2026-02-10',
-    label: 'Qwen ASR Flash',
-    price: '$0.126/hr',
-  },
-  nvidia: {
+  default: {
     id: 'nvidia/parakeet-tdt-0.6b-v3',
-    label: 'NVIDIA Parakeet',
+    label: 'Free (NVIDIA Parakeet)',
     price: '$0.09/hr',
   },
-  deepgram: {
-    id: 'deepgram/nova-3',
-    label: 'Deepgram Nova 3',
-    price: '$0.258/hr',
-  },
-};
 
 /**
  * Generate speech from text using OpenRouter TTS.

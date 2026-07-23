@@ -358,7 +358,7 @@ export const transcribeWithOpenRouter = async (audioBuffer, options = {}) => {
   }
 
   const audioBase64 = audioBuffer.toString('base64');
-  const model = options.model || 'nvidia/parakeet-tdt-0.6b-v3';
+  const model = options.model || OPENROUTER_STT_MODELS.default.id;
 
   const result = await openRouterSpeechToText(audioBase64, {
     model,
