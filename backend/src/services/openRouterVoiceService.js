@@ -82,8 +82,7 @@ export const openRouterTextToSpeech = async (text, options = {}) => {
 };
 
 /**
- * Transcribe audio using OpenRouter STT.
- * Sends audio as base64-encoded data URL in JSON.
+ * Transcribe audio using OpenRouter STT (OpenAI-compatible /audio/transcriptions).
  */
 export const openRouterSpeechToText = async (audioBuffer, options = {}) => {
   if (!API_KEY) {
@@ -94,41 +93,41 @@ export const openRouterSpeechToText = async (audioBuffer, options = {}) => {
   const language = options.language || 'en';
   const format = options.format || 'mp3';
   const mimeType = format === 'mp3' ? 'audio/mpeg' : `audio/${format}`;
-  const dataUrl = `data:${mimeType};base64,${audioBuffer.toString('base64')}`;
+
+  // Use native FormData (Node 22+) and fetch for proper multipart upload
+  const formData = new FormData();
+  formData.append('model', model);
+  formData.append('language', language);
+  formData.append('file', new Blob([audioBuffer], { type: mimeType }), `audio.${format}`);
 
   try {
-    const response = await axios.post(
-      `${OPENROUTER_BASE}/chat/completions`,
-      {
-        model,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: `Transcribe this audio. Language: ${language}.` },
-              { type: 'image_url', image_url: { url: dataUrl } },
-            ],
-          },
-        ],
-        max_tokens: 4096,
+    const response = await fetch(`${OPENROUTER_BASE}/audio/transcriptions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        'HTTP-Referer': 'https://oov.digital',
+        'X-OpenRouter-Title': 'oov',
       },
-      {
-        headers: getHeaders({ 'Content-Type': 'application/json' }),
-        timeout: 60000,
-      }
-    );
+      body: formData,
+      signal: AbortSignal.timeout(60000),
+    });
 
-    const text = response.data?.choices?.[0]?.message?.content || '';
+    if (!response.ok) {
+      const errText = await response.text().catch(() => 'Unknown error');
+      throw new Error(errText.substring(0, 200));
+    }
+
+    const data = await response.json();
 
     return {
       success: true,
-      text: text.trim(),
-      model: response.data?.model || model,
+      text: (data?.text || '').trim(),
+      model: data?.model || model,
     };
   } catch (error) {
-    const detail = error.response?.data?.error?.message || error.message;
-    console.error('[OpenRouter STT] Error:', detail?.substring?.(0, 200) || detail);
-    throw new Error(`OpenRouter STT failed: ${typeof detail === 'string' ? detail.substring(0, 100) : 'Provider error'}`);
+    const detail = error.message || 'Unknown error';
+    console.error('[OpenRouter STT] Error:', detail.substring(0, 200));
+    throw new Error(`OpenRouter STT failed: ${detail.substring(0, 100)}`);
   }
 };
 
