@@ -1054,7 +1054,7 @@ export const generateReaderAudio = async ({ text, title, provider = null, voiceP
       voiceProfile,
       languagePreference,
       speechRate
-    });
+    }, { timeout: 120000 });
 
     return {
       success: true,
