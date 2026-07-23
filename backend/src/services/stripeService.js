@@ -9,13 +9,13 @@ const stripe = STRIPE_SECRET_KEY
 
 // Tier configuration — matches Stripe price IDs
 export const STRIPE_TIERS = {
-  ali_weekly: {
+  weekly: {
     priceId: process.env.STRIPE_PRICE_WEEKLY || '',
     label: 'oov Weekly',
     credits: 100,
     period: 'week'
   },
-  ali_monthly: {
+  monthly: {
     priceId: process.env.STRIPE_PRICE_MONTHLY || '',
     label: 'oov Monthly',
     credits: 500,
