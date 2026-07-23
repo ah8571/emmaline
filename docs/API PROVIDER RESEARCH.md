@@ -116,7 +116,7 @@ https://openrouter.ai/openai/gpt-audio-mini
 
 Livekit 50 per month paired with another model above like grok could be more affordable
 
-could consider this option: "Modular Chained Stacks: You can build a cheaper custom stack by pairing an open-source model (like Llama via OpenRouter) with specialized live STT/TTS providers like Deepgram or Cartesia" - google.com/ai
+"Modular Chained Stacks: You can build a cheaper custom stack by pairing an open-source model (like Llama via OpenRouter) with specialized live STT/TTS providers like Deepgram or Cartesia" - google.com/ai
 
 
 ### Natural Voices (TTS)
@@ -134,6 +134,12 @@ Alternatives to Elevanlabs
 
 low cost models
 
+Self-hosted providers
+Faster Whisper Large-v3 / Insanely Fast Whisper (.2 per hour of transcription potentially) - open-source
+StyleTTS 2
+ChatTTS
+XTTS v2 by Coqui
+RunPod hosting 
 
 ### LLM Summaries
 
@@ -163,6 +169,8 @@ mistralai/voxtral-mini-transcribe .18 per hour
 Groq's Whisper
 Assembly (.0025 per minute)
 Gladia (.0033 per minute) - has in built speaker identification / summarization
+
+
 
 On Device
 Use iOS SFSpeechRecognizer

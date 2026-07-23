@@ -1,3 +1,57 @@
+# Networking architecture
+
+## Ads set up
+Ad-rewarded feature:
+"Ad-Triggered Actions: Instead of random pop-ups, use a Rewarded Interstitial ad format. Require the user to watch a 5-second video specifically to "unlock" a long transcription or article read-aloud. Users accept ads much better when it directly grants them a feature."
+
+Ad framework
+Because a 1-hour file costs $0.013 to process, a single standard pop-up ad ($0.010) leaves you at a slight loss. To make this profitable, you must adapt your ad strategy for long-form content.Instead of one random pop-up, you use two strategic ad placements:The 
+- Entry Ad: A standard interstitial pop-up when they hit "Transcribe".
+- The Processing Ad: While the server spends 90 seconds transcribing the file, you display a native video ad or a rewarded countdown on the processing screen.
+
+Higher paying ad types
+- playable game ads (eCpm 15 to 30)
+- 15 second ads lead to about 2.5c per watch
+
+User uploads a 1-hour file 
+   │
+   ├──> [Ad #1: Interstitial Pop-up] ──────> Earns you: +$0.010
+   │
+   ├──> [90-Second Server Processing Screen]
+   │    └──> Displays a 15s Video Ad ───────> Earns you: +$0.020
+   │
+   └──> Final Transcription Delivered 
+
+
+## ⚙️ Official Integration Links
+
+* 
+* Step-by-Step Setup Guide: Read through the [AppLovin MAX React Native Integration Documentation](https://support.applovin.com/en/max/react-native/overview/integration) to learn how to properly configure initialize frameworks, Promises, and listener callbacks. [2] 
+* The SDK Code Library: You can access the open-source repository directly on the [AppLovin MAX React Native GitHub](https://github.com/AppLovin/AppLovin-MAX-React-Native) to check out sample implementations and submit technical bug tracker issues. [3, 4] 
+* NPM Package: Download the official [react-native-applovin-max NPM Package](https://npmjs.com/package/react-native-applovin-max) to add the core dependency directly into your terminal repository. [5] 
+* 
+
+------------------------------
+## 🚀 3 Quick Rules for First-Time Setup Success
+Because you are taking action for the first time, follow this specific workflow sequence to guarantee you don't run into early compliance roadblocks:
+
+   1. Start in Dashboard First: Establish your base platform account using the [AppLovin MAX Getting Started Guide](https://support.applovin.com/en/max/getting-started), fill out your primary developer profile info, and immediately create your first "Ad Unit ID" for an Interstitial ad. [6] 
+   2. Build Your Code Safely: Install the package, hook up your AppLovinMAX.initialize() function, and immediately drop in your device’s test ID. [5] 
+   3. Verify the Watermark: Run your development build, trigger the pop-up, and physically verify that the explicit "Test Ad" text banner displays across the screen before pushing it live to any public stores.
+
+------------------------------
+Since you're executing this setup now, what specific state management (like standard React Hooks or Redux) are you using to manage whether your app is loading data while the ad prepares to pop up? I can write out the exact listener framework for you!
+
+[1] [https://www.youtube.com](https://www.youtube.com/watch?v=B36ksL6L-NU&t=381)
+[2] [https://support.applovin.com](https://support.applovin.com/en/max/react-native/overview/integration)
+[3] [https://github.com](https://github.com/AppLovin/AppLovin-MAX-React-Native)
+[4] [https://github.com](https://github.com/AppLovin/AppLovin-MAX-SDK-Android)
+[5] [https://npmjs.com](https://npmjs.com/package/react-native-applovin-max)
+[6] [https://support.applovin.com](https://support.applovin.com/en/max/getting-started)
+
+
+# Security
+
 To secure your React Native app with AppLovin immediately and prevent invalid traffic (IVT) bans, you must implement strict technical and design safeguards before serving your first live pop-up.
 ## 1. Hardcode Your Device as a Test Device (Mandatory)
 Never click or load live ads on your own phone during development. AppLovin will instantly flag repeated requests from the same IP/device as click fraud. In your React Native code, you must explicitly register your test device ID.

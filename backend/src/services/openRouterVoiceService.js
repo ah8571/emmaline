@@ -55,6 +55,7 @@ export const openRouterTextToSpeech = async (text, options = {}) => {
         model,
         input: text,
         voice,
+        response_format: 'mp3',
       },
       {
         headers: getHeaders(),

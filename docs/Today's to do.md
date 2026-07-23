@@ -48,7 +48,6 @@ emmaline_supabase_session etc. — storage keys (reset on re-login)
 [x] Set the env vars in DO: STRIPE_PRICE_WEEKLY, STRIPE_PRICE_MONTHLY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
 [x] Create the webhook endpoint in Stripe: https://api.oov.digital/api/stripe/webhook (events: checkout.session.completed, customer.subscription.updated, customer.subscription.deleted)
 
-*Z;J"9Ms">.@8MJ
 
 ## Create promo code workflows for influencers / sign up with affiliate networks
 
@@ -57,17 +56,10 @@ emmaline_supabase_session etc. — storage keys (reset on re-login)
 
 ## Consider weaving in less than .01 cent api providers
 
-**OpenRouter Audio APIs can cover the below
-Self-hosted providers
-Faster Whisper Large-v3 / Insanely Fast Whisper (.2 per hour of transcription potentially) - open-source
-Kokoro-82M with budget friendly runpod gpu could lead to sub .01 compute costs
-StyleTTS 2
-ChatTTS
-XTTS v2 by Coqui
 
 
 
-RunPod is a specialized GPU cloud provider. You lease massive Nvidia graphics cards (like H100s or A100s) to host, train, or serve AI models.The Focus: High-performance hardware optimization.The Cost: Expensive (ranging from $0.20/hr for tiny GPUs to $3.50+/hr for elite cards).The Use Case: RunPod is where companies host the actual brain of an open-weight model (like Qwen or Llama) if they choose not to use OpenRouter.
+
 
 Need to keep interstitial api costs lower than .01 ad payout
 
@@ -78,27 +70,7 @@ Transcription
 TTS reading (Apple has built in AVSpeechSynthesizer)
 Don't use for real time voice
 
-## Ads set up
-Ad-rewarded feature:
-"Ad-Triggered Actions: Instead of random pop-ups, use a Rewarded Interstitial ad format. Require the user to watch a 5-second video specifically to "unlock" a long transcription or article read-aloud. Users accept ads much better when it directly grants them a feature."
 
-Ad framework
-Because a 1-hour file costs $0.013 to process, a single standard pop-up ad ($0.010) leaves you at a slight loss. To make this profitable, you must adapt your ad strategy for long-form content.Instead of one random pop-up, you use two strategic ad placements:The 
-- Entry Ad: A standard interstitial pop-up when they hit "Transcribe".
-- The Processing Ad: While the server spends 90 seconds transcribing the file, you display a native video ad or a rewarded countdown on the processing screen.
-
-Higher paying ad types
-- playable game ads (eCpm 15 to 30)
-- 15 second ads lead to about 2.5c per watch
-
-User uploads a 1-hour file 
-   │
-   ├──> [Ad #1: Interstitial Pop-up] ──────> Earns you: +$0.010
-   │
-   ├──> [90-Second Server Processing Screen]
-   │    └──> Displays a 15s Video Ad ───────> Earns you: +$0.020
-   │
-   └──> Final Transcription Delivered 
 
 
 
