@@ -48,7 +48,7 @@ const READER_AUDIO_VOICE_OPTIONS = [
   },
   {
     id: 'kokoro',
-    label: 'Free',
+    label: 'Free voice',
     provider: 'openrouter'
   },
   {
@@ -1176,7 +1176,7 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
 
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Read on the go</Text>
-          <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>Paste text or import a plain-text file or PDF, then have your device read it aloud, save audio below, or download it for later.</Text>
+          <Text style={[styles.sectionDescription, { color: colors.mutedText }]}>Paste text or import a plain-text file or PDF, then have your device read it aloud. Audio saves automatically for non-basic voices.</Text>
 
           <View style={styles.actionRow}>
             <TouchableOpacity

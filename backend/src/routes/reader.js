@@ -215,10 +215,10 @@ router.post('/extract', authMiddleware, upload.single('document'), async (req, r
 
 router.post('/audio', authMiddleware, async (req, res) => {
   try {
-    const audioResponse = await buildReaderAudioResponse(normalizeReaderAudioRequest(req.body));
-
-    // Deduct credits for reader (2/min for natural voice, 0 for basic)
     const requestData = normalizeReaderAudioRequest(req.body);
+    const audioResponse = await buildReaderAudioResponse(requestData);
+
+    // Deduct credits for reader
     const creditMode = requestData.provider === 'resemble' || requestData.provider === 'elevenlabs' || requestData.provider === 'openrouter'
       ? 'reader_natural'
       : 'reader_basic';
@@ -233,14 +233,33 @@ router.post('/audio', authMiddleware, async (req, res) => {
       console.error('Credit deduction failed for reader audio:', creditError.message);
     }
 
+    // Auto-save for non-basic voices
+    let savedAudio = null;
+    if (requestData.provider !== 'device') {
+      try {
+        savedAudio = await saveReaderAudioRecord(req.user.userId, {
+          title: requestData.title || 'Reader audio',
+          sourceText: requestData.normalizedText,
+          fileName: audioResponse.fileName,
+          contentType: audioResponse.contentType,
+          audioBase64: audioResponse.audioBase64,
+          characterCount: audioResponse.metadata.characterCount,
+          chunkCount: audioResponse.metadata.chunkCount,
+          languageCode: audioResponse.metadata.languageCode,
+          provider: audioResponse.metadata.provider,
+          voiceProfile: audioResponse.metadata.voiceProfile,
+        });
+      } catch (saveError) {
+        console.error('Auto-save failed for reader audio:', saveError.message);
+      }
+    }
+
     return res.status(200).json({
       success: true,
       ...audioResponse,
+      savedAudioId: savedAudio?.id || null,
       credits: creditResult
-        ? {
-            consumed: creditResult.consumed,
-            balanceAfter: creditResult.balanceAfter
-          }
+        ? { consumed: creditResult.consumed, balanceAfter: creditResult.balanceAfter }
         : null
     });
   } catch (error) {
