@@ -169,9 +169,9 @@ const buildReaderAudioResponse = async ({ normalizedText, title, languagePrefere
   const chunks = splitTextIntoAudioChunks(normalizedText);
   const audioBuffers = [];
 
-  // Process chunks in parallel batches of 4 for speed
-  for (let i = 0; i < chunks.length; i += 4) {
-    const batch = chunks.slice(i, i + 4);
+  // Process chunks in parallel batches of 2 (OpenRouter rate limit friendly)
+  for (let i = 0; i < chunks.length; i += 2) {
+    const batch = chunks.slice(i, i + 2);
     const batchResults = await Promise.all(
       batch.map((chunk) =>
         textToAudio(chunk, {
@@ -189,6 +189,10 @@ const buildReaderAudioResponse = async ({ normalizedText, title, languagePrefere
       )
     );
     audioBuffers.push(...batchResults);
+    // Brief pause between batches to respect rate limits
+    if (i + 2 < chunks.length) {
+      await new Promise((r) => setTimeout(r, 500));
+    }
   }
 
   const mergedAudio = Buffer.concat(audioBuffers);
