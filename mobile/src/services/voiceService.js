@@ -367,9 +367,17 @@ const cleanupCallResources = async () => {
       durationSeconds,
       voice: callVoice,
       model: callModel || DEFAULT_REALTIME_MODEL
-    }).catch(() => {
-      // Best-effort call cost tracking.
+    }).then((result) => {
+      if (!result.success) {
+        console.warn('[VoiceMode] Call completion failed:', result.error);
+      } else {
+        console.log('[VoiceMode] Call recorded, ID:', result.callId);
+      }
+    }).catch((err) => {
+      console.error('[VoiceMode] Call completion error:', err?.message);
     });
+  } else {
+    console.log('[VoiceMode] Skipping call completion — duration:', durationSeconds, 'voice:', callVoice);
   }
 
   callStartedAtMs = null;

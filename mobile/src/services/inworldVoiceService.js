@@ -128,9 +128,7 @@ export const startInworldVoiceCall = async ({
     onTrace?.('inworld_rtc_config_fetching');
 
     // Fetch ICE servers + API credentials from our backend
-    const configUrl = __DEV__
-      ? 'http://127.0.0.1:3000/api/voice/inworld/rtc-config'
-      : `${API_BASE_URL}/voice/inworld/rtc-config`;
+    const configUrl = `${API_BASE_URL}/voice/inworld/rtc-config`;
 
     const configRes = await fetch(configUrl);
     const configData = await configRes.json();
