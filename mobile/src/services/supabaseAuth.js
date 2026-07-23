@@ -291,7 +291,7 @@ export const startOAuthSignIn = async ({ provider, scopes, queryParams } = {}) =
     options: {
       redirectTo,
       scopes,
-      skipBrowserRedirect: false,
+      skipBrowserRedirect: true,
       queryParams
     }
   });
