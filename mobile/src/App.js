@@ -507,7 +507,7 @@ const AppContent = () => {
           errorMessage = 'You have no credits available. Upgrade to continue';
         } else if (voiceSessionResponse.code === 'VOICE_BILLING_NOT_INITIALIZED') {
           errorMessage = 'Voice billing is not initialized on the backend yet. Run the billing entitlements migration and try again.';
-        } else if (voiceSessionResponse.code === 'VOICE_TWILIO_NOT_CONFIGURED' || voiceSessionResponse.code === 'VOICE_OPENAI_NOT_CONFIGURED') {
+        } else if (voiceSessionResponse.code === 'VOICE_OPENAI_NOT_CONFIGURED') {
           errorMessage = 'Voice provider token settings are missing on the backend.';
         } else if (voiceSessionResponse.code === 'VOICE_OPENAI_SESSION_FAILED') {
           errorMessage = 'The backend could not open an OpenAI realtime voice session.';

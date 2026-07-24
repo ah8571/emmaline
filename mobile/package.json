@@ -3,20 +3,6 @@
   "version": "0.1.0",
   "description": "React Native app for Emmaline AI Phone Call Buddy",
   "main": "index.js",
-  "expo": {
-    "autolinking": {
-      "ios": {
-        "exclude": [
-          "@twilio/voice-react-native-sdk"
-        ]
-      },
-      "android": {
-        "exclude": [
-          "@twilio/voice-react-native-sdk"
-        ]
-      }
-    }
-  },
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -36,7 +22,6 @@
     "@react-navigation/stack": "^6.3.18",
     "@sentry/react-native": "~7.2.0",
     "@supabase/supabase-js": "^2.38.0",
-    "@twilio/voice-react-native-sdk": "^1.7.0",
     "axios": "^1.6.0",
     "buffer": "^6.0.3",
     "expo": "~54.0.36",

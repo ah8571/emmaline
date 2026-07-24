@@ -4,7 +4,7 @@
     "slug": "emmaline",
     "version": "0.1.0",
     "icon": "./assets/new oov app icon (v3).png",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "updates": {

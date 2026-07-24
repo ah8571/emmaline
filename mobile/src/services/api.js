@@ -846,13 +846,6 @@ export const getVoiceSession = async () => {
   }
 };
 
-/**
- * Backward-compatible alias for older Twilio-specific callers.
- */
-export const getVoiceToken = async () => {
-  return getVoiceSession();
-};
-
 export const createGrokVoiceSession = async (options = {}) => {
   try {
     await addTokenToHeaders();
