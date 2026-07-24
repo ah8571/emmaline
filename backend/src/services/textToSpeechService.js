@@ -1,7 +1,7 @@
 /**
  * Text-to-Speech Service
  * Converts text responses to audio using configurable providers.
- * Supported providers: google, openai, elevenlabs, resemble
+ * Supported providers: google, openai, resemble, openrouter
  */
 
 import textToSpeech from '@google-cloud/text-to-speech';
@@ -16,12 +16,9 @@ import { openRouterTextToSpeech, isOpenRouterConfigured } from './openRouterVoic
 const DEFAULT_PROVIDER = (process.env.TTS_PROVIDER || 'google').toLowerCase();
 const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
 const OPENAI_TTS_VOICE = process.env.OPENAI_TTS_VOICE || 'alloy';
-const ELEVENLABS_MODEL_ID = process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2';
-const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'JBFqnCBsd6RMkjVDRZzb';
 const RESEMBLE_API_BASE_URL = process.env.RESEMBLE_API_BASE_URL || 'https://f.cluster.resemble.ai';
 const RESEMBLE_VOICE_UUID = process.env.RESEMBLE_VOICE_UUID || '';
 const RESEMBLE_PROJECT_UUID = process.env.RESEMBLE_PROJECT_UUID || '';
-const RESEMBLE_MODEL = process.env.RESEMBLE_MODEL || 'chatterbox-turbo';
 
 let ttsClient = null;
 let openaiClient = null;
@@ -98,42 +95,6 @@ const textToAudioOpenAI = async (text, options = {}) => {
   return Buffer.from(audioArrayBuffer);
 };
 
-const textToAudioElevenLabs = async (text, options = {}) => {
-  const apiKey = process.env.ELEVENLABS_API_KEY;
-
-  if (!apiKey) {
-    throw new Error('ElevenLabs API key missing. Set ELEVENLABS_API_KEY');
-  }
-
-  const voiceId = options.voiceId || ELEVENLABS_VOICE_ID;
-  const modelId = options.modelId || ELEVENLABS_MODEL_ID;
-
-  const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`;
-  const response = await axios.post(
-    url,
-    {
-      text,
-      model_id: modelId,
-      voice_settings: {
-        stability: options.stability ?? 0.5,
-        similarity_boost: options.similarityBoost ?? 0.75,
-        style: options.style ?? 0.0,
-        use_speaker_boost: options.useSpeakerBoost ?? true
-      }
-    },
-    {
-      headers: {
-        'xi-api-key': apiKey,
-        accept: 'audio/mpeg',
-        'content-type': 'application/json'
-      },
-      responseType: 'arraybuffer'
-    }
-  );
-
-  return Buffer.from(response.data);
-};
-
 const textToAudioResemble = async (text, options = {}) => {
   const apiKey = process.env.RESEMBLE_API_KEY;
 
@@ -154,9 +115,8 @@ const textToAudioResemble = async (text, options = {}) => {
       data: text,
       ...(options.projectUuid || RESEMBLE_PROJECT_UUID ? { project_uuid: options.projectUuid || RESEMBLE_PROJECT_UUID } : {}),
       ...(options.title ? { title: options.title } : {}),
-      model: options.model || RESEMBLE_MODEL,
       output_format: options.outputFormat || 'mp3',
-      sample_rate: options.sampleRate || 48000,
+      sample_rate: String(options.sampleRate || 48000),
       ...(options.precision ? { precision: options.precision } : {}),
       ...(options.useHd !== undefined ? { use_hd: Boolean(options.useHd) } : {}),
       ...(options.applyCustomPronunciations !== undefined
@@ -165,7 +125,7 @@ const textToAudioResemble = async (text, options = {}) => {
     },
     {
       headers: {
-        Authorization: apiKey,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'Accept-Encoding': 'gzip'
       }
@@ -221,8 +181,6 @@ export const textToAudio = async (
       audioBuffer = await textToAudioGoogle(text, options);
     } else if (provider === 'openai') {
       audioBuffer = await textToAudioOpenAI(text, options);
-    } else if (provider === 'elevenlabs') {
-      audioBuffer = await textToAudioElevenLabs(text, options);
     } else if (provider === 'resemble') {
       audioBuffer = await textToAudioResemble(text, options);
     } else if (provider === 'openrouter') {
@@ -277,33 +235,11 @@ export const getAvailableVoices = async (languageCode = 'en-US') => {
       ];
     }
 
-    if (DEFAULT_PROVIDER === 'elevenlabs') {
-      const apiKey = process.env.ELEVENLABS_API_KEY;
-      if (!apiKey) {
-        throw new Error('ElevenLabs API key missing. Set ELEVENLABS_API_KEY');
-      }
-
-      const response = await axios.get('https://api.elevenlabs.io/v1/voices', {
-        headers: {
-          'xi-api-key': apiKey
-        }
-      });
-
-      return (response.data.voices || []).map(voice => ({
-        provider: 'elevenlabs',
-        name: voice.name,
-        voiceId: voice.voice_id,
-        category: voice.category,
-        labels: voice.labels || {}
-      }));
-    }
-
     if (DEFAULT_PROVIDER === 'resemble') {
       return [{
         provider: 'resemble',
         name: 'Configured Resemble voice',
         voiceUuid: RESEMBLE_VOICE_UUID || null,
-        model: RESEMBLE_MODEL
       }];
     }
 

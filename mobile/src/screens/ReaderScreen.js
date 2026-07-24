@@ -37,7 +37,6 @@ const MAX_SPEECH_CHUNK_LENGTH = 1600;
 const MIN_BODY_INPUT_HEIGHT = 280;
 const READER_AUDIO_DIRECTORY = `${FileSystem.documentDirectory}reader-audio`;
 const READER_AUDIO_INDEX_FILE = `${READER_AUDIO_DIRECTORY}/latest.json`;
-const READER_TTS_START_TIMEOUT_MS = 2500;
 const READER_AUDIO_VOICE_OPTIONS = [
   {
     id: 'lucy',
@@ -347,7 +346,6 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
   const speechChunksRef = useRef([]);
   const speechIndexRef = useRef(0);
   const speechCancelledRef = useRef(false);
-  const speechStartTimeoutRef = useRef(null);
   const readAloudFallbackSoundRef = useRef(null);
   const readAloudFallbackUriRef = useRef(null);
   const preparingReadAloudRef = useRef(false);
@@ -437,10 +435,6 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
       Speech.stop().catch(() => {
         // Ignore cleanup failures during unmount.
       });
-      if (speechStartTimeoutRef.current) {
-        clearTimeout(speechStartTimeoutRef.current);
-        speechStartTimeoutRef.current = null;
-      }
       unloadReadAloudFallbackAudio().catch(() => {
         // Ignore cleanup failures during unmount.
       });
@@ -465,10 +459,6 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
     speechCancelledRef.current = true;
     speechChunksRef.current = [];
     speechIndexRef.current = 0;
-    if (speechStartTimeoutRef.current) {
-      clearTimeout(speechStartTimeoutRef.current);
-      speechStartTimeoutRef.current = null;
-    }
     setIsPreparingReadAloudFallback(false);
     setIsSpeaking(false);
 
@@ -647,7 +637,7 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
     logReaderTts('fallbackAudio:playing');
   }, [refreshSavedAudioEntries]);
 
-  const speakNextChunk = useCallback(async (language, rate, fallbackConfig) => {
+  const speakNextChunk = useCallback(async (language, rate) => {
     if (speechCancelledRef.current) {
       logReaderTts('speakNextChunk:cancelledBeforeStart');
       return;
@@ -669,58 +659,10 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
       rate
     });
 
-    if (speechStartTimeoutRef.current) {
-      clearTimeout(speechStartTimeoutRef.current);
-    }
-
-    speechStartTimeoutRef.current = setTimeout(() => {
-      speechStartTimeoutRef.current = null;
-
-      if (speechCancelledRef.current) {
-        return;
-      }
-
-      logReaderTts('speakNextChunk:startTimeout', {
-        chunkIndex: speechIndexRef.current
-      });
-
-      if (!fallbackConfig) {
-        setIsSpeaking(false);
-        return;
-      }
-
-      Speech.stop().catch(() => {
-        // Ignore best-effort stop failures when the engine never bound.
-      });
-      playReadAloudFallbackAudio(fallbackConfig).catch((error) => {
-        logReaderTts('fallbackAudio:unexpectedError', {
-          error: error?.message || String(error)
-        });
-        setIsSpeaking(false);
-        Alert.alert(
-          'Reader error',
-          'Read aloud could not start on this device, and the audio fallback failed too.'
-        );
-      });
-    }, READER_TTS_START_TIMEOUT_MS);
-
     Speech.speak(nextChunk, {
       language,
       rate,
-      onStart: () => {
-        if (speechStartTimeoutRef.current) {
-          clearTimeout(speechStartTimeoutRef.current);
-          speechStartTimeoutRef.current = null;
-        }
-        logReaderTts('speakNextChunk:onStart', {
-          chunkIndex: speechIndexRef.current
-        });
-      },
       onDone: () => {
-        if (speechStartTimeoutRef.current) {
-          clearTimeout(speechStartTimeoutRef.current);
-          speechStartTimeoutRef.current = null;
-        }
         logReaderTts('speakNextChunk:onDone', {
           chunkIndex: speechIndexRef.current
         });
@@ -732,23 +674,15 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
           return;
         }
 
-        speakNextChunk(language, rate, fallbackConfig);
+        speakNextChunk(language, rate);
       },
       onStopped: () => {
-        if (speechStartTimeoutRef.current) {
-          clearTimeout(speechStartTimeoutRef.current);
-          speechStartTimeoutRef.current = null;
-        }
         logReaderTts('speakNextChunk:onStopped', {
           chunkIndex: speechIndexRef.current
         });
         setIsSpeaking(false);
       },
       onError: (error) => {
-        if (speechStartTimeoutRef.current) {
-          clearTimeout(speechStartTimeoutRef.current);
-          speechStartTimeoutRef.current = null;
-        }
         logReaderTts('speakNextChunk:onError', {
           chunkIndex: speechIndexRef.current,
           error: error ? String(error) : null
@@ -757,12 +691,12 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
         Alert.alert('Reader error', 'The device could not read this text aloud.');
       }
     });
-  }, [playReadAloudFallbackAudio]);
+  }, []);
 
   // On-device Kokoro TTS — model downloads once (~300 MB) on first use, then works offline with zero cost.
   const [kokoroLoadRequested, setKokoroLoadRequested] = useState(false);
   const kokoroTts = useTextToSpeech(
-    models.text_to_speech.kokoro.en_us.heart,
+    models.text_to_speech.kokoro.en_us.heart(),
     { preventLoad: !kokoroLoadRequested }
   );
 
@@ -878,7 +812,7 @@ const ReaderScreen = ({ onAppHeaderScroll }) => {
       speechCancelledRef.current = false;
       setIsSpeaking(true);
       logReaderTts('handleReadAloud:basicVoice', { chunks: chunks.length, language });
-      speakNextChunk(language, speechRate, null);
+      speakNextChunk(language, speechRate);
       return;
     }
 

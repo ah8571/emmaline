@@ -19,23 +19,19 @@ const MAX_AUDIO_CHUNK_LENGTH = 4000;
 const MAX_AUDIO_CHUNK_LENGTH_OPENROUTER = 400;
 const DEFAULT_READER_PROVIDER = String(process.env.READER_TTS_PROVIDER || process.env.TTS_PROVIDER || 'google').trim().toLowerCase();
 const DEFAULT_RESEMBLE_VOICE_PROFILE = String(process.env.READER_RESEMBLE_VOICE_PROFILE || 'lucy').trim().toLowerCase();
-const RESEMBLE_MODEL = process.env.RESEMBLE_MODEL || 'chatterbox-turbo';
 const RESEMBLE_VOICE_CATALOG = [
   {
     id: 'lucy',
-    voiceUuid: 'fb2d2858',
-    model: RESEMBLE_MODEL
+    voiceUuid: 'fb2d2858'
   },
   {
     id: 'ethan',
-    voiceUuid: 'bee581c1',
-    model: RESEMBLE_MODEL
+    voiceUuid: 'bee581c1'
   }
 ];
 const RESEMBLE_VOICE_PROFILES = RESEMBLE_VOICE_CATALOG.reduce((profiles, voice) => {
   profiles[voice.id] = {
-    voiceUuid: voice.voiceUuid,
-    model: voice.model
+    voiceUuid: voice.voiceUuid
   };
   return profiles;
 }, {});
@@ -173,8 +169,7 @@ const resolveReaderVoiceConfig = (provider, languagePreference, voiceProfile) =>
   return {
     ...baseConfig,
     voiceProfile: normalizedProfile,
-    voiceUuid: profileConfig.voiceUuid,
-    model: profileConfig.model
+    voiceUuid: profileConfig.voiceUuid
   };
 };
 
@@ -295,7 +290,7 @@ router.post('/audio', authMiddleware, async (req, res) => {
     const audioResponse = await buildReaderAudioResponse(requestData);
 
     // Deduct credits for reader
-    const creditMode = requestData.provider === 'resemble' || requestData.provider === 'elevenlabs' || requestData.provider === 'openrouter'
+    const creditMode = requestData.provider === 'resemble' || requestData.provider === 'openrouter'
       ? 'reader_natural'
       : 'reader_basic';
     const estimatedDurationSeconds = Math.ceil((audioResponse.metadata.characterCount / 900) * 60);
@@ -350,7 +345,7 @@ router.post('/audio/save', authMiddleware, async (req, res) => {
     const audioResponse = await buildReaderAudioResponse(requestData);
 
     // Deduct credits for reader (2/min for natural voice, 0 for basic)
-    const creditMode = requestData.provider === 'resemble' || requestData.provider === 'elevenlabs' || requestData.provider === 'openrouter'
+    const creditMode = requestData.provider === 'resemble' || requestData.provider === 'openrouter'
       ? 'reader_natural'
       : 'reader_basic';
     const estimatedDurationSeconds = Math.ceil((audioResponse.metadata.characterCount / 900) * 60);

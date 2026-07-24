@@ -1562,7 +1562,6 @@ export default {
   deleteCall,
   getCallDetail,
   getVoiceSession,
-  getVoiceToken,
   createVoiceCallConnection,
   endCall,
   getTranscript,
